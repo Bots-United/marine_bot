@@ -1,0 +1,193 @@
+%name-prefix="conf_"
+%pure_parser
+%defines
+%{
+
+#if defined(WIN32)
+#pragma warning(disable:4786)
+#pragma warning(disable:4065)
+#endif
+
+#include <cstdio>
+#include <string>
+#include <map>
+
+using std::string;
+using std::map;
+using std::pair;
+using std::make_pair;
+
+#include "Config.h"
+
+#define YYPARSE_PARAM param_p
+#define YYERROR_VERBOSE
+
+extern void conf_error(const char*);                                               
+extern int conf_lineno;
+%}
+
+%union {
+    char *val;
+}
+
+%token <val> STRING 
+%token <val> QSTRING 
+%token <val> ATTRIBUTE 
+%token <val> SET
+
+%token <val> SECTION_BEGIN
+%token <val> SECTION_END
+
+%token INCLUDE_FILE
+%token EOF_FILE
+
+%type <val> value
+
+%{
+
+int conf_lex(YYSTYPE *lvalp);
+//int conf_lex (YYSTYPE *lvalp, YYLTYPE *llocp)
+
+%}
+%%
+
+point_list:	point_list item
+	|	point_list section
+	|	point_list include_file
+	|	point_list end_of_file
+	|	item
+	|	section
+	|	include_file
+	|	end_of_file
+;
+
+section:	section_start point_list section_end
+	|	section_start section_end
+;
+
+section_start:	
+    SECTION_BEGIN	{ 
+	//printf("SECTION_BEGIN\n"); 
+	char section_name[1024];
+	/*conf_parse((void*)&((Section *) section_p)->sectionList[section_name]);*/
+	{
+	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    sprintf(section_name, " %06d", cur_sect->sectionList.size());
+	    Section *new_sect = NULL;
+	    try {
+		new_sect = new Section();
+	    } catch (...) {
+		new_sect = NULL;
+	    }
+	    if (new_sect != NULL) {
+		cur_sect->sectionList.insert(make_pair(std::string(section_name), new_sect)); 
+		cur_sect = new_sect;
+		((ParserParam *) param_p)->sect_stack.push(cur_sect);
+	    }
+	}
+    }
+    |	ATTRIBUTE SECTION_BEGIN	
+    { 
+	//printf("SECTION_BEGIN %s \n", $1);
+	/*conf_parse((void*)&((Section *) section_p)->sectionList[$1]);*/
+	{
+	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    Section *new_sect = NULL;
+	    try {
+		new_sect = new Section();
+	    } catch (...) {
+		new_sect = NULL;
+	    }
+	    if (new_sect != NULL) {
+		cur_sect->sectionList.insert(make_pair($1, new_sect)); 
+		cur_sect = new_sect;
+		((ParserParam *) param_p)->sect_stack.push(cur_sect);
+	    }
+	    delete($1);
+	}
+    }
+    ;
+
+section_end:	SECTION_END	{ 
+	//printf("SECTION_END\n");
+	if (((ParserParam *) param_p)->sect_stack.empty()) {
+	    YYABORT;
+	}
+	{
+	    ((ParserParam *) param_p)->sect_stack.pop();
+	}
+    }
+    ;
+
+item:	
+    ATTRIBUTE SET value ';'	
+    { 
+	//printf("ITEM %s=%s\n", $1, $3);
+	{
+	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    cur_sect->item[$1] = $3;
+	    delete($1);
+	    delete($3);
+	}
+    }
+    | value ';'
+    {
+	{
+	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    char item_name[1024];
+	    sprintf(item_name, " %06d", cur_sect->item.size());
+	    cur_sect->item[item_name] = $1;
+	    delete($1);
+	}
+    }
+    ;
+
+value:	
+    QSTRING			{ /*printf("QSTRING %s\n", $1);*/ }
+    |	STRING		{ /*printf("STRING %s\n", $1);*/ }
+    |	ATTRIBUTE	{ /*printf("ATTRIBUTE %s\n", $1);*/ }
+    ;
+
+include_file:
+    INCLUDE_FILE QSTRING	{
+	//printf("INCLUDE_FILE %s\n", $2);
+	{
+	    FILE *new_in = fopen($2, "r");
+	    if ( new_in != NULL) {
+		((ParserParam *) param_p)->in_stack.push(conf_in);
+		conf_in = new_in;
+		delete($2);
+	    }
+	    else {
+		printf("can't open file %s (string %d)\n", $2, conf_lineno);
+		//YYERROR;
+		delete($2);
+		YYABORT;
+	    }
+	}
+    }
+    ;
+
+end_of_file:
+    EOF_FILE	{
+	/*
+	if ((((ParserParam *) param_p)->in_stack.size())!=0) {
+	    fclose(conf_in);
+	    conf_in = ((ParserParam *) param_p)->in_stack.top();
+	    ((ParserParam *) param_p)->in_stack.pop();
+	}
+	*/
+	conf_lineno = 0;
+	YYACCEPT;
+    }
+    ;
+%%
+
+void conf_error(const char *s) {
+    fprintf(stderr, "%s (see string %d)", s, conf_lineno);
+}
+
+
+
+
+

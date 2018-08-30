@@ -1,0 +1,36 @@
+﻿  waypoint.cpp
+e:\dropbox\src\marine_bot\waypoint.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  util.cpp
+e:\dropbox\src\marine_bot\util.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  PathMap.cpp
+e:\dropbox\src\marine_bot\pathmap.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  namefunc.cpp
+e:\dropbox\src\marine_bot\namefunc.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  mb_hud.cpp
+e:\dropbox\src\marine_bot\mb_hud.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  linkfunc.cpp
+e:\dropbox\src\marine_bot\linkfunc.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  lex.yy.cpp
+e:\dropbox\src\marine_bot\config\lex.yy.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  h_export.cpp
+e:\dropbox\src\marine_bot\h_export.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  engine.cpp
+e:\dropbox\src\marine_bot\engine.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  dll.cpp
+e:\dropbox\src\marine_bot\dll.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  config.tab.cpp
+e:\dropbox\src\marine_bot\config\config.tab.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  Config.cpp
+e:\dropbox\src\marine_bot\config\config.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  bot_start.cpp
+e:\dropbox\src\marine_bot\bot_start.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  bot_navigate.cpp
+e:\dropbox\src\marine_bot\bot_navigate.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  bot_combat.cpp
+e:\dropbox\src\marine_bot\bot_combat.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  bot_client.cpp
+e:\dropbox\src\marine_bot\bot_client.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  bot.cpp
+e:\dropbox\src\marine_bot\bot.cpp : fatal error C1041: cannot open program database 'e:\dropbox\src\marine_bot\debug\vc120.idb'; if multiple CL.EXE write to the same .PDB file, please use /FS
+  Generating Code...
+cl : Command line warning D9028: minimal rebuild failure, reverting to normal build
