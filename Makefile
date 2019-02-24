@@ -1,6 +1,6 @@
 # the following specifies the path to your MOD...
 
-CPP = gcc-4.8
+CPP = g++-4.8
 
 VPATH=.:./Config
 

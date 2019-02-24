@@ -164,7 +164,7 @@ bool welcome_sent = FALSE;
 bool welcome2_sent = FALSE;
 bool welcome3_sent = FALSE;		// special that shows waypoint's authors
 char welcome_msg[] = "reporting for duty!\nWrite \"help\" or \"?\" into console to show console help";
-char welcome2_msg[] = "Visit our web page at:\nhttp://marinebot.xf.cz";
+char welcome2_msg[] = "Visit our web page at:\nhttp://www.marinebot.xf.cz";
 
 float error_time = 0.0;
 bool error_occured = FALSE;		// TRUE when there is fatal error
@@ -217,9 +217,9 @@ float presentation_time = 0.0;				// holds the time of last presentation
 char presentation_msg[] = "This server runs Marine Bot in version";
 
 #ifdef NOFAMAS
-char mb_version_info[32] = "0.92_noFamas";
+char mb_version_info[32] = "0.93b_noFamas";
 #else
-char mb_version_info[32] = "0.92-[APG]";		// holds MarineBot version string
+char mb_version_info[32] = "0.93b-[APG]";		// holds MarineBot version string
 #endif
 
 char bot_whine[MAX_BOT_WHINE][81];
@@ -495,6 +495,7 @@ int DispatchSpawn( edict_t *pent )
 	{
 		char *pClassname = (char *)STRING(pent->v.classname);
 
+#ifdef _DEBUG
 		if (debug_engine)
 		{
 			fp=fopen(debug_fname,"a");
@@ -505,6 +506,7 @@ int DispatchSpawn( edict_t *pent )
 
 			fclose(fp);
 		}
+#endif
 
 		// this method is the first method that's being called on map change
 		// so do level initialization stuff here
@@ -707,7 +709,9 @@ void DispatchBlocked( edict_t *pentBlocked, edict_t *pentOther )
 
 void DispatchKeyValue( edict_t *pentKeyvalue, KeyValueData *pkvd )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "DispatchKeyValue: %x %s=%s\n",pentKeyvalue,pkvd->szKeyName,pkvd->szValue); fclose(fp); }
+#endif
 
 	//static edict_t *temp_pent;
 	//static int flag_index;
@@ -778,7 +782,9 @@ BOOL ClientConnect( edict_t *pEntity, const char *pszName, const char *pszAddres
 	{
 		int i;
 
+#ifdef _DEBUG
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientConnect: pent=%x name=%s\n",pEntity,pszName); fclose(fp); }
+#endif
 
 		// check if this client is the listen server client
 		if (strcmp(pszAddress, "loopback") == 0)
@@ -830,7 +836,9 @@ void ClientDisconnect( edict_t *pEntity )
 	{
 		int i;
 
+#ifdef _DEBUG
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientDisconnect: %x\n",pEntity); fclose(fp); }
+#endif
 
 		i = 0;
 		while ((i < MAX_CLIENTS) && (clients[i].pEntity != pEntity))
@@ -912,14 +920,18 @@ void ClientDisconnect( edict_t *pEntity )
 
 void ClientKill( edict_t *pEntity )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientKill: %x\n",pEntity); fclose(fp); }
+#endif
 
 	(*other_gFunctionTable.pfnClientKill)(pEntity);
 }
 
 void ClientPutInServer( edict_t *pEntity )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientPutInServer: %x\n",pEntity); fclose(fp); }
+#endif
 
 	int i = 0;
 
@@ -1070,7 +1082,7 @@ void ClientCommand( edict_t *pEntity )
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "<><><><><><><><><><><><><><><><><><><<><><><><><><>\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[help <botsetup>] botsetting help | [help <cheats>] few cheats | [help <misc>] various settings help\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[wpt <help>] waypointing help | [autowpt <help>] autowaypointing help | [pathwpt <help>] pathwaypointing help\n");
-				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[debug <help>] debugging help\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[debug <help>] debugging help | [test <help>] test help\n");
 			}
 
 			return;
@@ -1804,7 +1816,39 @@ void ClientCommand( edict_t *pEntity )
 				ClientPrint(pEntity, HUD_PRINTNOTIFY, "debug_weapons DISABLED!\n");
 
 			return;
-		}		
+		}
+		else if (FStrEq(pcmd, "test"))
+		{
+			if ((FStrEq(arg1, "help")) || (FStrEq(arg1, "?")))
+			{
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "\nAll valid test commands\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[aimcode] toggle standard/new aim code; the new aim code isn't fully finished\n");
+			}
+			else if ((FStrEq(arg1, "aimcode")) || (FStrEq(arg1, "aim_code")))
+			{
+				extern bool g_test_aim_code;
+
+				if (g_test_aim_code)
+				{
+					g_test_aim_code = false;
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "experimental aim code DISABLED!\n");
+				}
+				else
+				{
+					g_test_aim_code = true;
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "experimental aim code ENABLED!\n");
+					ClientPrint(pEntity, HUD_PRINTCONSOLE, "This new aim code isn't finished yet so you may experience a lot of misses and buggy behaviour!\n");
+				}
+			}
+			else
+			{
+				PlaySoundConfirmation(pEntity, SND_FAILED);
+				ClientPrint(pEntity, HUD_PRINTNOTIFY, "invalid or missing argument!\n");
+				ClientPrint(pEntity, HUD_PRINTNOTIFY, "***TIP: use 'test help' for help***\n");
+			}
+
+			return;
+		}
 		else if (FStrEq(pcmd, "wpt"))
 		{
 			if ((FStrEq(arg1, "help")) || (FStrEq(arg1, "?")))
@@ -1821,8 +1865,9 @@ void ClientCommand( edict_t *pEntity )
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[load <name>] load waypoints & paths from specified 'name' files\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[loadunsupported] load older waypoints & paths from HDD (it's usually done automatically at map start)\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[loadunsupportedversion5] load old waypoints & paths made for MB0.8b (i.e. waypoint system version 5)\n");
-				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[info <more/full>] info about close waypoint; 'more' additional info; 'full' all info\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[info <arg1> <arg2>] info about close or 'arg' waypoint; 'more' additional info; 'full' all info\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[count] info about total amounts of waypoints\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[printall] print all used waypoints and their flags; repeat this command to list through them\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[triggerevent <arg1> <arg2> <arg3>] allow dynamic priority gating (use 'wpt triggerevent help' for more info)\n");
 			}
 			else if (FStrEq(arg1, "types"))
@@ -1856,6 +1901,8 @@ void ClientCommand( edict_t *pEntity )
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[subscribe <name>] add name (up to 32 chars - no spaces) signature to waypoints\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[modified <name>] add name (up to 32 chars - no spaces) signature to waypoints\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[drawdistance <num>] set the max distance the waypoint can be to show on screen\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[position <index>] print the position of 'index' waypoint and yours too\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[detect <index>] print all entities like buttons, bandages etc. that are around 'index' waypoint\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[repair <arg1> <arg2>] automatic waypoint repair tools (use 'wpt repair help' for more info)\n");
 			}
 			else if (FStrEq(arg1, "on"))
@@ -2279,18 +2326,17 @@ void ClientCommand( edict_t *pEntity )
 			}
 			else if (FStrEq(arg1, "info"))
 			{
-				if (FStrEq(arg2, "full"))
-					WaypointPrintInfo(pEntity, 2);
-				else if (FStrEq(arg2, "more"))
-					WaypointPrintInfo(pEntity, 1);
-				else
-					WaypointPrintInfo(pEntity, 0);
+				WaypointPrintInfo(pEntity, arg2, arg3);
 			}
 			else if (FStrEq(arg1, "count"))			// print number of available wpts
 			{
 				sprintf(msg, "waypoints already used= %d still could use= %d out of %d\n",
 					num_waypoints, MAX_WAYPOINTS - num_waypoints, MAX_WAYPOINTS);
 				ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
+			}
+			else if (FStrEq(arg1, "printall"))
+			{
+				WaypointPrintAllWaypoints(pEntity);
 			}
 			else if ((FStrEq(arg1, "triggerevent")) || (FStrEq(arg1, "trigger_event")))	// handle the triggers
 			{
@@ -2656,16 +2702,117 @@ void ClientCommand( edict_t *pEntity )
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
 				}
 			}
+			else if ((FStrEq(arg1, "position")) || (FStrEq(arg1, "pos")))	// print waypoint origin
+			{
+				if ((arg2 != NULL) && (*arg2 != 0))
+				{
+					int wpt_index = atoi(arg2) - 1;
+
+					if ((wpt_index >= 0) && (wpt_index < num_waypoints))
+					{
+						if (IsWaypoint(wpt_index, wpt_no))
+						{
+							PlaySoundConfirmation(pEntity, SND_FAILED);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoint doesn't exist (was deleted)!\n");
+						}
+						else
+						{
+							PlaySoundConfirmation(pEntity, SND_DONE);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, "Waypoint position is:\n");
+
+							sprintf(msg, "X-coord: %.2f \t\t Y-coord: %.2f \t\t Z-coord (height): %.2f \n",
+								waypoints[wpt_index].origin.x, waypoints[wpt_index].origin.y, waypoints[wpt_index].origin.z);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
+
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, "Your position is:\n");
+
+							sprintf(msg, "X-coord: %.2f \t\t Y-coord: %.2f \t\t Z-coord (height): %.2f \n",
+								pEntity->v.origin.x, pEntity->v.origin.y, pEntity->v.origin.z);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
+						}
+					}
+					else
+					{
+						PlaySoundConfirmation(pEntity, SND_FAILED);
+						ClientPrint(pEntity, HUD_PRINTNOTIFY, "invalid waypoint index!\n");
+					}
+				}
+				else
+				{
+					PlaySoundConfirmation(pEntity, SND_FAILED);
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "invalid or missing argument!\n");
+				}
+			}
+			else if (FStrEq(arg1, "detect"))	// print all entities around waypoint
+			{
+				if ((arg2 != NULL) && (*arg2 != 0))
+				{
+					int wpt_index = atoi(arg2) - 1;
+
+					if ((wpt_index >= 0) && (wpt_index < num_waypoints))
+					{
+						if (IsWaypoint(wpt_index, wpt_no))
+						{
+							PlaySoundConfirmation(pEntity, SND_FAILED);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoint doesn't exist (was deleted)!\n");
+						}
+						else
+						{
+							edict_t *pent = NULL;
+							char entities[242];
+							entities[0] = '\0';
+
+							PlaySoundConfirmation(pEntity, SND_DONE);
+							ClientPrint(pEntity, HUD_PRINTNOTIFY, "Checking entities around ...\n");
+
+							while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin,
+								PLAYER_SEARCH_RADIUS)) != NULL)
+							{
+								if (strlen(entities) > 0)
+									strcat(entities, " & ");
+
+								strcat(entities, STRING(pent->v.classname));
+							}
+
+							if (strlen(entities) == 0)
+							{
+								ClientPrint(pEntity, HUD_PRINTNOTIFY, "found nothing!\n");
+							}
+							else
+							{
+								sprintf(msg, "found: %s\n", entities);
+								ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
+							}
+						}
+					}
+				}
+			}
 			else if (FStrEq(arg1, "repair"))	// handle waypoint repair functions
 			{
 				if ((FStrEq(arg2, "help")) || (FStrEq(arg2, "?")))
 				{
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "\nAll waypoint repair commands\n---------------------------\n");
+					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[masterrepair] apply all available fixes except for range and position\n");
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[range <index>] fix range on all waypoints or on the 'index' waypoint\n");
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[range_and_position <index>] fix range and position on all waypoints or on the 'index' waypoint\n");
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[pathend <index>] fix missing goback on 'index' path end or all paths if no index specified\n");
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[pathmerge <index>] fix invalid path merge on 'index' path or all paths if no index specified\n");
 					ClientPrint(pEntity, HUD_PRINTCONSOLE, "[sniperspot <index>] fix wrongly set sniper spot on 'index' path or all paths if no index specified\n");
+				}
+				else if (FStrEq(arg2, "masterrepair"))
+				{
+					WaypointRepairInvalidPathMerge();
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "all paths were checked for invalid merge and found problems were repaired ...\n");
+					
+					WaypointRepairInvalidPathEnd();
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "all paths were checked for missing goback and all available fixes were applied ...\n");
+
+					WaypointRepairSniperSpot();
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "any wrongly set sniper spot that was found was repaired! ...\n");
+
+					PlaySoundConfirmation(pEntity, SND_DONE);
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoint master repair DONE!\n");
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "***TIP: use 'wpt save' command if you want to keep all these changes***\n");
 				}
 				else if (FStrEq(arg2, "range"))
 				{
@@ -2942,7 +3089,9 @@ void ClientCommand( edict_t *pEntity )
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[count] print info about total amounts of paths\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[info <index>] print info about 'index' path or path on close waypoint\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[printall <arg>] print info about all paths or paths on 'arg' waypoint or close wpt if arg is 'nearby'\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[printpath <index>] print all waypoints and their types from 'index' path\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[checkinvalid <info>] remove all invalid paths ie. with length=1; if 'info' it will print more info\n");
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[checkproblems <save>] print problems with paths; if 'save' it will write all in MB error log file\n");
 				ClientPrint(pEntity, HUD_PRINTCONSOLE, "[highlight <arg>] show only path or paths matching the 'arg' filter; used without 'arg' will turn it off\n");
 #ifdef _DEBUG
 				//!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3095,6 +3244,28 @@ void ClientCommand( edict_t *pEntity )
 				else
 					WaypointPrintAllPaths(pEntity, -1);
 			}
+			else if (FStrEq(arg1, "printpath"))
+			{
+				if ((arg2 != NULL) && (*arg2 != 0))
+				{
+					int path_index = atoi(arg2) - 1;
+
+					if ((path_index >= 0) && (path_index < num_w_paths) && WaypointPrintWholePath(pEntity, path_index))
+					{
+						PlaySoundConfirmation(pEntity, SND_DONE);
+					}
+					else
+					{
+						PlaySoundConfirmation(pEntity, SND_FAILED);
+						ClientPrint(pEntity, HUD_PRINTNOTIFY, "that path doesn't exist!\n");
+					}
+				}
+				else
+				{
+					PlaySoundConfirmation(pEntity, SND_FAILED);
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "missing argument!\n");
+				}
+			}
 			else if (FStrEq(arg1, "checkinvalid"))
 			{
 				int result;
@@ -3107,13 +3278,36 @@ void ClientCommand( edict_t *pEntity )
 				if (result == 0)
 				{
 					PlaySoundConfirmation(pEntity, SND_DONE);
-					ClientPrint(pEntity, HUD_PRINTNOTIFY, "all path are valid\n");
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "all paths are valid\n");
 				}
 				else if (result > 0)
 				{
 					PlaySoundConfirmation(pEntity, SND_DONE);
 					
 					sprintf(msg, "total of %d invalid paths has been successfully removed\n",
+						result);
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
+				}
+			}
+			else if ((FStrEq(arg1, "checkproblems")) || (FStrEq(arg1, "checkforproblems")))
+			{
+				int result;
+
+				if (FStrEq(arg2, "save"))
+					result = UTIL_CheckPathsForProblems(TRUE);
+				else
+					result = UTIL_CheckPathsForProblems(FALSE);
+
+				if (result == 0)
+				{
+					PlaySoundConfirmation(pEntity, SND_DONE);
+					ClientPrint(pEntity, HUD_PRINTNOTIFY, "all paths successfully passed\n");
+				}
+				else
+				{
+					PlaySoundConfirmation(pEntity, SND_FAILED);
+
+					sprintf(msg, "total of %d bugs/possible problems with paths have been found\n***TIP: use 'pathwpt highlight' to locate the problem paths***\n",
 						result);
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
 				}
@@ -3139,6 +3333,8 @@ void ClientCommand( edict_t *pEntity )
 						if (path == HIGHLIGHT_RED)
 						{
 							highlight_this_path = path;
+							g_waypoint_on = TRUE;			// force displaying waypoints and
+							g_path_waypoint_on = TRUE;		// paths too
 
 							PlaySoundConfirmation(pEntity, SND_DONE);
 							ClientPrint(pEntity, HUD_PRINTNOTIFY, "path highlighting is ON!\nall red team possible paths will be drawn\n");
@@ -3146,6 +3342,8 @@ void ClientCommand( edict_t *pEntity )
 						else if (path == HIGHLIGHT_BLUE)
 						{
 							highlight_this_path = path;
+							g_waypoint_on = TRUE;
+							g_path_waypoint_on = TRUE;
 
 							PlaySoundConfirmation(pEntity, SND_DONE);
 							ClientPrint(pEntity, HUD_PRINTNOTIFY, "path highlighting is ON!\nall blue team possible paths will be drawn\n");
@@ -3153,6 +3351,8 @@ void ClientCommand( edict_t *pEntity )
 						else if (path == HIGHLIGHT_ONEWAY)
 						{
 							highlight_this_path = path;
+							g_waypoint_on = TRUE;
+							g_path_waypoint_on = TRUE;
 
 							PlaySoundConfirmation(pEntity, SND_DONE);
 							ClientPrint(pEntity, HUD_PRINTNOTIFY, "path highlighting is ON!\nall one-way paths will be drawn\n");
@@ -3160,6 +3360,8 @@ void ClientCommand( edict_t *pEntity )
 						else if (w_paths[path] != NULL)
 						{
 							highlight_this_path = path;
+							g_waypoint_on = TRUE;
+							g_path_waypoint_on = TRUE;
 
 							PlaySoundConfirmation(pEntity, SND_DONE);
 							sprintf(msg, "path highlighting is ON!\npath no. %d is now the only drawn path\n", path + 1);
@@ -3175,7 +3377,7 @@ void ClientCommand( edict_t *pEntity )
 					{
 						PlaySoundConfirmation(pEntity, SND_FAILED);
 						ClientPrint(pEntity, HUD_PRINTNOTIFY, "invalid argument!\n");
-						ClientPrint(pEntity, HUD_PRINTNOTIFY, "valid arguments are: red, blue, oneway and index (where index is a number between 1 and 512)\n");
+						ClientPrint(pEntity, HUD_PRINTNOTIFY, "valid arguments are: red, blue, oneway and index (where index is path number ie. a number between 1 and 512)\n");
 					}
 				}
 				else
@@ -3587,10 +3789,37 @@ void ClientCommand( edict_t *pEntity )
 
 #ifdef _DEBUG
 			// ONLY FOR TESTS
-			else if (FStrEq(arg1, "pap"))
+			else if (FStrEq(arg1, "movepathz"))
 			{
-				WaypointPrintAllPaths(pEntity, -1);
+				if ((arg2 != NULL) && (*arg2 != 0))
+				{
+					int path_index = atoi(arg2) - 1;
+
+					if ((path_index >= 0) && (path_index < num_w_paths - 1))
+					{
+						float value = 0.0;
+
+						if ((arg3 != NULL) && (*arg3 != 0))
+						{
+							value = atof(arg3);
+
+							if (WaypointMoveWholePath(path_index, value, 3))
+							{
+								PlaySoundConfirmation(pEntity, SND_DONE);
+								ClientPrint(pEntity, HUD_PRINTNOTIFY, "whole path has been repositioned\n");
+							}
+							else
+							{
+								PlaySoundConfirmation(pEntity, SND_FAILED);
+								ClientPrint(pEntity, HUD_PRINTNOTIFY, "invalid argument!\n");
+							}
+						}
+					}
+				}
 			}
+
+//#ifdef _DEBUG
+
 			else if (FStrEq(arg1, "flags"))
 			{
 				extern int WaypointGetPathLength(int path_index);
@@ -3786,7 +4015,9 @@ void ClientCommand( edict_t *pEntity )
 
 void ClientUserInfoChanged( edict_t *pEntity, char *infobuffer )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientUserInfoChanged: pEntity=%x infobuffer=%s\n", pEntity, infobuffer); fclose(fp); }
+#endif
 	
 	/*/
 #ifdef _DEBUG
@@ -5113,28 +5344,36 @@ const char *GetGameDescription( void )
 
 void PlayerCustomization( edict_t *pEntity, customization_t *pCust )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "PlayerCustomization: %x\n",pEntity); fclose(fp); }
+#endif
 
 	(*other_gFunctionTable.pfnPlayerCustomization)(pEntity, pCust);
 }
 
 void SpectatorConnect( edict_t *pEntity )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "SpectatorConnect: %x\n",pEntity); fclose(fp); }
+#endif
 
 	(*other_gFunctionTable.pfnSpectatorConnect)(pEntity);
 }
 
 void SpectatorDisconnect( edict_t *pEntity )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "SpectatorDisconnect: %x\n",pEntity); fclose(fp); }
+#endif
 
 	(*other_gFunctionTable.pfnSpectatorDisconnect)(pEntity);
 }
 
 void SpectatorThink( edict_t *pEntity )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "SpectatorThink: %x\n",pEntity); fclose(fp); }
+#endif
 
 	(*other_gFunctionTable.pfnSpectatorThink)(pEntity);
 }
@@ -5255,7 +5494,9 @@ void CreateInstancedBaselines( void )
 
 int InconsistentFile( const edict_t *player, const char *filename, char *disconnect_message )
 {
+#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "InconsistentFile: %x filename=%s discon_message=%s\n",player,filename,disconnect_message); fclose(fp); }
+#endif
 
 	return (*other_gFunctionTable.pfnInconsistentFile)(player, filename, disconnect_message);
 }
@@ -5555,7 +5796,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		catch (errGetVal &er_val)
 		{
-			//sprintf(msg, "** missing variable '%s'", er_val.key);
+			sprintf(msg, "** missing variable '%s'", er_val.key);
 
 			if (is_dedicated_server)
 			{
@@ -5922,13 +6163,13 @@ void ProcessBotCfgFile(Section *conf)
 	if (ci != conf->sectionList.end())
 	{
 		//need to add bots
-/*#ifdef _DEBUG
+#ifdef _DEBUG
 		if (is_dedicated_server)
 		{
 			//@@@@@@@@@@
 			printf("** ProcessBotCfgFile() - a try to add bot\n");
 	    }
-#endif*/
+#endif
 
 	    Section *recruit_sect = ci->second;
 		int i = 0;
@@ -5959,9 +6200,9 @@ void ProcessBotCfgFile(Section *conf)
 				catch (errGetVal &er_val)
 				{
 					//@@@@@@@@@@
-					//sprintf(msg, "** missing variable '%s'", er_val.key);
-					//
-					//PrintOutput(NULL, msg, msg_null);
+					sprintf(msg, "** missing variable '%s'", er_val.key);
+					
+					PrintOutput(NULL, msg, msg_null);
 				}
 #ifdef _DEBUG
 				//@@@@@@@@@@

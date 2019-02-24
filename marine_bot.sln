@@ -1,29 +1,27 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26430.6
-MinimumVisualStudioVersion = 10.0.40219.1
+# Visual Studio Express 2012 for Windows Desktop
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "marine_bot", "marine_bot.vcxproj", "{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x86 = Debug|x86
-		Release|x86 = Release|x86
-		ReleaseNoFamas|x86 = ReleaseNoFamas|x86
-		ReleaseServerVer|x86 = ReleaseServerVer|x86
-		ReleaseServerVerAndNoFamas|x86 = ReleaseServerVerAndNoFamas|x86
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+		ReleaseNoFamas|Win32 = ReleaseNoFamas|Win32
+		ReleaseServerVer|Win32 = ReleaseServerVer|Win32
+		ReleaseServerVerAndNoFamas|Win32 = ReleaseServerVerAndNoFamas|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Debug|x86.ActiveCfg = Debug|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Debug|x86.Build.0 = Debug|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Release|x86.ActiveCfg = Release|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Release|x86.Build.0 = Release|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseNoFamas|x86.ActiveCfg = ReleaseNoFamas|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseNoFamas|x86.Build.0 = ReleaseNoFamas|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVer|x86.ActiveCfg = ReleaseServerVer|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVer|x86.Build.0 = ReleaseServerVer|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVerAndNoFamas|x86.ActiveCfg = ReleaseServerVerAndNoFamas|Win32
-		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVerAndNoFamas|x86.Build.0 = ReleaseServerVerAndNoFamas|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Debug|Win32.Build.0 = Debug|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Release|Win32.ActiveCfg = Release|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.Release|Win32.Build.0 = Release|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseNoFamas|Win32.ActiveCfg = ReleaseNoFamas|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseNoFamas|Win32.Build.0 = ReleaseNoFamas|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVer|Win32.ActiveCfg = ReleaseServerVer|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVer|Win32.Build.0 = ReleaseServerVer|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVerAndNoFamas|Win32.ActiveCfg = ReleaseServerVerAndNoFamas|Win32
+		{990B6E3E-55E3-4F7A-9BD2-1F4570509CD0}.ReleaseServerVerAndNoFamas|Win32.Build.0 = ReleaseServerVerAndNoFamas|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
