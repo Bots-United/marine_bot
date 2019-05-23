@@ -294,7 +294,7 @@ void LoadSymbols(char *filename)
          return;
       }
 
-      if (strcmp((char *)section_header.Name, ".edata") == 0)
+      if (strcmp(reinterpret_cast<char *>(section_header.Name), ".edata") == 0)
       {
          edata_found = TRUE;
          break;
@@ -342,7 +342,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Ordinals = (WORD *)malloc(num_ordinals * sizeof(WORD))) == NULL)
+   if ((p_Ordinals = static_cast<WORD *>(malloc(num_ordinals * sizeof(WORD)))) == NULL)
    {
       ALERT(at_error, "error allocating memory for ordinals section!");
       return;
@@ -365,7 +365,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Functions = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == NULL)
+   if ((p_Functions = static_cast<DWORD *>(malloc(num_ordinals * sizeof(DWORD)))) == NULL)
    {
       ALERT(at_error, "error allocating memory for export address section!");
       return;
@@ -390,7 +390,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Names = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == NULL)
+   if ((p_Names = static_cast<DWORD *>(malloc(num_ordinals * sizeof(DWORD)))) == NULL)
    {
       FreeNameFuncGlobals();
 
@@ -420,7 +420,7 @@ void LoadSymbols(char *filename)
          {
             FgetString(function_name, bfp);
 
-            if ((p_FunctionNames[i] = (char *)malloc(strlen(function_name)+1)) == NULL)
+            if ((p_FunctionNames[i] = static_cast<char *>(malloc(strlen(function_name) + 1))) == NULL)
                error = TRUE;
             else
                getMSVCName(p_FunctionNames[i], function_name);
@@ -446,8 +446,8 @@ void LoadSymbols(char *filename)
       {
          index = p_Ordinals[i];
 
-         game_GiveFnptrsToDll = (void *)GetProcAddress(h_Library, "GiveFnptrsToDll");
-         base_offset = (unsigned long)(game_GiveFnptrsToDll) - p_Functions[index];
+         game_GiveFnptrsToDll = static_cast<void *>(GetProcAddress(h_Library, "GiveFnptrsToDll"));
+         base_offset = reinterpret_cast<unsigned long>(game_GiveFnptrsToDll) - p_Functions[index];
 
          break;
       }

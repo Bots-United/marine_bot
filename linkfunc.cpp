@@ -392,8 +392,8 @@ LINK_ENTITY_TO_FUNC(tf_weapon_supershotgun);
 LINK_ENTITY_TO_FUNC(tf_weapon_tranq);
 LINK_ENTITY_TO_FUNC(timer);*/
 
-// entities for Opposing Force					NOT SURE IF THESE ARE NEEDED!
-LINK_ENTITY_TO_FUNC(ammo_556);
+// entities for Opposing Force					NOT SURE IF THESE ARE NEEDED! // Not required for FA [APG]RoboCop[CL]
+/*LINK_ENTITY_TO_FUNC(ammo_556);
 LINK_ENTITY_TO_FUNC(ammo_762);
 LINK_ENTITY_TO_FUNC(ammo_eagleclip);
 LINK_ENTITY_TO_FUNC(ammo_spore);
@@ -498,7 +498,7 @@ LINK_ENTITY_TO_FUNC(weapon_pipewrench);
 LINK_ENTITY_TO_FUNC(weapon_shockrifle);
 LINK_ENTITY_TO_FUNC(weapon_shockroach);
 LINK_ENTITY_TO_FUNC(weapon_sniperrifle);
-LINK_ENTITY_TO_FUNC(weapon_sporelauncher);
+LINK_ENTITY_TO_FUNC(weapon_sporelauncher);*/
 
 // entities for FireArms 2.6
 

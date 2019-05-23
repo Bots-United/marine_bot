@@ -1024,35 +1024,6 @@ int WaypointIsPathOkay(int path_index)
 
 
 /*
-* look for specific waypoint type in given path type (eg. goback waypoint in one-way path)
-* return true if such problem combination was found
-*/
-bool WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES waypoint_type)
-{
-	// does this path match the one we look for
-	if (IsPath(path_index, path_type))
-	{
-		// then see if there is a problem combination in it
-		W_PATH *p = GetWaypointTypePointer(waypoint_type, path_index);
-
-		// we found such combination
-		if (p != NULL)
-		{
-			// now we just need to ignore team limited case, because the bot will also ignore such waypoint there
-			// (goback waypoint with red team priority == 0 in red team only path is valid waypoint placement)
-			if ((IsPath(path_index, path_red) && (waypoints[p->wpt_index].red_priority == 0)) ||
-				(IsPath(path_index, path_blue) && (waypoints[p->wpt_index].blue_priority == 0)))
-				return FALSE;
-			
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-
-
-/*
 * check either path end for correct ending
 * (ie. there's a connection to a cross waypoint or one of the go back waypoints)
 * return -1 if some error occured, 0 if the path was okay
@@ -1181,7 +1152,6 @@ int WaypointRepairInvalidPathEnd(int path_index)
 void WaypointRepairInvalidPathEnd(void)
 {
 	int result;
-	char msg[64];
 
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
@@ -1190,158 +1160,15 @@ void WaypointRepairInvalidPathEnd(void)
 		switch (result)
 		{
 			case 1:
-			{
-				sprintf(msg, "path #%d was repaired\n", path_index + 1);
-				
-				ALERT(at_console, msg);
-				UTIL_DebugInFile(msg);		// send this event in error log
-
+				ALERT(at_console, "path #%d was repaired\n", path_index + 1);
 				break;
-			}
 			case 10:
-			{
-				sprintf(msg, "unable to repair path #%d\n", path_index + 1);
-
-				ALERT(at_console, msg);
-				UTIL_DebugInFile(msg);
-
+				ALERT(at_console, "unable to repair path #%d\n", path_index + 1);
 				break;
-			}
 		}
 	}
 
 	return;
-}
-
-
-/*
-* check either path end for correct ending
-* pretty much the same as WaypointRepairInvalidPathEnd() but we don't repair anything
-* but we check things to a greater depth here and report them all
-* return -1 if some error occured, 0 if the path was okay
-* return 1 if there was invalid path end found
-*/
-int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
-{
-	if (path_index == -1 || w_paths[path_index] == NULL)
-		return -1;
-
-	int end_waypoint = -1;
-	char msg[256];
-
-	if (IsPath(path_index, path_one))
-	{
-		end_waypoint = GetPathEnd(path_index);
-
-		if (end_waypoint == -1)
-			return -1;
-
-		if (IsWaypoint(end_waypoint, wpt_goback))
-		{
-			sprintf(msg, "BUG: One-way path no. %d ends with a goback waypoint!\n", path_index + 1);
-			HudNotify(msg, log_in_file);
-
-			return 1;
-		}
-
-		if (WaypointFindNearestCross(waypoints[end_waypoint].origin) != -1)
-		{
-			return 0;
-		}
-
-		if (WaypointFindNearestStandard(end_waypoint, path_index) != -1)
-		{
-			sprintf(msg, "WARNING: One-way path no. %d doesn't end at cross waypoint, but there seems to be a way from there. Check it!\n", path_index + 1);
-			HudNotify(msg, log_in_file);
-
-			return 1;
-		}
-		else
-		{
-			sprintf(msg, "BUG: One-way path no. %d ends in a void ie. there's no cross waypoint or any other way out of there!\n", path_index + 1);
-			HudNotify(msg, log_in_file);
-
-			return 1;
-		}
-
-		sprintf(msg, "Unknown state of one-way path no. %d Check it!\n", path_index + 1);
-		HudNotify(msg, log_in_file);
-
-		return 10;
-	}
-
-	// two way or patrol path ... so let's check paths' start first	
-	end_waypoint = GetPathStart(path_index);
-
-	if (end_waypoint == -1)
-		return -1;
-
-	bool problem_found = false;
-
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
-		;
-	else
-	{
-		if (WaypointFindNearestCross(waypoints[end_waypoint].origin) == -1)
-		{
-			if (WaypointFindNearestStandard(end_waypoint, path_index) != -1)
-			{
-				sprintf(msg, "WARNING: Path no. %d doesn't start at cross waypoint, but there seems to be other way from there. Check it!\n", path_index + 1);
-				HudNotify(msg, log_in_file);
-
-				// print the additional message just into console, don't log it in file
-				sprintf(msg, "        It could be missing goback waypoint or small cross waypoint range.\n");
-				HudNotify(msg);
-
-				problem_found = true;
-			}
-			else
-			{
-				sprintf(msg, "BUG: Path no. %d starts in a void ie. there's no cross waypoint or any other way to follow there!\n", path_index + 1);
-				HudNotify(msg, log_in_file);
-				
-				problem_found = true;
-			}
-		}
-	}
-
-	// now check the path end
-	end_waypoint = GetPathEnd(path_index);
-
-	if (end_waypoint == -1)
-		return -1;
-
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
-		;
-	else
-	{
-		if (WaypointFindNearestCross(waypoints[end_waypoint].origin) == -1)
-		{
-			if (WaypointFindNearestStandard(end_waypoint, path_index) != -1)
-			{
-				sprintf(msg, "WARNING: Path no. %d doesn't end at cross waypoint, but there seems to be other way from there. Check it!\n", path_index + 1);
-				HudNotify(msg, log_in_file);
-
-				sprintf(msg, "        It could be missing goback waypoint or small cross waypoint range.\n");
-				HudNotify(msg);
-				
-				problem_found = true;
-			}
-			else
-			{
-				sprintf(msg, "BUG: Path no. %d ends in a void ie. there's no cross waypoint, no goback waypoint or any other way to follow there!\n", path_index + 1);
-				HudNotify(msg, log_in_file);
-
-				problem_found = true;
-			}
-		}
-	}
-
-	if (problem_found)
-		return 1;
-
-	// everything was okay
-	return 0;
 }
 
 
@@ -1494,87 +1321,6 @@ void WaypointRepairInvalidPathMerge(void)
 	}
 
 	return;
-}
-
-
-/*
-* check for invalid path merge
-* basically the same as WaypointRepairInvalidPathMerge() but we don't repair anything we just check things here
-* and report them
-* return -1 if some error occured, 0 if the path was okay
-* return 1 if there is invalid merge, 2 if there is suspicious path connection
-*/
-int WaypointCheckInvalidPathMerge(int path_index, bool log_in_file)
-{
-	if (path_index == -1 || w_paths[path_index] == NULL)
-		return -1;
-
-	int end_waypoint = -1;
-	int other_end_waypoint = -1;
-	int other_start_waypoint = -1;
-	char msg[128];
-
-	end_waypoint = GetPathEnd(path_index);
-
-	if (end_waypoint == -1)
-		return -1;
-
-	if (WaypointFindNearestCross(waypoints[end_waypoint].origin, true) != -1)
-	{
-		return 0;
-	}
-
-	if (!IsPath(path_index, path_one) && waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
-	{
-		return 0;
-	}
-
-	for (int other_path = 0; other_path < num_w_paths; other_path++)
-	{
-		if (other_path == path_index)
-			continue;
-
-		other_start_waypoint = GetPathStart(other_path);
-		other_end_waypoint = GetPathEnd(other_path);
-
-		if (end_waypoint == other_start_waypoint)
-		{
-			sprintf(msg, "BUG: Invalid merge on paths no. %d and no. %d has been detected!\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
-
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
-
-			return 1;
-		}
-
-		if (end_waypoint == other_end_waypoint)
-		{
-			sprintf(msg, "WARNING: Detected suspicious path connection! Check paths no. %d and no. %d\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
-
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
-
-			return 2;
-		}
-
-		// we also need to check for cases when this path ends inside another path
-		// (not just the end or start waypoint of the other path
-		//  but any waypoint from the other path == our path end waypoint)
-		if (WaypointIsInPath(end_waypoint, other_path))
-		{
-			sprintf(msg, "BUG: Invalid path merge detected! Path no. %d ends inside path no. %d\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
-
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
-
-			return 1;
-		}
-	}
-
-	return 0;
 }
 
 
@@ -2302,7 +2048,7 @@ bool StartNewPath(int current_wpt_index)
 		free_path_index++;
 	}
 
-	p = (W_PATH *)malloc(sizeof(W_PATH));	// create new head node
+	p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new head node
 
 	if (p == NULL)
 	{
@@ -2377,7 +2123,7 @@ int ContinueCurrPath(int current_wpt_index)
 #endif
 		}
 
-		p = (W_PATH *)malloc(sizeof(W_PATH));	// create new node
+		p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new node
 
 		if (p == NULL)
 		{
@@ -2500,7 +2246,7 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 		{
 			// so insert the new one behind path_wpt1...
 
-			new_node = (W_PATH *)malloc(sizeof(W_PATH));	// create new node
+			new_node = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new node
 
 			p->next = new_node;		// connect the new node behind path waypoint1
 			new_node->prev = p;		// set also the opposite connection
@@ -2522,7 +2268,7 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 		{
 			// so insert the new one before path_wpt1...
 
-			new_node = (W_PATH *)malloc(sizeof(W_PATH));
+			new_node = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
 
 			p->prev = new_node;
 			new_node->next = p;
@@ -4738,8 +4484,7 @@ int Wpt_CountFlags(int wpt_index)
 	int the_count = 0;
 
 	// handle errors
-	//if ((wpt_index == -1) || (waypoints[wpt_index].flags & W_FL_DELETED))
-	if (wpt_index == -1)
+	if ((wpt_index == -1) || (waypoints[wpt_index].flags & W_FL_DELETED))
 		return -1;
 
 	// increase the count with each valid flag
@@ -4774,8 +4519,6 @@ int Wpt_CountFlags(int wpt_index)
 	if (waypoints[wpt_index].flags & W_FL_TRIGGER)
 		the_count++;
 	if (waypoints[wpt_index].flags & W_FL_GOBACK)
-		the_count++;
-	if (waypoints[wpt_index].flags & W_FL_DELETED)
 		the_count++;
 	// keep these special flags here so we can find possible problems
 	if (waypoints[wpt_index].flags & W_FL_AIMING)
@@ -5032,7 +4775,7 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 	if (index == num_waypoints)
 		num_waypoints++;
 
-	return (char *) wpt_type;
+	return const_cast<char *>(wpt_type);
 }
 
 /*
@@ -5717,8 +5460,8 @@ bool WaypointPathInfo(edict_t *pEntity, int path_index)
 
 /*
 * print info about all paths on given waypoint index
-* all paths on nearest waypoint if we pass -10 as waypoint index
-* all used paths (ie. all stored in the path waypoint file for this map) if we pass -1 as waypoint index
+* all paths on nearest waypoint if we pass -10
+* all used paths (ie. all stored in the path waypoint file for this map) if we pass -1
 */
 bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index = -1)
 {
@@ -5726,12 +5469,11 @@ bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index = -1)
 	char *team_fl, *class_fl, *way_fl;
 	char misc[64];
 	char msg[128];
-	// these 3 allow us to split the output and print 22 paths each time this method gets called
+	// these 3 allow us to split the output and print 32 paths each time this method gets called
 	// (it's used to deal with non steam console limits as well as limited steam console history)
 	static int printed = 0;
 	static int slot = 0;
-	int max_on_screen[] = { 22, 44, 66, 88, 110, 132, 154, 176, 198, 220, 242, 264, 286, 308, 330, 352, 374, 396, 418,
-							440, 462, 484, 506, 528 };
+	int max_on_screen[] = {32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512};
 
 	if (wpt_index == -10)
 	{
@@ -5846,7 +5588,7 @@ bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index = -1)
 
 		ClientPrint(pEntity, HUD_PRINTCONSOLE, msg);
 
-		// did we already use all lines/rows in this slot (ie. we printed 22 paths)
+		// did we already use all lines/rows in this slot (ie. we printed 32 paths)
 		if (printed == max_on_screen[slot])
 		{
 			// then select next slot and "wait for next call"
@@ -5854,82 +5596,6 @@ bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index = -1)
 			return TRUE;
 		}
 	}
-
-	return TRUE;
-}
-
-/*
-* print all waypoint indexes and their types that are in given path
-*/
-bool WaypointPrintWholePath(edict_t *pEntity, int path_index)
-{
-	if ((path_index == -1) || (w_paths[path_index] == NULL))
-		return FALSE;
-
-	W_PATH *p = w_paths[path_index];
-	char msg[256];
-	char wpt_flags[242];
-
-	static int printed = 0;
-	static int slot = 0;
-	// there's no maximum at how long a path can be
-	// so let's expect here that no one would add more than 352 waypoints in one path
-	int max_on_screen[] = { 22, 44, 66, 88, 110, 132, 154, 176, 198, 220, 242, 264, 286, 308, 330, 352 };
-	
-	// we need to remember which path we are printing in order to reset things if the client changes mind
-	// and start printing another path before we finished printing 'current one'
-	static int last_path = -1;
-
-	// reset things if we are going to print a new path
-	if (last_path != path_index)
-	{
-		printed = 0;
-		slot = 0;
-	}
-
-	// the path is too long for one printing and we have already printed part of its waypoints
-	// now we are calling it again so we must set the path pointer on the last printed waypoint
-	// before we start printing next part
-	if (printed != 0)
-	{
-		int fast_forward = 0;
-
-		while (p)
-		{
-			p = p->next;
-			fast_forward++;
-
-			if (fast_forward == printed)
-				break;
-		}
-	}
-
-	// print the intro message only when we start from the beginning
-	if (printed == 0)
-		ClientPrint(pEntity, HUD_PRINTNOTIFY, "Printing whole path waypoint by waypoint (in order from start to end) ...\n");
-
-	while (p)
-	{
-		WptGetType(p->wpt_index, wpt_flags);
-
-		sprintf(msg, "[#%d.] waypoint no. %d - %s\n", printed + 1, p->wpt_index + 1, wpt_flags);
-		ClientPrint(pEntity, HUD_PRINTNOTIFY, msg);
-
-		p = p->next;
-		printed++;
-
-		// did we print 22 lines on the screen already?
-		if (printed == max_on_screen[slot])
-		{
-			// then select next slot, remember this path and "wait for next call"
-			slot++;
-			last_path = path_index;
-			return TRUE;
-		}
-	}
-
-	printed = 0;
-	slot = 0;
 
 	return TRUE;
 }
@@ -6241,44 +5907,6 @@ int WptPathChangeMisc(edict_t *pEntity, const char *new_value, int path_index)
 
 
 /*
-* move all waypoints (its origin) in given path by value units in given coordinate
-* coord values are 1 for x coord, 2 for y coord and 3 for z coord (height)
-*/
-bool WaypointMoveWholePath(int path_index, float value, int coord)
-{
-#ifdef _DEBUG
-	// validity check
-	if ((path_index == -1) || (w_paths[path_index] == NULL))
-		return FALSE;
-
-	w_path *p = w_paths[path_index];
-
-	while (p)
-	{
-		switch (coord)
-		{
-			case 1:
-				waypoints[p->wpt_index].origin.x += value;
-				break;
-			case 2:
-				waypoints[p->wpt_index].origin.y += value;
-				break;
-			case 3:
-				waypoints[p->wpt_index].origin.z += value;
-				break;
-			default:
-				return FALSE;
-		}
-
-		p = p->next;
-	}
-#endif
-
-	return TRUE;
-}
-
-
-/*
 * load path stucture from file
 * return -1 if old path structure is detected (to allow auto conversion)
 * return 0 if something went wrong
@@ -6381,7 +6009,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 				// is path showing on so turn it off
 				if (g_path_waypoint_on)
 				{
-					g_path_waypoint_on = 0;
+					g_path_waypoint_on = false;
 
 					show_paths_on = TRUE;
 				}
@@ -6392,7 +6020,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 					// read the stored path_index
 					fread(&path_index, sizeof(path_index), 1, bfp);
 
-					p = (W_PATH *)malloc(sizeof(W_PATH));	// create new head node
+					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new head node
 
 					if (p == NULL)
 					{
@@ -6759,7 +6387,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 				for (int all_paths = 0; all_paths < num_w_paths; all_paths++)
 				{
 					// create new head node for the new path
-					p = (W_PATH *)malloc(sizeof(W_PATH));
+					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
 
 					if (p == NULL)
 					{
@@ -7027,7 +6655,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 				for (int all_paths = 0; all_paths < num_w_paths; all_paths++)
 				{
 					// create new head node
-					p = (W_PATH *)malloc(sizeof(W_PATH));
+					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
 
 					if (p == NULL)
 					{
@@ -8397,9 +8025,6 @@ void WptGetType(int wpt_index, char *the_type)
 			strcat(the_type, "normal ");
 	}
 
-	if (flags & W_FL_DELETED)
-		strcat(the_type, "deleted/erased ");
-
 	// if there are no flags on this waypoint set unknown flag
 	if (Wpt_CountFlags(wpt_index) < 1)
 		strcat(the_type, "unknown ");
@@ -8417,51 +8042,16 @@ void WptGetType(int wpt_index, char *the_type)
 * if info_level == 1 it prints all except comment (what the bot does there)
 * if info_level == 2 it prints all and also the comment
 */
-void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
+void WaypointPrintInfo(edict_t *pEntity, int info_level)
 {
 	char msg[256], special_info_r[80], special_info_b[80], comment[512];
 	char steam_msg[512];
-	int index, flags, red_prior, blue_prior, info_level;
+	int index, flags, red_prior, blue_prior;
 	float red_time, blue_time, range;
 
-	// we have to initialize these two first
-	index = -1;
-	info_level = 0;
+	// find the nearest waypoint...
+	index = WaypointFindNearest(pEntity, 50.0, -1);
 
-	// now check the arguments for data
-	if ((arg2 != NULL) && (*arg2 != 0))
-	{
-		if (FStrEq(arg2, "help") || FStrEq(arg2, "?"))
-		{
-			ClientPrint(pEntity, HUD_PRINTNOTIFY, "wpt info <arg1> <arg2> where arg could be either waypoint index or 'more' or 'full'\n");
-			ClientPrint(pEntity, HUD_PRINTNOTIFY, "'wpt info 5 more' will print additional info about waypoint no. 5\n'wpt info more 5' will do exactly the same\n");
-			ClientPrint(pEntity, HUD_PRINTNOTIFY, "'wpt info more' will print additional information about any waypoint, but you must stand realy close to it\n");
-			ClientPrint(pEntity, HUD_PRINTNOTIFY, "'wpt info full 5' will print all information about waypoint no. 5 including short description of what the bot will do there\n");
-		}
-		else if (FStrEq(arg2, "full"))
-			info_level = 2;
-		else if (FStrEq(arg2, "more"))
-			info_level = 1;
-		else
-			index = atoi(arg2) - 1;
-	}
-
-	if ((arg3 != NULL) && (*arg3 != 0))
-	{
-		if (FStrEq(arg3, "full"))
-			info_level = 2;
-		else if (FStrEq(arg3, "more"))
-			info_level = 1;
-		else
-			index = atoi(arg3) - 1;
-	}
-
-	// if neither argument passed the waypoint index
-	// try to find a waypoint nearby
-	if ((index < 0) || (index >= num_waypoints))
-		index = WaypointFindNearest(pEntity, 50.0, -1);
-
-	// we still got no waypoint so we have nothing to print
 	if (index == -1)
 		return;
 
@@ -8485,7 +8075,7 @@ void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
 		// is range small AND NOT aim or cross waypoint
 		if (range < RANGE_SMALL)
 		{
-			strcat(comment, "slow down");
+			strcat(comment, "slow down & ");
 		}
 		
 		if (flags & W_FL_AMMOBOX)
@@ -8591,12 +8181,6 @@ void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
 				strcat(comment, " & ");
 			strcat(comment, "don't move during combat");
 		}
-		if (flags & W_FL_DELETED)
-		{
-			if (strlen(comment) > 1)
-				strcat(comment, " & ");
-			strcat(comment, "deleted waypoint will be ignored");
-		}
 		if (flags & W_FL_STD)
 		{
 			// print this only if there's no other flag on this waypoint
@@ -8612,7 +8196,7 @@ void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
 	char wpt_flags[256];
 	WptGetType(index, wpt_flags);
 
-	sprintf(msg,"Waypoint %d of %d total (flags/tags= %s)\n", index + 1, num_waypoints, wpt_flags);
+	sprintf(msg,"Waypoint %d of %d total (flags\\tags= %s)\n", index + 1, num_waypoints, wpt_flags);
 
 	// prepare additional steam message
 	if (is_steam)
@@ -8697,42 +8281,6 @@ void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
 }
 
 /*
-* lists through all waypoints printing their index and their flags/tags
-*/
-void  WaypointPrintAllWaypoints(edict_t *pEntity)
-{
-	char msg[256];
-	char wpt_flags[242];
-
-	static int printed = 0;
-	int right_now = 0;
-
-	if (printed == 0)
-		ClientPrint(pEntity, HUD_PRINTCONSOLE, "Printing all used waypoints ...\n");
-	
-	for (int index = printed; index < num_waypoints; index++)
-	{
-		WptGetType(index, wpt_flags);
-
-		sprintf(msg, "Waypoint no. %d and its flags/tags= %s\n", index + 1, wpt_flags);
-		ClientPrint(pEntity, HUD_PRINTCONSOLE, msg);
-
-		printed++;
-		right_now++;
-
-		// did we print 22 lines of text in the console yet?
-		// if so then stop it and wait for next call
-		if (right_now == 22)
-			return;
-	}
-
-	// we must have printed all waypoints so reset the static "memory"
-	printed = 0;
-
-	return;
-}
-
-/*
 * prints info about trigger waypoint into the console
 */
 void WaypointTriggerPrintInfo(edict_t *pEntity)
@@ -8761,7 +8309,7 @@ void WaypointTriggerPrintInfo(edict_t *pEntity)
 	char wpt_flags[256];
 	WptGetType(index, wpt_flags);
 
-	sprintf(msg,"Waypoint %d of %d total (flags/tags= %s)\n", index + 1, num_waypoints, wpt_flags);
+	sprintf(msg,"Waypoint %d of %d total (flags\\tags= %s)\n", index + 1, num_waypoints, wpt_flags);
 
 	// prepare additional steam message
 	if (is_steam)
@@ -8839,7 +8387,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;			// reset also both wait times
 			waypoints[index].blue_time = 0;
 			waypoints[index].range = (float) 0;		// reset also range
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 
 		// we need to immediately leave this method when special waypoint is done
@@ -8862,7 +8410,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;
 			waypoints[index].blue_time = 0;
 			waypoints[index].range = WPT_RANGE * (float) 3;	// set the range to cross default
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 
 		return output;
@@ -8888,7 +8436,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 
 		waypoints[index].flags |= W_FL_STD;
 
-		output = (char *)new_type;
+		output = const_cast<char *>(new_type);
 	}
 
 	else if (FStrEq(new_type, "ammobox"))
@@ -8906,7 +8454,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			// set smaller range only if range is quite big
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -8943,7 +8491,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;
 			waypoints[index].blue_time = 0;
 			waypoints[index].flags |= W_FL_CHUTE;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -8960,7 +8508,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_PRONE;
 
 			waypoints[index].flags |= W_FL_CROUCH;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -8982,7 +8530,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].flags |= W_FL_DOOR;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9004,7 +8552,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].flags |= W_FL_DOORUSE;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9018,7 +8566,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_FIRE;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9032,7 +8580,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_GOBACK;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9056,7 +8604,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9080,7 +8628,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9101,7 +8649,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9119,7 +8667,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_CROUCH;
 
 			waypoints[index].flags |= W_FL_MINE;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9136,7 +8684,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_CROUCH;
 
 			waypoints[index].flags |= W_FL_PRONE;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9150,7 +8698,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_PUSHPOINT;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9169,7 +8717,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_PRONE;
 
 			waypoints[index].flags |= W_FL_SPRINT;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9183,7 +8731,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_SNIPER;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9197,7 +8745,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_TRIGGER;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 
@@ -9215,7 +8763,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = (char *)new_type;
+			output = const_cast<char *>(new_type);
 		}
 	}
 

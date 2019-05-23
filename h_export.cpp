@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //
-//	-- GNU -- open source 
+//	-- GNU -- open source
 // Please read and agree to the mb_gnu_license.txt file
 // (the file is located in the marine_bot source folder)
 // before editing or distributing this source code.
@@ -15,7 +15,7 @@
 //
 //
 // h_export.cpp
-// 
+//
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "defines.h"
@@ -103,12 +103,12 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	char game_dll_filename[256];
 	char the_game[80];
 	char temp_filename[256];
-	
+
 	// get the engine functions from the engine...
-	
+
 	memcpy(&g_engfuncs, pengfuncsFromEngine, sizeof(enginefuncs_t));
 	gpGlobals = pGlobals;
-	
+
 	// find the directory name of the currently running MOD...
 	(*g_engfuncs.pfnGetGameDir)(game_dir);
 
@@ -135,12 +135,12 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	{
 		is_steam = TRUE;	// STEAM found
 	}
-	
+
 	// code by *** Shrike ***
 	if (is_steam)
 	{
 		pos = 0;
- 
+
 		if (strstr(game_dir, "/") != NULL)
 		{
 			// scan backwards till first directory separator...
@@ -189,7 +189,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		}
 		pos++;
 	}
-	
+
 	strcpy(mod_dir_name, &game_dir[pos]);
 
 #ifdef _DEBUG
@@ -202,7 +202,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		fclose(fp);
 	}
 #endif
-	
+
 	game_dll_filename[0] = 0;
 
 	// we need to know which mod do we play so check mod directory name first
@@ -239,12 +239,12 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 					else
 					{
 						/**/
-#ifdef _DEBUG						
+#ifdef _DEBUG
 						// debuging
 						fp=fopen("!mb_engine_debug.txt","a");
 						fprintf(fp,"Can't find \"Firearms\" in liblist.gam on line beginning on \"game\" (line buffer is \"%s\")\n", line_string_buffer);
 						fclose(fp);
-#endif			
+#endif
 						/**/
 					}
 				}
@@ -255,7 +255,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		else
 		{
 			/**/
-#ifdef _DEBUG			
+#ifdef _DEBUG
 			// debuging
 			fp=fopen("!mb_engine_debug.txt","a");
 			fprintf(fp,"Can't open \"%s\"\n", temp_filename);
@@ -279,7 +279,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		UTIL_BuildFileName(temp_filename, mod_dir_name, "liblist.gam", FALSE);
 
 		fl = fopen(temp_filename,"r");
-		
+
 		// code by *** Shrike ***
 		if (fl != NULL)
 		{
@@ -289,14 +289,14 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 				{
 					fgets (ver_com , 20, fl);	// get 20 chars after "version"
 					int i = strlen (ver_com);	// get string lenght
-					
+
 					//fp=fopen("!mb_engine_debug.txt","a"); fprintf(fp,"mod: %d\n", g_mod_version); fclose(fp);	// debuging.
 
 					for (int j=0; j<i; j++)	// remove " from scaned line
 					{
 						while (ver_com[j] == '"')
 							ver_com[j] = ' ';
-					}	
+					}
 					while (ver_com[0] == ' ')	// shuffle chars to left
 					{
 						i = strlen (ver_com);	// get string lenght
@@ -359,12 +359,12 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 					else
 					{
 						/**/
-#ifdef _DEBUG						
+#ifdef _DEBUG
 						// debuging
 						fp=fopen("!mb_engine_debug.txt","a");
 						fprintf(fp,"Can't get version number out of liblist.gam (\"version\" line buffer is \"%s\")\n", ver_com);
 						fclose(fp);
-#endif			
+#endif
 						/**/
 					}
 				}
@@ -375,7 +375,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		else
 		{
 			/**/
-#ifdef _DEBUG			
+#ifdef _DEBUG
 			// debuging
 			fp=fopen("!mb_engine_debug.txt","a");
 			fprintf(fp,"Can't open \"%s\"\n", temp_filename);
@@ -395,7 +395,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		UTIL_BuildFileName(game_dll_filename, temp_filename, "fa_i386.so", FALSE);
 #endif
 	}
-	
+
 	if (game_dll_filename[0])
 	{
 #ifndef __linux__
@@ -407,16 +407,16 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	else
 	{
 		// Directory error or Unsupported MOD!
-		
+
 		ALERT( at_error, "MarineBot - MOD dll not found (or unsupported MOD)!" );
-		
+
 		return;
 	}
 
 
 #ifndef __linux__
    h_global_argv = GlobalAlloc(GMEM_SHARE, 1024);
-   g_argv = (char *)GlobalLock(h_global_argv);
+   g_argv = static_cast<char *>(GlobalLock(h_global_argv));
 #else
    g_argv = (char *)h_global_argv;
 #endif
@@ -446,9 +446,9 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
    if (other_GetNewDLLFunctions == NULL)
    {
 	   // Can't find GetNewDLLFunctions!
-	   
+
 	   ALERT( at_error, "MarineBot - Can't get MOD's GetNewDLLFunctions!" );
-	   
+
 	   fp=fopen("!mb_engine_debug.txt","a");
 	   fprintf(fp,"Can't get MOD's GetNewDLLFunctions!\n");
 	   fclose(fp);

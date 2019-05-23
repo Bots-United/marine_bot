@@ -523,15 +523,15 @@ void BotWeaponArraysInit(Section *conf_weapons)
 				}
 				catch (errGetVal &er_val)
 				{
-					sprintf(msg, "** missing variable '%s'", er_val.key);
-
-					PrintOutput(NULL, msg, msg_error);
+					//sprintf(msg, "** missing variable '%s'", er_val.key);
+					//
+					//PrintOutput(NULL, msg, msg_error);
 				}
-				if (modif==true) 
+				if (modif==true)
 				{
 					bot_weapon_select[index].max_effective_distance *= rg_modif;
 				}
-
+				
 				for (i=0; i<BOT_SKILL_LEVELS; ++i)
 				{
 					bot_fire_delay[index].primary_min_delay[i] = 0.0;
@@ -665,7 +665,7 @@ void BotReactions(bot_t *pBot)
 			react_time -= (float) externals.GetReactionTime() / 3.0;	// use only 66% of it
 			break;
 		case 4:
-			react_time += (float) externals.GetReactionTime() / 2.0;	// use 150% of it
+			react_time += (float) externals.GetReactionTime() / 4.0;	// use 150% of it
 			break;
 		case 5:
 			react_time += (float) externals.GetReactionTime();			// use 200% or it
@@ -1835,12 +1835,10 @@ bool dbl_coords = false;
 bool mod_coords = false;
 bool inv_coords = false;
 bool test_code = false;
-bool ignore_aim_error_code = false;
-//bool ignore_aim_error_code = true;			// << for tests I need headshots all the time
+//bool ignore_aim_error_code = false;
+bool ignore_aim_error_code = true;			// << for tests I need headshots all the time
 float modifier = 1;
 #endif
-
-bool g_test_aim_code = false;		// global switch to allow the new aim patch even in release compilation
 
 /*
 * find best point to target based on visiblity and aim skill level
@@ -1864,34 +1862,20 @@ Vector BotBodyTarget(bot_t *pBot)
 	// first decide which weapon works in these versions and which doesn't
 	if (g_mod_version == FA_29 || g_mod_version == FA_30)
 	{
-		// see if the user turned the test aim code under release compilation
-		if (g_test_aim_code)
-		{
-			int weapon = pBot->current_weapon.iId;
-			
-			// these 3 seem to always work in FA2.9 and above
-			// also knife, grenades and the grenade launcher don't need any aim patch
-			if (UTIL_IsShotgun(weapon) || weapon == fa_weapon_anaconda || weapon == fa_weapon_knife ||
-				weapon == fa_weapon_concussion || weapon == fa_weapon_frag || weapon == fa_weapon_m79)
-				;
-			// sniper rifles don't need aim patch when the bot is proned
-			else if (UTIL_IsSniperRifle(weapon) && pEdict->v.flags & FL_PRONED)
-				;
-			// all the other weapons need to be patched
-			else
-			{
-				use_aim_patch_v1 = true;
-			}
-		}
-		// default setting is to ignore the new aim code because it isn't fully finished
+		int weapon = pBot->current_weapon.iId;
+
+		// these 3 seem to always work in FA2.9 and above
+		// also knife, grenades and the grenade launcher don't need any aim patch
+		if (UTIL_IsShotgun(weapon) || weapon == fa_weapon_anaconda || weapon == fa_weapon_knife ||
+			weapon == fa_weapon_concussion || weapon == fa_weapon_frag || weapon == fa_weapon_m79)
+			;
+		// sniper rifles don't need aim patch when the bot is proned
+		else if (UTIL_IsSniperRifle(weapon) && pEdict->v.flags & FL_PRONED)
+			;
+		// all the other weapons need to be patched
 		else
 		{
-			// sniper rifles don't need any patching at all
-			if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
-				;
-			// all other weapons need to use the original aim patch
-			else
-				use_aim_patch_v2 = true;
+			use_aim_patch_v1 = true;
 		}
 	}
 	
@@ -2711,6 +2695,7 @@ Vector BotBodyTarget(bot_t *pBot)
 		switch (pBot->aim_skill)
 		{
 			case 0:
+				//Aim skill for the snipers? [APG]RoboCop[CL]
 				// VERY GOOD, same as from CBasePlayer::BodyTarget (in player.h)
 				target = target_origin + target_head * RANDOM_FLOAT( 0.2, 0.5 );
 				d_x = 0;  // no offset
@@ -2723,7 +2708,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 1:
 				// GOOD, offset a little for x, y, and z
-				if (hs_percentage > 25)
+				if (hs_percentage > 30)
 					target = target_origin + target_head;  // aim for the head (if you can find it)
 				else
 					target = target_origin;  // aim only for the body
@@ -2783,6 +2768,7 @@ Vector BotBodyTarget(bot_t *pBot)
 			switch (pBot->aim_skill)
 			{
 				case 0:
+					//Aim skill? [APG]RoboCop[CL]
 					// VERY GOOD, same as from CBasePlayer::BodyTarget (in player.h)
 					target = target_origin + target_head * RANDOM_FLOAT( 0.4, 1.0 );
 					d_x = 0;  // no offset
@@ -2799,9 +2785,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-6, 6) * f_scale;
-					d_y = RANDOM_FLOAT(-6, 6) * f_scale;
-					d_z = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_x = RANDOM_FLOAT(-5, 5) * f_scale;
+					d_y = RANDOM_FLOAT(-5, 5) * f_scale;
+					d_z = RANDOM_FLOAT(-8, 8) * f_scale;
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
@@ -2809,9 +2795,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-13, 13) * f_scale;
-					d_y = RANDOM_FLOAT(-13, 13) * f_scale;
-					d_z = RANDOM_FLOAT(-18, 18) * f_scale;
+					d_x = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_y = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_z = RANDOM_FLOAT(-14, 14) * f_scale;
 					break;
 				case 3:
 					// POOR, offset for x, y, and z
@@ -4061,7 +4047,9 @@ inline void IsChanceToAdvance(bot_t *pBot)
 	//NOTE: Move this array to be global (no need to set it for each bot)
 	// time delays based on bot_skill
 	// the lower bot skill level (better bots) the longer delays
-	float delay[BOT_SKILL_LEVELS] = {5.0, 4.0, 3.0, 2.0, 1.0};
+	// Reaction time delay? [APG]RoboCop[CL]
+	float delay[BOT_SKILL_LEVELS] = {3.0, 2.5, 2.0, 1.5, 1.0};
+	//float delay[BOT_SKILL_LEVELS] = {7.0, 5.5, 4.0, 2.5, 1.0};
 
 	// NOTE: these delays should be arrays based on bot_skill value
 	float min_delay, max_delay;
@@ -4963,8 +4951,8 @@ void BotShootAtEnemy( bot_t *pBot )
 			// we don't know if bot use it again (ie is allowed to use full auto fire)
 			pBot->f_fullauto_time = -1.0;
 
-			// based on skill
-			float min_delay[BOT_SKILL_LEVELS] = {0.1, 0.2, 0.3, 0.5, 0.7};
+			// based on skill - Fire Rate Delay? [APG]RoboCop[CL]
+			float min_delay[BOT_SKILL_LEVELS] = {0.1, 0.2, 0.3, 0.4, 0.5};
 			float max_delay[BOT_SKILL_LEVELS] = {0.2, 0.3, 0.5, 0.8, 1.0};
 
 			int skill = pBot->bot_skill;

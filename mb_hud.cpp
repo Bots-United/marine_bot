@@ -39,7 +39,7 @@ static unsigned short FixedUnsigned16( float value, float scale )
 	if ( output > 0xFFFF )
 		output = 0xFFFF;
 
-	return (unsigned short)output;
+	return static_cast<unsigned short>(output);
 }
 
 

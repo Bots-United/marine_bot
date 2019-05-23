@@ -236,7 +236,7 @@ static int yy_n_chars;		/* number of characters read into yy_ch_buf */
 int yyleng;
 
 /* Points to current character in buffer. */
-static char *yy_c_buf_p = (char *) 0;
+static char *yy_c_buf_p = static_cast<char *>(0);
 static int yy_init = 1;		/* whether we need to initialize */
 static int yy_start = 0;	/* start state number */
 
@@ -287,7 +287,7 @@ static void yy_flex_free YY_PROTO(( void * ));
 #define yywrap() 1
 #define YY_SKIP_YYWRAP
 typedef unsigned char YY_CHAR;
-FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
+FILE *yyin = static_cast<FILE *>(0), *yyout = static_cast<FILE *>(0);
 typedef int yy_state_type;
 extern int yylineno;
 int yylineno = 1;
@@ -612,7 +612,7 @@ YY_DECL
 		yy_load_buffer_state();
 		}
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	while ( true )		/* loops until end-of-file is reached */
 		{
 		yy_cp = yy_c_buf_p;
 
@@ -635,9 +635,9 @@ yy_match:
 				{
 				yy_current_state = (int) yy_def[yy_current_state];
 				if ( yy_current_state >= 27 )
-					yy_c = yy_meta[(unsigned int) yy_c];
+					yy_c = yy_meta[static_cast<unsigned int>(yy_c)];
 				}
-			yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
+			yy_current_state = yy_nxt[yy_base[yy_current_state] + static_cast<unsigned int>(yy_c)];
 			*yy_state_ptr++ = yy_current_state;
 			++yy_cp;
 			}
@@ -1040,9 +1040,9 @@ static yy_state_type yy_get_previous_state()
 			{
 			yy_current_state = (int) yy_def[yy_current_state];
 			if ( yy_current_state >= 27 )
-				yy_c = yy_meta[(unsigned int) yy_c];
+				yy_c = yy_meta[static_cast<unsigned int>(yy_c)];
 			}
-		yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
+		yy_current_state = yy_nxt[yy_base[yy_current_state] + static_cast<unsigned int>(yy_c)];
 		*yy_state_ptr++ = yy_current_state;
 		}
 
@@ -1070,9 +1070,9 @@ yy_state_type yy_current_state;
 		{
 		yy_current_state = (int) yy_def[yy_current_state];
 		if ( yy_current_state >= 27 )
-			yy_c = yy_meta[(unsigned int) yy_c];
+			yy_c = yy_meta[static_cast<unsigned int>(yy_c)];
 		}
-	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
+	yy_current_state = yy_nxt[yy_base[yy_current_state] + static_cast<unsigned int>(yy_c)];
 	yy_is_jam = (yy_current_state == 26);
 	if ( ! yy_is_jam )
 		*yy_state_ptr++ = yy_current_state;
@@ -1192,7 +1192,7 @@ static int input()
 			}
 		}
 
-	c = *(unsigned char *) yy_c_buf_p;	/* cast for 8-bit char's */
+	c = *reinterpret_cast<unsigned char *>(yy_c_buf_p);	/* cast for 8-bit char's */
 	*yy_c_buf_p = '\0';	/* preserve yytext */
 	yy_hold_char = *++yy_c_buf_p;
 
@@ -1280,7 +1280,7 @@ int size;
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
 	 */
-	b->yy_ch_buf = (char *) yy_flex_alloc( b->yy_buf_size + 2 );
+	b->yy_ch_buf = static_cast<char *>(yy_flex_alloc(b->yy_buf_size + 2));
 	if ( ! b->yy_ch_buf )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
 
@@ -1306,9 +1306,9 @@ YY_BUFFER_STATE b;
 		yy_current_buffer = (YY_BUFFER_STATE) 0;
 
 	if ( b->yy_is_our_buffer )
-		yy_flex_free( (void *) b->yy_ch_buf );
+		yy_flex_free( static_cast<void *>(b->yy_ch_buf) );
 
-	yy_flex_free( (void *) b );
+	yy_flex_free( static_cast<void *>(b) );
 	}
 
 
@@ -1446,7 +1446,7 @@ int len;
 
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = len + 2;
-	buf = (char *) yy_flex_alloc( n );
+	buf = static_cast<char *>(yy_flex_alloc(n));
 	if ( ! buf )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_bytes()" );
 
@@ -1596,7 +1596,7 @@ static void *yy_flex_alloc( size )
 yy_size_t size;
 #endif
 	{
-	return (void *) malloc( size );
+	return static_cast<void *>(malloc(size));
 	}
 
 #ifdef YY_USE_PROTOS
@@ -1614,7 +1614,7 @@ yy_size_t size;
 	 * any pointer type to void*, and deal with argument conversions
 	 * as though doing an assignment.
 	 */
-	return (void *) realloc( (char *) ptr, size );
+	return static_cast<void *>(realloc(static_cast<char *>(ptr), size));
 	}
 
 #ifdef YY_USE_PROTOS

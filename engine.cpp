@@ -118,16 +118,12 @@ void pfnChangeLevel(char* s1, char* s2)
 }
 void pfnGetSpawnParms(edict_t *ent)
 {
-#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetSpawnParms: edict=%x\n",ent); fclose(fp); }
-#endif
 	(*g_engfuncs.pfnGetSpawnParms)(ent);
 }
 void pfnSaveSpawnParms(edict_t *ent)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSaveSpawnParms: edict=%x\n",ent); fclose(fp); }
-#endif
    (*g_engfuncs.pfnSaveSpawnParms)(ent);
 }
 float pfnVecToYaw(const float *rgflVector)
@@ -142,23 +138,17 @@ void pfnVecToAngles(const float *rgflVectorIn, float *rgflVectorOut)
 }
 void pfnMoveToOrigin(edict_t *ent, const float *pflGoal, float dist, int iMoveType)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMoveToOrigin: edict=%x pflGoal: %f dist: %f iMoveType: %d\n",ent,*pflGoal,dist,iMoveType); fclose(fp); }
-#endif
    (*g_engfuncs.pfnMoveToOrigin)(ent, pflGoal, dist, iMoveType);
 }
 void pfnChangeYaw(edict_t* ent)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangeYaw: edict=%x\n",ent); fclose(fp); }
-#endif
    (*g_engfuncs.pfnChangeYaw)(ent);
 }
 void pfnChangePitch(edict_t* ent)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangePitch: edict=%x\n",ent); fclose(fp); }
-#endif
    (*g_engfuncs.pfnChangePitch)(ent);
 }
 edict_t* pfnFindEntityByString(edict_t *pEdictStartSearchAfter, const char *pszField, const char *pszValue)
@@ -210,7 +200,6 @@ void pfnAngleVectors(const float *rgflVector, float *forward, float *right, floa
 edict_t* pfnCreateEntity(void)
 {
 	edict_t *pent = (*g_engfuncs.pfnCreateEntity)();
-#ifdef _DEBUG
 	if (debug_engine)
 	{
 		fp=fopen(debug_fname,"a");
@@ -220,12 +209,10 @@ edict_t* pfnCreateEntity(void)
 			fprintf(fp,"pfnCreateEntity: %x\n",pent);
 		fclose(fp);
 	}
-#endif
 	return pent;
 }
 void pfnRemoveEntity(edict_t* e)
 {
-#ifdef _DEBUG
 	if (debug_engine)
 	{
 		fp=fopen(debug_fname,"a");
@@ -237,16 +224,13 @@ void pfnRemoveEntity(edict_t* e)
 			fprintf(fp," model=%s\n", STRING(e->v.model));
 		fclose(fp);
 	}
-#endif
 	
 	(*g_engfuncs.pfnRemoveEntity)(e);
 }
 edict_t* pfnCreateNamedEntity(int className)
 {
 	edict_t *pent = (*g_engfuncs.pfnCreateNamedEntity)(className);
-#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCreateNamedEntity: edict=%x name=%s\n",pent,STRING(className)); fclose(fp); }
-#endif
 	return pent;
 }
 void pfnMakeStatic(edict_t *ent)
@@ -650,10 +634,8 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 	if (gpGlobals->deathmatch)
 	{
 		int index = -1;
-
-#ifdef _DEBUG
+		
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMessageBegin: edict=%x dest=%d type=%d\n",ed,msg_dest,msg_type); fclose(fp); }
-#endif
 		
 		if (ed)
 		{
@@ -709,7 +691,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 
 						// ugly technique to handle this message
 						if (botMsgFunction)
-							(*botMsgFunction)((void *)NULL, botMsgIndex);
+							(*botMsgFunction)(static_cast<void *>(NULL), botMsgIndex);
 					}
 					else if (msg_type == message_BrokenLeg)	// code for FA 2.65 and versions below
 						botMsgFunction = BotClient_FA_BrokenLeg;
@@ -777,7 +759,7 @@ void pfnWriteByte(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteByte)(iValue);
@@ -790,7 +772,7 @@ void pfnWriteChar(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteChar)(iValue);
@@ -803,7 +785,7 @@ void pfnWriteShort(int iValue)
 
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteShort)(iValue);
@@ -816,7 +798,7 @@ void pfnWriteLong(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteLong)(iValue);
@@ -829,7 +811,7 @@ void pfnWriteAngle(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&flValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&flValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteAngle)(flValue);
@@ -842,7 +824,7 @@ void pfnWriteCoord(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&flValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&flValue), botMsgIndex);
 	}
 
 	(*g_engfuncs.pfnWriteCoord)(flValue);
@@ -868,7 +850,7 @@ void pfnWriteEntity(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteEntity)(iValue);
@@ -1143,13 +1125,12 @@ float pfnRandomFloat(float flLow, float flHigh)
 }
 void pfnSetView(const edict_t *pClient, const edict_t *pViewent )
 {
-#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetView: pClient %x pViewent %x\n", pClient, pViewent); fclose(fp); }
-#endif
 
 	// NOTE: This seems to finally FIXED the bloody trigger_camera crash on obj_armory
 	//		 Although I'm not sure whether this won't affect things like HLTV.
 
+	// just in case
 	if (pClient != NULL)
 	{
 		if (UTIL_GetBotIndex((edict_t *)pClient) != -1)
@@ -1211,11 +1192,12 @@ void pfnFadeClientVolume(const edict_t *pEdict, int fadePercent, int fadeOutSeco
 }
 void pfnSetClientMaxspeed(const edict_t *pEdict, float fNewMaxspeed)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetClientMaxspeed: edict=%x %f\n",pEdict,fNewMaxspeed); fclose(fp); }
 
 
+
    //@@@@@@@@@@@@@22
+#ifdef _DEBUG
    //ALERT(at_console, "pfnSetClientMaxspeed: edict=%x speed=%.1f\n",pEdict,fNewMaxspeed);
 #endif
 
@@ -1306,20 +1288,16 @@ int pfnPrecacheGeneric(char* s)
 }
 int pfnGetPlayerUserId(edict_t *e )
 {
-#ifdef _DEBUG
    if (gpGlobals->deathmatch)
    {
       if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerUserId: %x\n",e); fclose(fp); }
    }
-#endif
 
    return (*g_engfuncs.pfnGetPlayerUserId)(e);
 }
 const char *pfnGetPlayerAuthId (edict_t *e)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerAuthId: %x\n",e); fclose(fp); }
-#endif
    
    if (e->v.flags & FL_FAKECLIENT)
 	   return "BOT";
@@ -1348,9 +1326,7 @@ cvar_t* pfnCVarGetPointer(const char *szVarName)
 }
 unsigned int pfnGetPlayerWONId(edict_t *e)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerWONId: %x\n",e); fclose(fp); }
-#endif
 
    if (e->v.flags & FL_FAKECLIENT)
 	   return 0;
@@ -1368,16 +1344,12 @@ void pfnInfo_RemoveKey(char *s, const char *key)
 }
 const char *pfnGetPhysicsKeyValue(const edict_t *pClient, const char *key)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPhysicsKeyValue: %x %s\n", pClient, key); fclose(fp); }
-#endif
    return (*g_engfuncs.pfnGetPhysicsKeyValue)(pClient, key);
 }
 void pfnSetPhysicsKeyValue(const edict_t *pClient, const char *key, const char *value)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetPhysicsKeyValue: client=%x key=%s value=%s\n", pClient, key, value); fclose(fp); }
-#endif
    (*g_engfuncs.pfnSetPhysicsKeyValue)(pClient, key, value);
 }
 const char *pfnGetPhysicsInfoString(const edict_t *pClient)
@@ -1393,9 +1365,7 @@ unsigned short pfnPrecacheEvent(int type, const char *psz)
 void pfnPlaybackEvent(int flags, const edict_t *pInvoker, unsigned short eventindex, float delay,
    float *origin, float *angles, float fparam1,float fparam2, int iparam1, int iparam2, int bparam1, int bparam2)
 {
-#ifdef _DEBUG
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPlaybackEvent: flags=%d invoker=%x index=%d\n", flags, pInvoker, eventindex); fclose(fp); }
-#endif
    (*g_engfuncs.pfnPlaybackEvent)(flags, pInvoker, eventindex, delay, origin, angles, fparam1, fparam2, iparam1, iparam2, bparam1, bparam2);
 }
 unsigned char *pfnSetFatPVS(float *org)
@@ -1480,9 +1450,7 @@ void pfnGetPlayerStats(const edict_t *pClient, int *ping, int *packet_loss)
 }
 void pfnAddServerCommand(char *cmd_name, void (*function)(void))
 {
-#ifdef _DEBUG
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnAddServerCommand: %s %x\n",cmd_name,function); fclose(fp); }
-#endif
 	(*g_engfuncs.pfnAddServerCommand)(cmd_name, function);
 }
 

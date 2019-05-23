@@ -65,7 +65,7 @@ Section * parceConfig(char *confFileName) {
 	pp.confEntryQueue.pop();
 	conf_in = ce.f;
 	pp.sect_stack.push(ce.sect);
-	if (conf_parse((void*) &pp)!=0) {
+	if (conf_parse(static_cast<void*>(&pp))!=0) {
 	    printf(" in file %s\n", ce.f_name.c_str());
 	    delete conf_p;
 	    conf_p = NULL;
@@ -85,7 +85,7 @@ Section * parceConfig(char *confFileName) {
 Section :: ~Section() {
     for (SI p = sectionList.begin();
 	    p != sectionList.end(); 
-	    p++) {
+	    ++p) {
 	delete (p->second);
     }
 }
@@ -95,7 +95,7 @@ void printSection(Section *sect, int level) {
 	int i=0;
     for (CI p = sect->sectionList.begin();
 	    p != sect->sectionList.end(); 
-	    p++) {
+	    ++p) {
 		for (i=0; i<level; i++) {
 			cout << "   ";
 		}
@@ -110,7 +110,7 @@ void printSection(Section *sect, int level) {
     typedef map<string, string>::const_iterator CIV;
     for (CIV pi = sect->item.begin();
 			pi != sect->item.end(); 
-			pi++) {
+			++pi) {
 		for (i=0; i<level; i++) {
 			cout << "   ";
 		}

@@ -1175,7 +1175,8 @@ void bot_t::BotDoMedEvac(float distance)
 
 	// if the bot tried all spots then break it, because we probably can't
 	// medevac this corpse (the entity is most probably deep inside the map terrain)
-	if (IsSubTask(ST_MEDEVAC_ST) && IsSubTask(ST_MEDEVAC_H) && IsSubTask(ST_MEDEVAC_F))
+	// Not required as it floods the error logs [APG]RoboCop[CL]
+	/*if (IsSubTask(ST_MEDEVAC_ST) && IsSubTask(ST_MEDEVAC_H) && IsSubTask(ST_MEDEVAC_F))
 	{
 		SetSubTask(ST_MEDEVAC_DONE);
 		UTIL_DebugInFile("Bot can't medevac this corpse, it's unreachable (inside wall etc.)");
@@ -1183,7 +1184,7 @@ void bot_t::BotDoMedEvac(float distance)
 
 		//@@@@@@@@@@
 		ALERT(at_console, "bot.cpp|doMedevac - CAN'T MEDEVAC, corpse is unreachable\n");
-	}
+	}*/
 
 }
 

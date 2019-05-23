@@ -370,13 +370,10 @@ int   WaypointAddTriggerEvent(const char *trigger_name, const char *trigger_mess
 int   WaypointDeleteTriggerEvent(const char *trigger_name);
 int   WaypointConnectTriggerEvent(edict_t *pEntity, const char *trigger_name, const char *state);
 int   WaypointRemoveTriggerEvent(edict_t *pEntity, const char *state);
-bool  WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES waypoint_type);
 int   WaypointRepairInvalidPathEnd(int path_index);
 void  WaypointRepairInvalidPathEnd(void);
-int   WaypointCheckInvalidPathEnd(int path_index, bool log_in_file);
 int   WaypointRepairInvalidPathMerge(int path_index);
 void  WaypointRepairInvalidPathMerge(void);
-int	  WaypointCheckInvalidPathMerge(int path_index, bool log_in_file);
 int	  WaypointRepairSniperSpot(int path_index);
 void  WaypointRepairSniperSpot(void);
 int	  WaypointLoad(edict_t *pEntity, char *name);
@@ -396,8 +393,7 @@ int	  WaypointSearchNewInRange(bot_t *pBot, int wpt_index, int curr_path);
 bool  WaypointFindLastPatrol(bot_t *pBot);
 bool  IsWaypoint(int wpt_index, WPT_TYPES flag_type);
 char  *WptAdd(edict_t *pEntity, const char *wpt_type);
-void  WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3);
-void  WaypointPrintAllWaypoints(edict_t *pEntity);
+void  WaypointPrintInfo(edict_t *pEntity, int info_level);
 void  WaypointTriggerPrintInfo(edict_t *pEntity);
 char  *WptFlagChange(edict_t *pEntity, const char *arg2);
 int   WptPriorityChange(edict_t *pEntity, const char *arg2, const char *arg3);
@@ -419,7 +415,6 @@ bool WaypointRemoveFromPath(edict_t *pEntity, int path_index);
 bool WaypointDeletePath(edict_t *pEntity, int path_index);
 bool WaypointPathInfo(edict_t *pEntity, int path_index);
 bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index);
-bool WaypointPrintWholePath(edict_t *pEntity, int path_index);
 bool WaypointResetPath(edict_t *pEntity, int path_index);
 bool WaypointIsInPath(int wpt_index, int path_index);
 bool IsPathPossible(bot_t *pBot, int path_index);
@@ -428,12 +423,10 @@ int  WptPathChangeTeam(edict_t *pEntity, const char *new_value, int path_index);
 int  WptPathChangeClass(edict_t *pEntity, const char *new_value, int path_index);
 int  WptPathChangeWay(edict_t *pEntity, const char *new_value, int path_index);
 int  WptPathChangeMisc(edict_t *pEntity, const char *new_value, int path_index);
-bool WaypointMoveWholePath(int path_index, float , int coord);
 int  WaypointPathLoad(edict_t *pEntity, char *name);
 bool WaypointPathSave(const char *name);
 bool WaypointPathLoadUnsupported(edict_t *pEntity);
 bool WaypointPathLoadVersion5(edict_t *pEntity);
-
 //SECTION BY kota@
 W_PATH * FindPointInPath (int wpt_index, int path_index);
 //int fillPointList(int *pl, int size, W_PATH *w_path_ptr, bool forward);	// not used

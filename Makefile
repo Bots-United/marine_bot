@@ -12,8 +12,9 @@ SDKDIR = ./hlsdk
 
 #Doesn't support any optimisations for -O1 nor -O2?
 
-CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -msse -msse2 -m32 -mfpmath=sse -s -pipe -funsafe-math-optimizations \
-		-Wall -I. -I./Config -I./dlls -I$(SDKDIR)/engine -I$(SDKDIR)/common -I$(SDKDIR)/pm_shared -I$(SDKDIR)/dlls
+CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -msse -msse2 -m32 -mfpmath=sse -s -pipe \
+		-w -fexpensive-optimizations -funsafe-math-optimizations -falign-jumps -falign-loops \
+		-I. -I./Config -I./dlls -I$(SDKDIR)/engine -I$(SDKDIR)/common -I$(SDKDIR)/pm_shared -I$(SDKDIR)/dlls
 
 OBJ = bot.o bot_client.o bot_combat.o bot_navigate.o bot_start.o \
 	dll.o engine.o h_export.o linkfunc.o util.o waypoint.o \

@@ -825,7 +825,7 @@ int yynerrs;
       {
 	short *yyss1 = yyss;
 	union yyalloc *yyptr =
-	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
+	  static_cast<union yyalloc *>(YYSTACK_ALLOC(YYSTACK_BYTES(yystacksize)));
 	if (! yyptr)
 	  goto yyoverflowlab;
 	YYSTACK_RELOCATE (yyss);
@@ -990,7 +990,7 @@ yyreduce:
 	char section_name[1024];
 	/*conf_parse((void*)&((Section *) section_p)->sectionListsection_name);*/
 	{
-	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    Section *cur_sect = static_cast<ParserParam *>(param_p)->sect_stack.top();
 	    sprintf(section_name, " %06d", cur_sect->sectionList.size());
 	    Section *new_sect = NULL;
 	    try {
@@ -1001,7 +1001,7 @@ yyreduce:
 	    if (new_sect != NULL) {
 		cur_sect->sectionList.insert(make_pair(std::string(section_name), new_sect)); 
 		cur_sect = new_sect;
-		((ParserParam *) param_p)->sect_stack.push(cur_sect);
+		static_cast<ParserParam *>(param_p)->sect_stack.push(cur_sect);
 	    }
 	}
     }
@@ -1013,7 +1013,7 @@ yyreduce:
 	//printf("SECTION_BEGIN %s \n", );
 	/*conf_parse((void*)&((Section *) section_p)->sectionList);*/
 	{
-	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    Section *cur_sect = static_cast<ParserParam *>(param_p)->sect_stack.top();
 	    Section *new_sect = NULL;
 	    try {
 		new_sect = new Section();
@@ -1023,7 +1023,7 @@ yyreduce:
 	    if (new_sect != NULL) {
 		cur_sect->sectionList.insert(make_pair(yyvsp[-1].val, new_sect)); 
 		cur_sect = new_sect;
-		((ParserParam *) param_p)->sect_stack.push(cur_sect);
+		static_cast<ParserParam *>(param_p)->sect_stack.push(cur_sect);
 	    }
 	    delete(yyvsp[-1].val);
 	}
@@ -1034,11 +1034,11 @@ yyreduce:
 #line 111 "config.ypp"
     { 
 	//printf("SECTION_END\n");
-	if (((ParserParam *) param_p)->sect_stack.empty()) {
+	if (static_cast<ParserParam *>(param_p)->sect_stack.empty()) {
 	    YYABORT;
 	}
 	{
-	    ((ParserParam *) param_p)->sect_stack.pop();
+	    static_cast<ParserParam *>(param_p)->sect_stack.pop();
 	}
     }
     break;
@@ -1048,7 +1048,7 @@ yyreduce:
     { 
 	//printf("ITEM %s=%s\n", , );
 	{
-	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    Section *cur_sect = static_cast<ParserParam *>(param_p)->sect_stack.top();
 	    cur_sect->item[yyvsp[-3].val] = yyvsp[-1].val;
 	    delete(yyvsp[-3].val);
 	    delete(yyvsp[-1].val);
@@ -1060,7 +1060,7 @@ yyreduce:
 #line 134 "config.ypp"
     {
 	{
-	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
+	    Section *cur_sect = static_cast<ParserParam *>(param_p)->sect_stack.top();
 	    char item_name[1024];
 	    sprintf(item_name, " %06d", cur_sect->item.size());
 	    cur_sect->item[item_name] = yyvsp[-1].val;
@@ -1091,7 +1091,7 @@ yyreduce:
 	{
 	    FILE *new_in = fopen(yyvsp[0].val, "r");
 	    if ( new_in != NULL) {
-		((ParserParam *) param_p)->in_stack.push(conf_in);
+		static_cast<ParserParam *>(param_p)->in_stack.push(conf_in);
 		conf_in = new_in;
 		delete(yyvsp[0].val);
 	    }
@@ -1186,7 +1186,7 @@ yyerrlab:
 	      yysize += yystrlen (yytname[yyx]) + 15, yycount++;
 	  yysize += yystrlen ("parse error, unexpected ") + 1;
 	  yysize += yystrlen (yytname[yytype]);
-	  yymsg = (char *) YYSTACK_ALLOC (yysize);
+	  yymsg = static_cast<char *>(YYSTACK_ALLOC(yysize));
 	  if (yymsg != 0)
 	    {
 	      char *yyp = yystpcpy (yymsg, "parse error, unexpected ");
