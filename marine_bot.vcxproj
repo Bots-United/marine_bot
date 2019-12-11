@@ -150,8 +150,10 @@
       <AdditionalDependencies>user32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>"$(SolutionDir)"\!copy_dlls.bat</Command>
-      <Message>copy the dll</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
       <Outputs>$(SolutionName);%(Outputs)</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -165,7 +167,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
       <AdditionalIncludeDirectories>.\dlls;.\engine;.\common;.\pm_shared;.\;.\Config;.\Config\Win32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;VALVE_DLL;SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;VALVE_DLL;SERVER;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AssemblerListingLocation>.\Release\</AssemblerListingLocation>
       <PrecompiledHeaderOutputFile>.\Release\marine_bot.pch</PrecompiledHeaderOutputFile>
       <ObjectFileName>.\Release\</ObjectFileName>
@@ -198,8 +200,10 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>"$(SolutionDir)"\!copy_releasedll.bat</Command>
-      <Message>copy dll</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
       <Outputs>$(SolutionName);%(Outputs)</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -251,8 +255,10 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>"$(SolutionDir)"\!copy_releasedll.bat</Command>
-      <Message>copy dll</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
       <Outputs>$(SolutionName);%(Outputs)</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -298,8 +304,10 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>"$(SolutionDir)"\!copy_releasedll.bat</Command>
-      <Message>copy dll</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
       <Outputs>$(SolutionName);%(Outputs)</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -345,8 +353,10 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>"$(SolutionDir)"\!copy_releasedll.bat</Command>
-      <Message>copy dll</Message>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
       <Outputs>$(SolutionName);%(Outputs)</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>

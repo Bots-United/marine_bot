@@ -880,11 +880,9 @@ void pfnCVarSetString(const char *szVarName, const char *szValue)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCVarSetString: varName=%s value=%s\n", szVarName, szValue); fclose(fp); }
    (*g_engfuncs.pfnCVarSetString)(szVarName, szValue);
 }
-#ifndef __linux__
-void* pfnPvAllocEntPrivateData(edict_t *pEdict, long cb)
-#else
+
 void* pfnPvAllocEntPrivateData(edict_t *pEdict, int32 cb)
-#endif
+
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPvAllocEntPrivateData:\n"); fclose(fp); }
    return (*g_engfuncs.pfnPvAllocEntPrivateData)(pEdict, cb);
@@ -1043,31 +1041,17 @@ void pfnGetBonePosition(const edict_t* pEdict, int iBone, float *rgflOrigin, flo
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetBonePosition:\n"); fclose(fp); }
    (*g_engfuncs.pfnGetBonePosition)(pEdict, iBone, rgflOrigin, rgflAngles);
 }
-#ifndef __linux__
-unsigned long pfnFunctionFromName( const char *pName )
-#else
 uint32 pfnFunctionFromName( const char *pName )
-#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnFunctionFromName:\n"); fclose(fp); }
-#ifndef __linux__
-   return FUNCTION_FROM_NAME(pName);
-#else
+
    return (*g_engfuncs.pfnFunctionFromName)(pName);
-#endif
 }
-#ifndef __linux__
-const char *pfnNameForFunction( unsigned long function )
-#else
 const char *pfnNameForFunction( uint32 function )
-#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnNameForFunction:\n"); fclose(fp); }
-#ifndef __linux__
-   return NAME_FOR_FUNCTION(function);
-#else
+   
    return (*g_engfuncs.pfnNameForFunction)(function);
-#endif
 }
 void pfnClientPrintf( edict_t* pEdict, PRINT_TYPE ptype, const char *szMsg )
 {
@@ -1109,11 +1093,7 @@ CRC32_t pfnCRC32_Final(CRC32_t pulCRC)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCRC32_Final:\n"); fclose(fp); }
    return (*g_engfuncs.pfnCRC32_Final)(pulCRC);
 }
-#ifndef __linux__
-long pfnRandomLong(long lLow, long lHigh)
-#else
 int32 pfnRandomLong(int32 lLow, int32 lHigh)
-#endif
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnRandomLong: lLow=%d lHigh=%d\n",lLow,lHigh); fclose(fp); }
    return (*g_engfuncs.pfnRandomLong)(lLow, lHigh);
@@ -1333,7 +1313,6 @@ unsigned int pfnGetPlayerWONId(edict_t *e)
 
    return (*g_engfuncs.pfnGetPlayerWONId)(e);
 }
-
 
 // new stuff for SDK 2.0
 

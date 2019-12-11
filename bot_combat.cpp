@@ -523,9 +523,9 @@ void BotWeaponArraysInit(Section *conf_weapons)
 				}
 				catch (errGetVal &er_val)
 				{
-					//sprintf(msg, "** missing variable '%s'", er_val.key);
-					//
-					//PrintOutput(NULL, msg, msg_error);
+					sprintf(msg, "** missing variable '%s'\n", er_val.key.c_str());
+					
+					PrintOutput(NULL, msg, msg_error);
 				}
 				if (modif==true)
 				{

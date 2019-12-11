@@ -1,3 +1,15 @@
 
 *.log
 *.ipch
+.vs/marine_bot/v15/.suo
+*.obj
+*.dll
+*.exp
+*.lib
+*.pdb
+*.tlog
+.vs/marine_bot/v15/.suo
+.vs/marine_bot/v15/Browse.VC.db
+.vs/marine_bot/v16/.suo
+.vs/marine_bot/v16/Browse.VC.db
+.vs/marine_bot/v16/Browse.VC.opendb
