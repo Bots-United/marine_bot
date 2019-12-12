@@ -13,3 +13,5 @@
 .vs/marine_bot/v16/.suo
 .vs/marine_bot/v16/Browse.VC.db
 .vs/marine_bot/v16/Browse.VC.opendb
+*.db
+.vs/marine_bot/v16/.suo

@@ -5545,7 +5545,7 @@ void ProcessBotCfgFile(Section *conf)
 	    set_vars.Add("dont_speak", new SetupBaseType_yesno(temp_dontspeak), false, "no");
 		set_vars.Add("dont_chat", new SetupBaseType_yesno(temp_botdontchat), false, "no");
 		set_vars.Add("rich_names", new SetupBaseType_yesno(temp_richnames), false, "yes");
-		set_vars.Add("passive_healing", new SetupBaseType_yesno(temp_passivehealing), true, "no");
+		set_vars.Add("passive_healing", new SetupBaseType_yesno(temp_passivehealing), false, "no");
 		set_vars.Add("be_samurai", new SetupBaseType_yesno(externals.be_samurai), false, "no");
 		set_vars.Add("harakiri_time", new SetupBaseType_float(externals.harakiri_time), false, "60.0");
 	    
