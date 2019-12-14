@@ -2779,6 +2779,7 @@ bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range)
 int UTIL_RemoveFalsePaths(bool print_details)
 {
 	int num_of_removed_paths = 0;
+	char msg[64];
 
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
@@ -2803,12 +2804,61 @@ int UTIL_RemoveFalsePaths(bool print_details)
 				}
 
 				if (print_details)
-					ALERT(at_console, "Invalid path (path no. %d) was removed\n", path_index + 1);
+				{
+					sprintf(msg, "Invalid path (path no. %d) was removed\n", path_index + 1);
+					HudNotify(msg);
+				}
 			}
 		}
 	}
 
 	return num_of_removed_paths;
+}
+
+
+/*
+* checks all paths for possible problems like ...
+* if goback waypoint is found in one-way path we report it as a bug
+* if parachute waypoint is found in one-way path we print a warning to make sure the bot already has a parachute when
+* approaching this waypoint
+* returns total count of problem paths or zero if there was no problem found
+*/
+int UTIL_CheckPathsForProblems(bool log_in_file)
+{
+	int num_of_problem_paths = 0;
+	char msg[256];
+
+	// go through all paths ...
+	for (int path_index = 0; path_index < num_w_paths; path_index++)
+	{
+		// look for a goback waypoint in one-way path
+		if (WaypointScanPathForProblem(path_index, path_one, wpt_goback))
+		{
+			num_of_problem_paths++;
+
+			sprintf(msg, "BUG: There's a goback waypoint in one-way path (path no. %d)\n", path_index + 1);
+			HudNotify(msg, log_in_file);
+		}
+
+		// look for a parachute waypoint in one-way path
+		if (WaypointScanPathForProblem(path_index, path_one, wpt_chute))
+		{
+			num_of_problem_paths++;
+
+			sprintf(msg, "WARNING: There's a parachute waypoint in one-way path (path no. %d)\nMake sure the bot already has the parachute pack there.\n", path_index + 1);
+			HudNotify(msg, log_in_file);
+		}
+
+		// look for invalid path ends ie. paths not ending at a cross waypoint or not ending at ammobox etc.
+		if (WaypointCheckInvalidPathEnd(path_index, log_in_file) > 0)
+			num_of_problem_paths++;
+
+		// also report the invalid merge of paths 
+		if (WaypointCheckInvalidPathMerge(path_index, log_in_file) > 0)
+			num_of_problem_paths++;
+	}
+
+	return num_of_problem_paths;
 }
 
 
@@ -3920,10 +3970,26 @@ void EchoConsole(const char *message)
 */
 void HudNotify(char *msg)
 {
+	//extern edict_t *listenserver_edict;
+
+	//if (listenserver_edict)
+	//	ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
+	HudNotify(msg, false);
+}
+
+
+/*
+* Overloaded to allow logging in file
+*/
+void HudNotify(char *msg, bool islogging)
+{
 	extern edict_t *listenserver_edict;
 
 	if (listenserver_edict)
 		ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
+
+	if (islogging)
+		UTIL_DebugInFile(msg);
 }
 
 

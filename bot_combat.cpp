@@ -1835,10 +1835,12 @@ bool dbl_coords = false;
 bool mod_coords = false;
 bool inv_coords = false;
 bool test_code = false;
-//bool ignore_aim_error_code = false;
-bool ignore_aim_error_code = true;			// << for tests I need headshots all the time
+bool ignore_aim_error_code = false;
+//bool ignore_aim_error_code = true;			// << for tests I need headshots all the time
 float modifier = 1;
 #endif
+
+bool g_test_aim_code = false;		// global switch to allow the new aim patch even in release compilation
 
 /*
 * find best point to target based on visiblity and aim skill level
@@ -1862,20 +1864,34 @@ Vector BotBodyTarget(bot_t *pBot)
 	// first decide which weapon works in these versions and which doesn't
 	if (g_mod_version == FA_29 || g_mod_version == FA_30)
 	{
-		int weapon = pBot->current_weapon.iId;
-
-		// these 3 seem to always work in FA2.9 and above
-		// also knife, grenades and the grenade launcher don't need any aim patch
-		if (UTIL_IsShotgun(weapon) || weapon == fa_weapon_anaconda || weapon == fa_weapon_knife ||
-			weapon == fa_weapon_concussion || weapon == fa_weapon_frag || weapon == fa_weapon_m79)
-			;
-		// sniper rifles don't need aim patch when the bot is proned
-		else if (UTIL_IsSniperRifle(weapon) && pEdict->v.flags & FL_PRONED)
-			;
-		// all the other weapons need to be patched
+		// see if the user turned the test aim code under release compilation
+		if (g_test_aim_code)
+		{
+			int weapon = pBot->current_weapon.iId;
+			
+			// these 3 seem to always work in FA2.9 and above
+			// also knife, grenades and the grenade launcher don't need any aim patch
+			if (UTIL_IsShotgun(weapon) || weapon == fa_weapon_anaconda || weapon == fa_weapon_knife ||
+				weapon == fa_weapon_concussion || weapon == fa_weapon_frag || weapon == fa_weapon_m79)
+				;
+			// sniper rifles don't need aim patch when the bot is proned
+			else if (UTIL_IsSniperRifle(weapon) && pEdict->v.flags & FL_PRONED)
+				;
+			// all the other weapons need to be patched
+			else
+			{
+				use_aim_patch_v1 = true;
+			}
+		}
+		// default setting is to ignore the new aim code because it isn't fully finished
 		else
 		{
-			use_aim_patch_v1 = true;
+			// sniper rifles don't need any patching at all
+			if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
+				;
+			// all other weapons need to use the original aim patch
+			else
+				use_aim_patch_v2 = true;
 		}
 	}
 	
