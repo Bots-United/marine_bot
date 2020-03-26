@@ -17,3 +17,14 @@
 .vs/marine_bot/v16/.suo
 *.o
 *.so
+.vs/marine_bot/v16/.suo
+*.db
+bot.cpp.PVS-Studio.cfg
+bot.cpp.PVS-Studio.cmd
+bot.cpp.PVS-Studio.preprocess.cmd.rsp
+bot.PVS-Studio.i
+Release/marine_bot.vcxproj.FileListAbsolute.txt
+.vs/marine_bot/v16/Browse.VC.db
+.vs/marine_bot/v16/.suo
+Release/marine_bot.vcxproj.FileListAbsolute.txt
+Release/marine_bot.vcxproj.FileListAbsolute.txt

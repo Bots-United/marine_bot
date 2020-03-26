@@ -141,7 +141,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	{
 		pos = 0;
  
-		if (strstr(game_dir, "/") != NULL)
+		if (strchr(game_dir, '/') != NULL)
 		{
 			// scan backwards till first directory separator...
 			while ((pos) && (game_dir[pos] != '/'))

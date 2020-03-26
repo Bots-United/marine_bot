@@ -1840,7 +1840,7 @@ bool ignore_aim_error_code = false;
 float modifier = 1;
 #endif
 
-bool g_test_aim_code = false;		// global switch to allow the new aim patch even in release compilation
+bool g_test_aim_code = true;		// global switch to allow the new aim patch even in release compilation
 
 /*
 * find best point to target based on visiblity and aim skill level
@@ -2730,11 +2730,11 @@ Vector BotBodyTarget(bot_t *pBot)
 					target = target_origin;  // aim only for the body
 				d_x = RANDOM_FLOAT(-4, 4) * f_scale;
 				d_y = RANDOM_FLOAT(-4, 4) * f_scale;
-				d_z = RANDOM_FLOAT(-7, 7) * f_scale;
+				d_z = RANDOM_FLOAT(-8, 8) * f_scale;
 				break;
 			case 2:
 				// FAIR, offset somewhat for x, y, and z
-				if (hs_percentage > 50)
+				if (hs_percentage > 40)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
@@ -2744,7 +2744,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 3:
 				// POOR, offset for x, y, and z
-				if (hs_percentage > 75)
+				if (hs_percentage > 50)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
@@ -2803,7 +2803,7 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin;
 					d_x = RANDOM_FLOAT(-5, 5) * f_scale;
 					d_y = RANDOM_FLOAT(-5, 5) * f_scale;
-					d_z = RANDOM_FLOAT(-8, 8) * f_scale;
+					d_z = RANDOM_FLOAT(-10, 10) * f_scale;
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
@@ -2811,13 +2811,13 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-10, 10) * f_scale;
-					d_y = RANDOM_FLOAT(-10, 10) * f_scale;
-					d_z = RANDOM_FLOAT(-14, 14) * f_scale;
+					d_x = RANDOM_FLOAT(-7, 7) * f_scale;
+					d_y = RANDOM_FLOAT(-7, 7) * f_scale;
+					d_z = RANDOM_FLOAT(-12, 12) * f_scale;
 					break;
 				case 3:
 					// POOR, offset for x, y, and z
-					if (hs_percentage > 75)
+					if (hs_percentage > 70)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
@@ -4969,7 +4969,7 @@ void BotShootAtEnemy( bot_t *pBot )
 
 			// based on skill - Fire Rate Delay? [APG]RoboCop[CL]
 			float min_delay[BOT_SKILL_LEVELS] = {0.1, 0.2, 0.3, 0.4, 0.5};
-			float max_delay[BOT_SKILL_LEVELS] = {0.2, 0.3, 0.5, 0.8, 1.0};
+			float max_delay[BOT_SKILL_LEVELS] = {0.2, 0.3, 0.6, 0.8, 1.0};
 
 			int skill = pBot->bot_skill;
 			bool can_use = FALSE;
