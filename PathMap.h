@@ -65,8 +65,8 @@ class NeighbourMap : public map<const int, Info> {
 	double weight;
 	int parent;
 	
-	int   flags;
-	int   border;
+	int flags;
+	int border;
 };
 typedef NeighbourMap::iterator NeighbourMap_I;
 typedef NeighbourMap::const_iterator NeighbourMap_CI;
@@ -76,7 +76,7 @@ private:
 	int to;
 public:
 	equalWpt(int wpt) { to = wpt; };
-	inline bool operator()(const int ind, const NeighbourMap &nm) const {
+	inline bool operator()(const int ind, const NeighbourMap &/*nm*/) const {
 	   if(ind == to) {
 	      return true;
 	   }
@@ -99,7 +99,7 @@ public:
 	equalSpcWpt(int find_flags, int find_border=-1):equalWpt(-1) { 
 		border = find_border; flags = find_flags;
 	};
-	inline bool operator()(const int ind, const NeighbourMap &nm)  const {
+	inline bool operator()(const int /*ind*/, const NeighbourMap &nm)  const {
 	   if (nm.flags & flags) {
 		if (border != -1 && border!=nm.border) {
 		   return false;

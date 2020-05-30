@@ -2197,7 +2197,7 @@ bool IsPath(int path_index, PATH_TYPES path_type)
 */
 bool PathMatchingFlag(int path_index1, int path_index2, PATH_TYPES path_type)
 {
-	if ((path_index1 == -1) || (path_index1 == -1) || (path_type == default_flagtype))
+	if ((path_index1 == -1) || (path_type == default_flagtype))
 		return FALSE;
 
 	if (IsPath(path_index1, path_type) && IsPath(path_index2, path_type))
@@ -6658,7 +6658,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 	bool show_paths_on = FALSE;		// TRUE if paths were turned on
 	W_PATH *p = NULL;
 	int path_index, path_length, flags, wpt_index;
-	bool known;
+	bool known = false;
 	OLD_W_PATH *old_paths = NULL;	// we don't really need it here
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
@@ -6911,7 +6911,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 	bool show_paths_on = FALSE;		// TRUE if paths were turned on
 	W_PATH *p = NULL;
 	int path_index, path_length, flags, wpt_index;
-	bool known;
+	bool known = false;
 	OLD_W_PATH *old_paths = NULL;	// we don't really need it here
 	int OLD_WAYPOINT_VERSION_5 = 5;		// we have to "override" standard conversion by sending even older version number
 
@@ -7442,7 +7442,7 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 	int index;
 	OLD_WAYPOINT oldwaypoints_ver[1];	// we need just one slot because we are converting them one by one
 	TRIGGER_EVENT_OLD old_triggers[1];
-	bool known;
+	bool known = false;
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
@@ -7668,7 +7668,7 @@ typedef struct {
 	int index;
 	OLD_WAYPOINT_STRUCT_VERSION_5 oldwaypoints_ver[1];	// we need just one slot because we are converting them one by one
 	int OLD_WAYPOINT_VERSION_5 = 5;		// we have to "override" standard conversion by sending even older version number
-	bool known;
+	bool known = false;
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
@@ -9239,7 +9239,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 */
 int WptPriorityChange(edict_t *pEntity, const char *arg2, const char *arg3)
 {
-	int index, new_priority, wpt_priority = -1, team;
+	int index, new_priority, wpt_priority = -1, team = 0;
 
 	// find the nearest waypoint
 	index = WaypointFindNearest(pEntity, 50.0, -1);
@@ -9347,7 +9347,7 @@ int WptPriorityChange(edict_t *pEntity, const char *arg2, const char *arg3)
 */
 int WptTriggerPriorityChange(edict_t *pEntity, const char *priority, const char *for_team)
 {
-	int index, new_priority, wpt_priority = -1, team;
+	int index, new_priority, wpt_priority = -1, team = 0;
 
 	// find the nearest trigger waypoint
 	index = WaypointFindNearestType(pEntity, 50.0, W_FL_TRIGGER);
@@ -9447,7 +9447,7 @@ int WptTriggerPriorityChange(edict_t *pEntity, const char *priority, const char 
 */
 float WptTimeChange(edict_t *pEntity, const char *arg2, const char *arg3)
 {
-	int index, team;
+	int index, team = 0;
 	float new_time, wpt_time = -1.0;
 
 	// find the nearest waypoint

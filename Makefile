@@ -1,6 +1,6 @@
 # the following specifies the path to your MOD...
 
-CPP = g++-4.8
+CPP = g++
 
 VPATH=.:./Config
 
@@ -12,8 +12,8 @@ SDKDIR = ./hlsdk
 
 #Doesn't support any optimisations for -O1 nor -O2?
 
-CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -mmmx -msse -msse2 -m32 -mfpmath=sse -s -pipe \
-		-Wno-write-strings -fexpensive-optimizations -funsafe-math-optimizations -falign-jumps -falign-loops \
+CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -mmmx -msse -msse2 -m32 -mfpmath=sse -pipe \
+		-Wno-write-strings -funsafe-math-optimizations -falign-jumps -falign-loops \
 		-I. -I./Config -I./dlls -I$(SDKDIR)/engine -I$(SDKDIR)/common -I$(SDKDIR)/pm_shared -I$(SDKDIR)/dlls
 
 OBJ = bot.o bot_client.o bot_combat.o bot_navigate.o bot_start.o \

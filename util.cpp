@@ -48,6 +48,10 @@
 #include "bot_weapons.h"
 #include "waypoint.h"
 
+#ifdef _WIN32
+#define strrev _strrev
+#define strlwr _strlwr
+#endif
 
 int gmsgTextMsg = 0;
 int gmsgSayText = 0;

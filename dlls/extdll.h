@@ -49,6 +49,8 @@ typedef int BOOL;
 #define MAX_PATH PATH_MAX
 #include <limits.h>
 #include <stdarg.h>
+//Fix for GCC 6 - [APG]RoboCop[CL]
+#include <algorithm>
 #ifndef min
 #define min(a,b)  (((a) < (b)) ? (a) : (b))
 #endif
@@ -56,6 +58,10 @@ typedef int BOOL;
 #define max(a,b)  (((a) > (b)) ? (a) : (b))
 #define _vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
 #endif
+#undef max
+#undef min
+using namespace std;
+#define itoa(a, b, c) sprintf(b, "%d", a)
 #endif //_WIN32
 
 // Misc C-runtime library headers

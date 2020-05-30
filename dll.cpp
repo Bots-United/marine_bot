@@ -8402,7 +8402,7 @@ void MBServerCommand(void)
 	// set the time for team balance checking
 	else if (strcmp(cmd, "auto_balance") == 0)
 	{
-		if ((arg1 != NULL) && (arg1 != 0))
+		if (arg1 != 0)
 		{
 			float temp = atoi(arg1);
 			
@@ -8457,7 +8457,7 @@ void MBServerCommand(void)
 	// set the time between two info notifications
 	else if (strcmp(cmd, "send_info") == 0)
 	{
-		if ((arg1 != NULL) && (arg1 != 0))
+		if (arg1 != 0)
 		{
 			float temp = atoi(arg1);
 			
@@ -8484,7 +8484,7 @@ void MBServerCommand(void)
 	// set the time between two presentation messages
 	else if (strcmp(cmd, "send_presentation") == 0)
 	{
-		if ((arg1 != NULL) && (arg1 != 0))
+		if (arg1 != 0)
 		{
 			float temp = atoi(arg1);
 

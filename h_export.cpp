@@ -30,6 +30,7 @@
 
 #ifndef __linux__
 
+#define strcmpi _strcmpi
 HINSTANCE h_Library = NULL;
 HGLOBAL h_global_argv = NULL;
 void FreeNameFuncGlobals(void);
