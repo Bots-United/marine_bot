@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // mb_hud.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
 
 #include "defines.h"
 
@@ -24,9 +28,9 @@
 #include "util.h"
 #include "cbase.h"
 #include "bot.h"
+#include "bot_manager.h"
 
 extern edict_t *listenserver_edict;
-extern float HUDmsg_time;
 
 
 static unsigned short FixedUnsigned16( float value, float scale )
@@ -39,7 +43,7 @@ static unsigned short FixedUnsigned16( float value, float scale )
 	if ( output > 0xFFFF )
 		output = 0xFFFF;
 
-	return static_cast<unsigned short>(output);
+	return (unsigned short)output;
 }
 
 
@@ -99,7 +103,7 @@ void FullCustHudMessage(edict_t *pEntity, const char *msg_name, int channel, int
 void StdHudMessage(edict_t *pEntity, const char *msg_name, int gfx, int time)
 {
 	// to prevent crashing HL due to overloading the engine
-	if (HUDmsg_time > gpGlobals->time)
+	if (internals.GetHUDMessageTime() > gpGlobals->time)
 		return;
 
 	edict_t *pEdict;
@@ -143,7 +147,7 @@ void StdHudMessageToAll(const char *msg_name, int gfx, int time)
 */
 void CustHudMessage(edict_t *pEntity, const char *msg_name, Vector color1 , Vector color2, int gfx, int time)
 {
-	if (HUDmsg_time < gpGlobals->time)
+	if (internals.GetHUDMessageTime() < gpGlobals->time)
 		FullCustHudMessage(pEntity, msg_name, 3, 1, 0, gfx, color1, color2, 200, 0.03, 1.0, time);
 }
 
@@ -168,12 +172,12 @@ void CustHudMessageToAll(const char *msg_name, Vector color1, Vector color2, int
 */
 void DisplayMsg(edict_t *pEntity, const char *msg)
 {
-	if (HUDmsg_time > gpGlobals->time)
+	if (internals.GetHUDMessageTime() > gpGlobals->time)
 		return;
 	
 	// to prevent overloading HL engine, crashed if this message is used alot
 	// so just don't allow to print this message every frame
-	HUDmsg_time = gpGlobals->time + 0.5;
+	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
 
 	// we're using just one color for this message
 	Vector color = Vector(0, 255, 20);
@@ -188,10 +192,10 @@ void DisplayMsg(edict_t *pEntity, const char *msg)
 */
 void CustDisplayMsg(edict_t *pEntity, const char *msg, int x_pos, float time)
 {
-	if (HUDmsg_time > gpGlobals->time)
+	if (internals.GetHUDMessageTime() > gpGlobals->time)
 		return;
 
-	HUDmsg_time = gpGlobals->time + 0.5;
+	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
 	Vector color = Vector(0, 255, 20);
 
 	FullCustHudMessage(pEntity, msg, 3, x_pos, 0, 0, color, color, 200, 0.03, 0.03, time);

@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // h_export.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91 4996)
+#endif
 
 #include "defines.h"
 
@@ -30,7 +34,6 @@
 
 #ifndef __linux__
 
-#define strcmpi _strcmpi
 HINSTANCE h_Library = NULL;
 HGLOBAL h_global_argv = NULL;
 void FreeNameFuncGlobals(void);
@@ -142,7 +145,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	{
 		pos = 0;
  
-		if (strchr(game_dir, '/') != NULL)
+		if (strstr(game_dir, "/") != NULL)
 		{
 			// scan backwards till first directory separator...
 			while ((pos) && (game_dir[pos] != '/'))
@@ -205,6 +208,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 #endif
 	
 	game_dll_filename[0] = 0;
+	the_game[0] = 0;//																						NEW CODE 094
 
 	// we need to know which mod do we play so check mod directory name first
 	if (strcmpi(mod_dir_name, "firearms") == 0)
@@ -417,7 +421,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 
 #ifndef __linux__
    h_global_argv = GlobalAlloc(GMEM_SHARE, 1024);
-   g_argv = static_cast<char *>(GlobalLock(h_global_argv));
+   g_argv = (char *)GlobalLock(h_global_argv);
 #else
    g_argv = (char *)h_global_argv;
 #endif
@@ -544,6 +548,8 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
    pengfuncsFromEngine->pfnCVarGetString = pfnCVarGetString;
    pengfuncsFromEngine->pfnCVarSetFloat = pfnCVarSetFloat;
    pengfuncsFromEngine->pfnCVarSetString = pfnCVarSetString;
+   // if you're getting errors here then go to 'defines.h' and set the correct flag
+   // matching your HL SDK version
    pengfuncsFromEngine->pfnPvAllocEntPrivateData = pfnPvAllocEntPrivateData;
    pengfuncsFromEngine->pfnPvEntPrivateData = pfnPvEntPrivateData;
    pengfuncsFromEngine->pfnFreeEntPrivateData = pfnFreeEntPrivateData;

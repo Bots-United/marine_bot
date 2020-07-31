@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // unistd.h

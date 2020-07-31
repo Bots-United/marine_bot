@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot_start.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
 
 #include "defines.h"
 
@@ -26,6 +30,7 @@
 
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "bot_weapons.h"
 
 // for new config system by Andrey Kotrekhov
@@ -34,18 +39,18 @@
 extern Section *conf;
 
 extern int debug_engine;
-extern bool checked_skillsystem;
-extern float skill_system;
 
 // bot_start functions prototypes
+inline bool isnt(const char *cc1, const char *cc2)	{ return (strcmp(cc1, cc2) != 0); }
 void BotFinishWeaponSpawning(bot_t *pBot);
 void BotFinishSkillsSpawning(bot_t *pBot);
+int BotGenerateSkill(bot_t *pBot);
 inline void BotSetBehaviour(bot_t *pBot);
 inline void BotSetWeaponStatus(bot_t *pBot);
-int SetMainWeapon(char *bank, char *slot);
-inline int SetBackupWeapon(bot_t *pBot, char *bank, char *slot);
-inline int SetGrenade(char *bank, char *slot);
-inline int SetMine(char *bank, char *slot);
+int SetMainWeapon(const char *bank, const char *slot);
+inline int SetBackupWeapon(bot_t *pBot, const char *bank, const char *slot);
+inline int SetGrenade(const char *bank, const char *slot);
+inline int SetMine(const char *bank, const char *slot);
 int NumberOfFASkills(bot_t *pBot);
 void ProcessCustomConfig( bot_t *pBot, const char *line_buffer );
 bool CanSpawnIt(bot_t *pBot, int iID);
@@ -92,13 +97,6 @@ void bot_t::BotStartGame()
 			if (bot_skin == -1)
 			{
 				bot_skin = RANDOM_LONG(1, 5);
-
-
-
-				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-				#ifdef _DEBUG
-				ALERT(at_console, "SKIN has not been specified --> generating one randomly\n");
-				#endif
 			}
 
 			if (bot_skin == 1)
@@ -155,7 +153,7 @@ void bot_t::BotStartGame()
 			{
 				// SECTION - for new config system by Andrey Kotrekhov
 				// ADDED - debug also for Listen server and system debug by Frank McNeil
-				char temp[255];
+				char temp[64];
 
 				if (conf != NULL)
 				{
@@ -168,27 +166,15 @@ void bot_t::BotStartGame()
 					if (custom_section_i != conf->sectionList.end())
 					{
 						Section *cust_sect_p = custom_section_i->second;
-#ifdef _DEBUG
-						//@@@@@@
-						//PrintOutput(NULL, "*** BotStartGame() - custom_config found!!!\n", msg_null);
 						
-						//char dmsg[256];
-						//sprintf(dmsg, "*** BotStartGame() - try current team=%d class %d\n",
-						//	bot_team, bot_class);
-						//PrintOutput(NULL, dmsg, msg_null);
-#endif
-						if ((bot_class < 1) ||
-							(bot_class > cust_sect_p->sectionList.size()))
+						// to deal with compiler warning signed/unsigned mismatch
+						int max_classes = cust_sect_p->sectionList.size();
+						
+						// check for invalid class value ...
+						if ((bot_class < 1) || (bot_class > max_classes))
 						{
-#ifdef _DEBUG
-							//@@@@@@@@@@@@
-						//	char dmsg[256];
-						//	sprintf(dmsg, "*** BotStartGame() - class %d not found, Listsize %d\n",
-						//		bot_class, cust_sect_p->sectionList.size());
-						//	PrintOutput(NULL, dmsg, msg_null);
-#endif
-
-							bot_class = RANDOM_LONG(1, cust_sect_p->sectionList.size());
+							// and generate valid class
+							bot_class = RANDOM_LONG(1, max_classes);
 						}
 
 						// convert bot class to string number
@@ -202,7 +188,7 @@ void bot_t::BotStartGame()
 #ifdef _DEBUG
 							//@@@@@@@@@@@@
 							//char dmsg[256];
-							//sprintf(dmsg, "*** BotStartGame() - class %s found, add weapon:\n", temp);
+							//sprintf(dmsg, "*** BotStartGame() - class %s found\n", temp);
 							//PrintOutput(NULL, dmsg, msg_null);
 #endif
 							//class is found
@@ -225,16 +211,16 @@ void bot_t::BotStartGame()
 							for (II item_i = class_p->item.begin(); item_i != class_p->item.end(); ++item_i)
 							{
 #ifdef _DEBUG
-								//@@@@@
-								//char dmsg[256];
-								//sprintf(dmsg, "*** %s ", item_i->second.c_str());
-								//PrintOutput(NULL, dmsg, msg_null);
+								//@@@@@@@@@@@@@@@@
+								char dmsg[256];
+								sprintf(dmsg, "*** %s ", item_i->second.c_str());
+								PrintOutput(NULL, dmsg, MType::msg_null);
 #endif
 								ProcessCustomConfig(this, item_i->second.c_str());
 							}
 #ifdef _DEBUG
 							//@@@@@
-							//PrintOutput(NULL, "***\n", msg_null);
+							PrintOutput(NULL, "***\n", MType::msg_null);
 #endif
 						}
 					}
@@ -264,7 +250,7 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "2");
 					// if we are using skill system spawn this skill
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "1");
 						// also set this byte
@@ -284,12 +270,12 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "9", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "2");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "1");
 						bot_fa_skill |= MARKS1;
 						// spawn this skill only if allowed (ie more skills to start)
-						if ((skill_system == 2.0) || (skill_system == 3.0))
+						if ((internals.GetFASkillSystem() == 2.0) || (internals.GetFASkillSystem() == 3.0))
 						{
 							FakeClientCommand(pEdict, "loadpreconfig", "23", "2");
 							bot_fa_skill |= MARKS2;
@@ -310,7 +296,7 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "5");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "6");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "8");
 						bot_fa_skill |= ARTY1;
@@ -333,11 +319,11 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "5");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "6");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "1");
 						bot_fa_skill |= MARKS1;
-						if ((skill_system == 2.0) || (skill_system == 3.0))
+						if ((internals.GetFASkillSystem() == 2.0) || (internals.GetFASkillSystem() == 3.0))
 						{
 							FakeClientCommand(pEdict, "loadpreconfig", "23", "2");
 							bot_fa_skill |= MARKS2;
@@ -359,11 +345,11 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "5");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "6");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "1");
 						bot_fa_skill |= MARKS1;
-						if ((skill_system == 2.0) || (skill_system == 3.0))
+						if ((internals.GetFASkillSystem() == 2.0) || (internals.GetFASkillSystem() == 3.0))
 						{
 							FakeClientCommand(pEdict, "loadpreconfig", "23", "2");
 							bot_fa_skill |= MARKS2;
@@ -387,11 +373,11 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "5", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "6");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "6");
 						bot_fa_skill |= FAID;
-						if ((skill_system == 2.0) || (skill_system == 3.0))
+						if ((internals.GetFASkillSystem() == 2.0) || (internals.GetFASkillSystem() == 3.0))
 						{
 							FakeClientCommand(pEdict, "loadpreconfig", "23", "7");
 							bot_fa_skill |= MEDIC;
@@ -414,7 +400,7 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "6");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "3", "6");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "8");
 						bot_fa_skill |= ARTY1;
@@ -432,7 +418,7 @@ void bot_t::BotStartGame()
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "7", "4");
 					FakeClientCommand(pEdict, "loadpreconfig", "4", "2");
-					if (skill_system != 0.0)
+					if (internals.GetFASkillSystem() != 0.0)
 					{
 						FakeClientCommand(pEdict, "loadpreconfig", "23", "1");
 						bot_fa_skill |= MARKS1;
@@ -455,6 +441,13 @@ void bot_t::BotStartGame()
 			// bot has now joined the game (doesn't need to be started)
 			not_started = 0;
 
+#ifdef _DEBUG
+			//@@@@@@@@@@@@@@@@
+			char dmsg[256];
+			sprintf(dmsg, "Bot reached end of class selection menu (mainW=%d backupW=%d)\n", main_weapon, backup_weapon);
+			PrintOutput(NULL, dmsg, MType::msg_null);
+#endif
+
 			return;
 		}
 
@@ -473,13 +466,6 @@ void bot_t::BotStartGame()
 				// go through whole class
 				for (II item_i = class_p->item.begin(); item_i != class_p->item.end(); ++item_i)
 				{
-#ifdef _DEBUG
-					//@@@@@
-					// do print the current class just to show what the bot has
-					//char dmsg[256];
-					//sprintf(dmsg, "*** %s ", item_i->second.c_str());
-					//PrintOutput(NULL, dmsg, msg_null);
-#endif
 					FA25SpawnBaseArmor(this, item_i->second.c_str());
 				}
 			}
@@ -673,14 +659,7 @@ void bot_t::BotStartGame()
 
 		// handle new skill select
 		if (start_action == MSG_FA_SKILL_SELECT)
-		{				
-			
-#ifdef _DEBUG
-			//@@@@@@@@@@@@@TEMPORARY
-			//ALERT(at_console, "TEST - !!! SKILLS MENU !!!\n");
-#endif
-
-
+		{
 			bool skill_spawned = FALSE;
 
 			start_action = MSG_FA_IDLE;
@@ -700,27 +679,26 @@ void bot_t::BotStartGame()
 			// there were no or not enough skills in .cfg for this class
 			if (skill_spawned == FALSE)
 			{
-#ifdef _DEBUG
-				//PrintOutput(NULL, "*** no skills in .cfg file -> generating them randomly\n", msg_null);
-#endif
-
 				// generate some skills randomly
 				char the_skill[4];
-				sprintf(the_skill, "%d", BotChooseCorrectSkill(this) -1);
+				sprintf(the_skill, "%d", BotGenerateSkill(this) -1);
 				
 				FakeClientCommand(pEdict, "setskill", the_skill, NULL);
 
 #ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill no. %s", the_skill + 1);
-				//PrintOutput(NULL, dmsg, msg_null);
+				//@@@@@@@@@@@@@@@
+				char dmsg[126];
+				sprintf(dmsg, "***no skills in .cfg file -> generating skill no. %s\n", the_skill);
+				PrintOutput(NULL, dmsg, MType::msg_null);
 #endif
 			}
 
 			return;
 		}
 
+		// in newer FA versions and use of custom classes this menu isn't called, because
+		// the bot enters the game at the end of class selection menu, just like a real player who
+		// used one of the predefined classes
 		if (start_action == MSG_FA_INTO_BATTLE)
 		{
 			start_action = MSG_FA_IDLE;	// switch back to idle
@@ -733,7 +711,7 @@ void bot_t::BotStartGame()
 
 			// with system 3.0 we automatically get all skills without any skill menu
 			// so we have to handle that here
-			if (skill_system == 3.0)
+			if (internals.GetFASkillSystem() == 3.0)
 			{
 				// just set all the bytes to ensure correct behaviour
 				bot_fa_skill |= MARKS1;
@@ -754,7 +732,10 @@ void bot_t::BotStartGame()
 			not_started = 0;
 
 #ifdef _DEBUG
-			//PrintOutput(NULL, "***bot is joining the battle\n", msg_null);
+			char dmsg[256];
+			sprintf(dmsg, "***FA join the battle menu confirmed -> now the bot enters the game (mainW=%d backupW=%d)\n",
+				main_weapon, backup_weapon);
+			PrintOutput(NULL, dmsg, MType::msg_null);
 #endif
 			return;
 		}
@@ -771,37 +752,40 @@ void bot_t::BotStartGame()
 */
 void BotFinishWeaponSpawning(bot_t *pBot)
 {
+#ifdef _DEBUG
+	ALERT(at_console, "BotFinishWeaponSpawning() called\n");
+#endif
+
 	// have both weapons (main and backup) so use main
-	if ((pBot->main_weapon != -1) && (pBot->backup_weapon != -1))
+	if ((pBot->main_weapon != NO_VAL) && (pBot->backup_weapon != NO_VAL))
 	{
-		pBot->forced_usage = USE_MAIN;
+		pBot->UseWeapon(USE_MAIN);
 		pBot->main_no_ammo = FALSE;
 		pBot->backup_no_ammo = FALSE;
 	}
 	// have main weapon AND no backup weapon so use main
-	else if ((pBot->main_weapon != -1) && (pBot->backup_weapon == -1))
+	else if ((pBot->main_weapon != NO_VAL) && (pBot->backup_weapon == NO_VAL))
 	{
-		pBot->forced_usage = USE_MAIN;
+		pBot->UseWeapon(USE_MAIN);
 		pBot->main_no_ammo = FALSE;
 		pBot->backup_no_ammo = TRUE;
 	}
 	// if no main weapon AND already have backup weapon so use it
-	else if ((pBot->main_weapon == -1) && (pBot->backup_weapon != -1))
+	else if ((pBot->main_weapon == NO_VAL) && (pBot->backup_weapon != NO_VAL))
 	{
-		pBot->forced_usage = USE_BACKUP;
+		pBot->UseWeapon(USE_BACKUP);
 		pBot->main_no_ammo = TRUE;
 		pBot->backup_no_ammo = FALSE;
 	}
 	// otherwise if both aren't available use knife
-	else if ((pBot->main_weapon == -1) && (pBot->backup_weapon == -1))
+	else if ((pBot->main_weapon == NO_VAL) && (pBot->backup_weapon == NO_VAL))
 	{
-		pBot->forced_usage = USE_KNIFE;
+		pBot->UseWeapon(USE_KNIFE);
 		pBot->main_no_ammo = TRUE;
 		pBot->backup_no_ammo = TRUE;
 	}
-
 	// is bot equipped with grenades use them
-	if (pBot->grenade_slot != -1)
+	if (pBot->grenade_slot != NO_VAL)
 		pBot->grenade_action = ALTW_NOTUSED;
 	// otherwise prevent running BotThrowGrenade
 	else
@@ -828,23 +812,23 @@ void BotFinishSkillsSpawning(bot_t *pBot)
 	// spawn one or more skills to finish spawning if bot do NOT have any
 	int number_of_skills = NumberOfFASkills(pBot);
 	
-	if ((pBot->bot_fa_skill == 0) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-		((skill_system == 2.0) && (number_of_skills < 4)) || (skill_system == 3.0))
+	if ((pBot->bot_fa_skill == 0) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+		((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)) || (internals.GetFASkillSystem() == 3.0))
 	{
 		// is system without skills so do nothing
-		if (skill_system == 0.0)
+		if (internals.GetFASkillSystem() == 0.0)
 			return;
 
-		if (skill_system == 1.0)
+		if (internals.GetFASkillSystem() == 1.0)
 		{
 			char the_skill[4];
 			
 			// convert skill value to char
-			sprintf(the_skill, "%d", BotChooseCorrectSkill(pBot) - 1);
+			sprintf(the_skill, "%d", BotGenerateSkill(pBot) - 1);
 			
 			FakeClientCommand(pBot->pEdict, "loadpreconfig", "23", the_skill);
 		}
-		else if (skill_system == 2.0)
+		else if (internals.GetFASkillSystem() == 2.0)
 		{
 			char the_skill[4];
 
@@ -855,12 +839,12 @@ void BotFinishSkillsSpawning(bot_t *pBot)
 			// and spawn the rest we need
 			for (int i = 0; i < still_need; i++)
 			{
-				sprintf(the_skill, "%d", BotChooseCorrectSkill(pBot));
+				sprintf(the_skill, "%d", BotGenerateSkill(pBot));
 
 				FakeClientCommand(pBot->pEdict, "loadpreconfig", "23", the_skill);
 			}
 		}
-		else if (skill_system == 3.0)
+		else if (internals.GetFASkillSystem() == 3.0)
 		{
 			// with system 3.0 we get all skills
 			// so just set all these bytes for correct behaviour
@@ -882,16 +866,18 @@ void BotFinishSkillsSpawning(bot_t *pBot)
 * generates and returns new FA skill bot can choose
 * checking which of skills bot already has
 */
-int BotChooseCorrectSkill(bot_t *pBot)
+int BotGenerateSkill(bot_t *pBot)
 {
 	int new_skill;
 	bool spawn_different = TRUE;
 
-	//NOTE: here should be a try to read new skill from custom settings in .cfg file
+#ifdef _DEBUG
+	ALERT(at_console, "BotGenerateSkill() called\n");
+#endif
 
 	new_skill = RANDOM_LONG(1, 10);
 
-	// do generate different skill until one is valid
+	// do generate different skill until one is valid (i.e. bot doesn't have it yet)
 	for(; ;)
 	{
 		if (((new_skill == 1) && !(pBot->bot_fa_skill & MARKS1)) ||
@@ -969,9 +955,11 @@ int BotChooseCorrectSkill(bot_t *pBot)
 		return new_skill;
 	}
 
-#ifdef _DEBUG
-	ALERT(at_console, "***BotChooseCorrectSkill() FATAL ERROR %d\n", new_skill);
-#endif
+	// log possible error
+	char ermsg[126];
+	sprintf(ermsg, "***BotGenerateSkill() FATAL ERROR (trying to spawn skill no. %d)\n", new_skill);
+	UTIL_DebugInFile(ermsg);
+	ALERT(at_console, ermsg);
 
 	return -1;
 }
@@ -981,7 +969,6 @@ int BotChooseCorrectSkill(bot_t *pBot)
 */
 inline void BotSetBehaviour(bot_t *pBot)
 {
-
 	char behaviour_byte1[32], behaviour_byte2[32];
 
 	// set additional behaviour (for path system)
@@ -1082,7 +1069,7 @@ inline void BotSetWeaponStatus(bot_t *pBot)
 		(pBot->main_weapon == fa_weapon_uzi) || (pBot->backup_weapon == fa_weapon_mp5a5) ||
 		(pBot->backup_weapon == fa_weapon_uzi) || (pBot->backup_weapon == fa_weapon_ber92f))
 	{
-		pBot->weapon_status |= WA_ALLOWSILENCER;
+		pBot->SetWeaponStatus(WS_ALLOWSILENCER);
 	}
 
 	return;
@@ -1091,58 +1078,58 @@ inline void BotSetWeaponStatus(bot_t *pBot)
 /*
 * returns the right weapon id based on bank & slot otherwise return -1
 */
-int SetMainWeapon(char *bank, char *slot)
+int SetMainWeapon(const char *bank, const char *slot)
 {
 	int weaponID = -1;
 
 	// SHOTGUNs
-	if (bank == "5")
+	if (FStrEq(bank, "5"))
 	{
-		if (slot == "2") { weaponID = fa_weapon_benelli; }
-		else if (slot == "3") { weaponID = fa_weapon_saiga; }
+		if (FStrEq(slot, "2")) { weaponID = fa_weapon_benelli; }
+		else if (FStrEq(slot, "3")) { weaponID = fa_weapon_saiga; }
 	}
 	// SMGs
-	else if (bank == "6")
+	else if (FStrEq(bank, "6"))
 	{
-		if (slot == "2") { weaponID = fa_weapon_sterling; }
-		else if (slot == "3") { weaponID = fa_weapon_mp5a5; }
-		else if (slot == "4") { weaponID = fa_weapon_uzi; }
-		else if (slot == "5") { weaponID = fa_weapon_bizon; }		
+		if (FStrEq(slot, "2")) { weaponID = fa_weapon_sterling; }
+		else if (FStrEq(slot, "3")) { weaponID = fa_weapon_mp5a5; }
+		else if (FStrEq(slot, "4")) { weaponID = fa_weapon_uzi; }
+		else if (FStrEq(slot, "5")) { weaponID = fa_weapon_bizon; }
 	}
 	// ASSAULT RIFLEs
-	else if (bank == "7")
+	else if (FStrEq(bank, "7"))
 	{
-		if (slot == "2") { weaponID = fa_weapon_ak47; }
+		if (FStrEq(slot, "2")) { weaponID = fa_weapon_ak47; }
 #ifndef NOFAMAS
-		else if (slot == "3") { weaponID = fa_weapon_famas; }
+		else if (FStrEq(slot, "3")) { weaponID = fa_weapon_famas; }
 #endif
-		else if (slot == "4") { weaponID = fa_weapon_g3a3; }
-		else if (slot == "5") { weaponID = fa_weapon_g36e; }
-		else if (slot == "6") { weaponID = fa_weapon_m16; }
-		else if (slot == "7") { weaponID = fa_weapon_ak74; }
-		else if (slot == "8")
+		else if (FStrEq(slot, "4")) { weaponID = fa_weapon_g3a3; }
+		else if (FStrEq(slot, "5")) { weaponID = fa_weapon_g36e; }
+		else if (FStrEq(slot, "6")) { weaponID = fa_weapon_m16; }
+		else if (FStrEq(slot, "7")) { weaponID = fa_weapon_ak74; }
+		else if (FStrEq(slot, "8"))
 		{
 			if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
 				weaponID = fa_weapon_m14;
 		}
-		else if (slot == "9")
+		else if (FStrEq(slot, "9"))
 		{
 			if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
 				weaponID = fa_weapon_m4;
 		}
 	}
 	// SNIPER RIFLEs
-	else if (bank == "8")
+	else if (FStrEq(bank, "8"))
 	{
-		if (slot == "2") { weaponID = fa_weapon_ssg3000; }
-		else if (slot == "3") { weaponID = fa_weapon_m82; }
-		else if (slot == "4") { weaponID = fa_weapon_svd; }
+		if (FStrEq(slot, "2")) { weaponID = fa_weapon_ssg3000; }
+		else if (FStrEq(slot, "3")) { weaponID = fa_weapon_m82; }
+		else if (FStrEq(slot, "4")) { weaponID = fa_weapon_svd; }
 	}
 	// MACHINEGUNs
-	else if (bank == "9")
+	else if (FStrEq(bank, "9"))
 	{
-		if (slot == "2") { weaponID = fa_weapon_m60; }
-		else if (slot == "3")
+		if (FStrEq(slot, "2")) { weaponID = fa_weapon_m60; }
+		else if (FStrEq(slot, "3"))
 		{
 			if (UTIL_IsNewerVersion() || (g_mod_version == FA_27))
 				weaponID = fa_weapon_m249;
@@ -1150,10 +1137,10 @@ int SetMainWeapon(char *bank, char *slot)
 			else if (g_mod_version == FA_26)
 				weaponID = fa_weapon_pkm;
 		}
-		else if (slot == "4") { weaponID = fa_weapon_pkm; }
+		else if (FStrEq(slot, "4")) { weaponID = fa_weapon_pkm; }
 	}
 	// GRENADE LAUNCHER
-	else if (bank == "10") { weaponID = fa_weapon_m79; }
+	else if (FStrEq(bank, "10")) { weaponID = fa_weapon_m79; }
 
 	return weaponID;
 }
@@ -1161,38 +1148,38 @@ int SetMainWeapon(char *bank, char *slot)
 /*
 * returns the right weapon id based on bank & slot otherwise return -1
 */
-inline int SetBackupWeapon(bot_t *pBot, char *bank, char *slot)
+inline int SetBackupWeapon(bot_t *pBot, const char *bank, const char *slot)
 {
 	int weaponID = -1;
 
-	if (bank == "4")	// pistols
+	if (FStrEq(bank, "4"))	// pistols
 	{
-		if (slot == "2")
+		if (FStrEq(slot, "2"))
 			weaponID = fa_weapon_coltgov;
-		else if (slot == "3")
+		else if (FStrEq(slot, "3"))
 			weaponID = fa_weapon_anaconda;
-		else if (slot == "4")
+		else if (FStrEq(slot, "4"))
 			weaponID = fa_weapon_ber93r;
-		else if (slot == "5")
+		else if (FStrEq(slot, "5"))
 			weaponID = fa_weapon_ber92f;
-		else if (slot == "6")
+		else if (FStrEq(slot, "6"))
 			weaponID = fa_weapon_desert;
 	}
-	else if (bank == "5")	// shotguns already have code so use it
+	else if (FStrEq(bank, "5"))	// shotguns already have code so use it
 	{
 		weaponID = SetMainWeapon(bank, slot);
 		// if bot already have this weapon as a main weapon set backup free
 		if (weaponID == pBot->main_weapon)
 			weaponID = -1;
 	}
-	else if (bank == "6")	// smgs
+	else if (FStrEq(bank, "6"))	// smgs
 	{
 		weaponID = SetMainWeapon(bank, slot);
 		
 		if (weaponID == pBot->main_weapon)
 			weaponID = -1;
 	}
-	else if (bank == "10")	// gl
+	else if (FStrEq(bank, "10"))	// gl
 	{
 		weaponID = SetMainWeapon(bank, slot);
 		
@@ -1207,15 +1194,15 @@ inline int SetBackupWeapon(bot_t *pBot, char *bank, char *slot)
 * returns the right grenade id based on bank & slot otherwise return -1
 * handles incompatibilities between various versions of the mod
 */
-inline int SetGrenade(char *bank, char *slot)
+inline int SetGrenade(const char *bank, const char *slot)
 {
 	int grenadeID = -1;
 
-	if (bank == "3")
+	if (FStrEq(bank, "3"))
 	{
-		if (slot == "2") { grenadeID = fa_weapon_frag; }
-		else if (slot == "3") { grenadeID = fa_weapon_concussion; }
-		else if (slot == "4")
+		if (FStrEq(slot, "2")) { grenadeID = fa_weapon_frag; }
+		else if (FStrEq(slot, "3")) { grenadeID = fa_weapon_concussion; }
+		else if (FStrEq(slot, "4"))
 		{
 			// Stielhandgrenate was removed in FA28
 			if (UTIL_IsNewerVersion() == FALSE)
@@ -1230,16 +1217,16 @@ inline int SetGrenade(char *bank, char *slot)
 * returns the right mine id based on bank & slot otherwise return -1
 * handles incompatibilities between various versions of the mod
 */
-inline int SetMine(char *bank, char *slot)
+inline int SetMine(const char *bank, const char *slot)
 {
 	int mineID = -1;
 
-	if (bank == "3")
+	if (FStrEq(bank, "3"))
 	{
 		// claymore mine slot depends on mod version
-		if ((slot == "4") && UTIL_IsNewerVersion())
+		if (FStrEq(slot, "4") && UTIL_IsNewerVersion())
 			mineID = fa_weapon_claymore;
-		else if ((slot == "5") && (UTIL_IsNewerVersion() == FALSE))
+		else if (FStrEq(slot, "5") && (UTIL_IsNewerVersion() == FALSE))
 			mineID = fa_weapon_claymore;
 	}
 
@@ -1296,49 +1283,56 @@ int NumberOfFASkills(bot_t *pBot)
 * this method doesn't handle FA 2.5 due to different spawning system
 * changed to accept the new config system by Andrey Kotrekhov
 */
-void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
+void ProcessCustomConfig(bot_t *pBot, const char *line_buffer)
 {
 	edict_t *pEdict = pBot->pEdict;
-	char *bank, *slot;	// FakeClientCmd last two args
+	char bank[4], slot[4];	// FakeClientCmd last two args
 	int number_of_skills;
 
 	// init them first
-	bank = "-1";
-	slot = "-1";
+	sprintf(bank,"%d", -1);
+	sprintf(slot,"%d", -1);
 
 	if (strcmp(line_buffer, "light_armor") == 0)
 	{
-		bank = "1"; slot = "1";
+		sprintf(bank, "%d", 1);
+		sprintf(slot, "%d", 1);
 	}
 	else if (strcmp(line_buffer, "medium_armor") == 0)
 	{
-		bank = "1"; slot = "2";
+		sprintf(bank, "%d", 1);
+		sprintf(slot, "%d", 2);
 	}
 	else if (strcmp(line_buffer, "heavy_armor") == 0)
 	{
-		bank = "1"; slot = "3";
+		sprintf(bank, "%d", 1);
+		sprintf(slot, "%d", 3);
 	}
 	else if ((strcmp(line_buffer, "armor_helmet") == 0) || (strcmp(line_buffer, "helmet") == 0))
 	{
-		bank = "2"; slot = "2";
+		sprintf(bank, "%d", 2);
+		sprintf(slot, "%d", 2);
 	}
 	else if ((strcmp(line_buffer, "armor_arms") == 0) || (strcmp(line_buffer, "arms") == 0))
 	{
-		bank = "2"; slot = "3";
+		sprintf(bank, "%d", 2);
+		sprintf(slot, "%d", 3);
 	}
 	else if ((strcmp(line_buffer, "armor_legs") == 0) || (strcmp(line_buffer, "legs") == 0))
 	{
-		bank = "2"; slot = "4";
+		sprintf(bank, "%d", 2);
+		sprintf(slot, "%d", 4);
 	}
 	// MISC
 	else if ((strcmp(line_buffer, "frag_grenade") == 0) || (strcmp(line_buffer, "frag") == 0))
 	{
-		bank = "3"; slot = "2";
+		sprintf(bank, "%d", 3);
+		sprintf(slot, "%d", 2);
 	}
-	else if ((strcmp(line_buffer, "concussion_grenade") == 0) ||
-		(strcmp(line_buffer, "conc") == 0))
+	else if ((strcmp(line_buffer, "concussion_grenade") == 0) || (strcmp(line_buffer, "conc") == 0))
 	{
-		bank = "3"; slot = "3";
+		sprintf(bank, "%d", 3);
+		sprintf(slot, "%d", 3);
 	}
 	else if ((strcmp(line_buffer, "stiel_grenade") == 0) || (strcmp(line_buffer, "stg24") == 0))
 	{
@@ -1349,44 +1343,43 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 		}
 		else
 		{
-			bank = "3";
-			slot = "4";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 4);
 		}
 	}
-	else if ((strcmp(line_buffer, "claymore_mine") == 0) ||
-		(strcmp(line_buffer, "claymore") == 0))
+	else if ((strcmp(line_buffer, "claymore_mine") == 0) || (strcmp(line_buffer, "claymore") == 0))
 	{
 		// steilhandgrenate was removed and nightvisiongoggles were added
 		if (UTIL_IsNewerVersion())
 		{
-			bank = "3";
-			slot = "4";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 4);
 		}
 		else
 		{
-			bank = "3";
-			slot = "5";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 5);
 		}
 	}
 	else if (strcmp(line_buffer, "bandages") == 0)
 	{
 		if (UTIL_IsNewerVersion())
 		{
-			bank = "3";
-			slot = "5";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 5);
 		}
 		else
 		{
-			bank = "3";
-			slot = "6";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 6);
 		}
 	}
 	else if ((strcmp(line_buffer, "nv_goggles") == 0) || (strcmp(line_buffer, "nvg") == 0))
 	{
 		if (UTIL_IsNewerVersion())
 		{
-			bank = "3";
-			slot = "6";
+			sprintf(bank, "%d", 3);
+			sprintf(slot, "%d", 6);
 		}
 		// these versions don't support Night Vision Goggles so do NOT spawn it
 		else
@@ -1397,125 +1390,149 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	// WEAPONS - PISTOLS
 	else if ((strcmp(line_buffer, "colt_gov") == 0) || (strcmp(line_buffer, "1911a1") == 0))
 	{
-		bank = "4"; slot = "2";
+		sprintf(bank, "%d", 4);
+		sprintf(slot, "%d", 2);
 	}
-	else if ((strcmp(line_buffer, "colt_anaconda") == 0) ||
-		(strcmp(line_buffer, "anaconda") == 0))
+	else if ((strcmp(line_buffer, "colt_anaconda") == 0) || (strcmp(line_buffer, "anaconda") == 0))
 	{
-		bank = "4"; slot = "3";
+		sprintf(bank, "%d", 4);
+		sprintf(slot, "%d", 3);
 	}
 	else if ((strcmp(line_buffer, "ber_93r") == 0) || (strcmp(line_buffer, "93r") == 0))
 	{
-		bank = "4"; slot = "4";
+		sprintf(bank, "%d", 4);
+		sprintf(slot, "%d", 4);
 	}
 	else if ((strcmp(line_buffer, "ber_92f") == 0) || (strcmp(line_buffer, "92f") == 0))
 	{
-		bank = "4"; slot = "5";
+		sprintf(bank, "%d", 4);
+		sprintf(slot, "%d", 5);
 	}
 	else if ((strcmp(line_buffer, "desert_eagle") == 0) || (strcmp(line_buffer, "deagle") == 0))
 	{
-		bank = "4"; slot = "6";
+		sprintf(bank, "%d", 4);
+		sprintf(slot, "%d", 6);
 	}
 	// WEAPONS - SHOTGUNS
-	else if ((strcmp(line_buffer, "benelli_m3") == 0) || 
-		(strcmp(line_buffer, "m3") == 0) || (strcmp(line_buffer, "remington") == 0))
+	else if ((strcmp(line_buffer, "benelli_m3") == 0) || (strcmp(line_buffer, "m3") == 0) ||
+		(strcmp(line_buffer, "remington") == 0))
 	{
-		bank = "5"; slot = "2";
+		sprintf(bank, "%d", 5);
+		sprintf(slot, "%d", 2);
 	}
 	else if ((strcmp(line_buffer, "saiga_12k") == 0) || (strcmp(line_buffer, "12k") == 0))
 	{
-		bank = "5"; slot = "3";
+		sprintf(bank, "%d", 5);
+		sprintf(slot, "%d", 3);
 	}
 	// WEAPONS - SMGS
 	else if (strcmp(line_buffer, "sterling") == 0)
 	{
-		bank = "6"; slot = "2";
+		sprintf(bank, "%d", 6);
+		sprintf(slot, "%d", 2);
 	}
 	else if ((strcmp(line_buffer, "hk_mp5") == 0) || (strcmp(line_buffer, "mp5") == 0))
 	{
-		bank = "6"; slot = "3";
+		sprintf(bank, "%d", 6);
+		sprintf(slot, "%d", 3);
 	}
 	else if (strcmp(line_buffer, "uzi") == 0)
 	{
-		bank = "6"; slot = "4";
+		sprintf(bank, "%d", 6);
+		sprintf(slot, "%d", 4);
 	}
 	else if (strcmp(line_buffer, "bizon") == 0)
 	{
-		bank = "6"; slot = "5";
+		sprintf(bank, "%d", 6);
+		sprintf(slot, "%d", 5);
 	}
 	// WEAPONS - AR
 	else if (strcmp(line_buffer, "ak47") == 0)
 	{
-		bank = "7"; slot = "2";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 2);
 	}
 	else if (strcmp(line_buffer, "famas") == 0)
 	{
-		bank = "7"; slot = "3";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 3);
 	}
 	else if ((strcmp(line_buffer, "hk_g3a3") == 0) || (strcmp(line_buffer, "g3a3") == 0))
 	{
-		bank = "7"; slot = "4";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 4);
 	}
 	else if ((strcmp(line_buffer, "hk_g36e") == 0) || (strcmp(line_buffer, "g36e") == 0))
 	{
-		bank = "7"; slot = "5";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 5);
 	}
 	else if ((strcmp(line_buffer, "colt_m16") == 0) || (strcmp(line_buffer, "m16") == 0))
 	{
-		bank = "7"; slot = "6";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 6);
 	}
 	else if (strcmp(line_buffer, "ak74") == 0)
 	{
-		bank = "7"; slot = "7";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 7);
 	}
 	else if (strcmp(line_buffer, "m14") == 0)
 	{
-		bank = "7"; slot = "8";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 8);
 	}
 	else if (strcmp(line_buffer, "m4") == 0)
 	{
-		bank = "7"; slot = "9";
+		sprintf(bank, "%d", 7);
+		sprintf(slot, "%d", 9);
 	}
 	// WEAPONS - SNIPES
 	else if ((strcmp(line_buffer, "ssg_3000") == 0) || (strcmp(line_buffer, "ssg3000") == 0))
 	{
-		bank = "8"; slot = "2";
+		sprintf(bank, "%d", 8);
+		sprintf(slot, "%d", 2);
 	}
 	else if ((strcmp(line_buffer, "barrett_m82") == 0) || (strcmp(line_buffer, "m82") == 0))
 	{
-		bank = "8"; slot = "3";
+		sprintf(bank, "%d", 8);
+		sprintf(slot, "%d", 3);
 	}
 	else if (strcmp(line_buffer, "dragunov") == 0)
 	{
-		bank = "8"; slot = "4";
+		sprintf(bank, "%d", 8);
+		sprintf(slot, "%d", 4);
 	}
 	// WEAPONS - MGS
 	else if (strcmp(line_buffer, "m60") == 0)
 	{
-		bank = "9"; slot = "2";
+		sprintf(bank, "%d", 9);
+		sprintf(slot, "%d", 2);
 	}
 	else if (strcmp(line_buffer, "m249") == 0)
 	{
-		bank = "9"; slot = "3";
+		sprintf(bank, "%d", 9);
+		sprintf(slot, "%d", 3);
 	}
 	else if (strcmp(line_buffer, "pkm") == 0)
 	{
 		if (UTIL_IsNewerVersion())
 		{
-			bank = "9";
-			slot = "4";
+			sprintf(bank, "%d", 9);
+			sprintf(slot, "%d", 4);
 		}
 		// spawn any mgun that is on this place
 		else
 		{
-			bank = "9";
-			slot = "3";
+			sprintf(bank, "%d", 9);
+			sprintf(slot, "%d", 3);
 		}
 	}
 	// WEAPONS - GL
 	else if ((strcmp(line_buffer, "gl_m79") == 0) || (strcmp(line_buffer, "m79") == 0))
 	{
-		bank = "10"; slot = "2";
+		sprintf(bank, "%d", 10);
+		sprintf(slot, "%d", 2);
 	}
 	// SKILLS
 	else if (strcmp(line_buffer, "marksmanship1") == 0)
@@ -1524,11 +1541,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 
 		// handle only systems 1 and 2
 		// system 3 (all skills) is handled above in BotStartGame() method
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "1";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 1);
 			pBot->bot_fa_skill |= MARKS1;		// set also FA_skill that are spawned
 		}
 	}
@@ -1536,11 +1553,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "2";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 2);
 
 			// does bot already have marksmanship1
 			if (pBot->bot_fa_skill & MARKS1)
@@ -1554,11 +1571,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "3";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 3);
 			pBot->bot_fa_skill |= NOMEN;
 		}
 	}
@@ -1566,11 +1583,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "4";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 4);
 			pBot->bot_fa_skill |= BATTAG;
 		}
 	}
@@ -1578,11 +1595,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "5";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 5);
 			pBot->bot_fa_skill |= LEADER;
 		}
 	}
@@ -1590,11 +1607,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "6";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 6);
 			pBot->bot_fa_skill |= FAID;
 		}
 	}
@@ -1602,11 +1619,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "7";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 7);
 
 			if (pBot->bot_fa_skill & FAID)
 				pBot->bot_fa_skill |= MEDIC;
@@ -1618,11 +1635,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "8";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 8);
 			pBot->bot_fa_skill |= ARTY1;
 		}
 	}
@@ -1630,11 +1647,11 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "9";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 9);
 
 			if (pBot->bot_fa_skill & ARTY1)
 				pBot->bot_fa_skill |= ARTY2;
@@ -1646,18 +1663,18 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 	{
 		number_of_skills = NumberOfFASkills(pBot);
 
-		if (((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
-			bank = "23";
-			slot = "10";
+			sprintf(bank, "%d", 23);
+			sprintf(slot, "%d", 10);
 			pBot->bot_fa_skill |= STEALTH;
 		}
 	}
 
 	// set main weapon
-	if ((bank != "-1") && (bank != "1") && (bank != "2") && (bank != "3") && (bank != "4") &&
-		(bank != "23"))
+	if (isnt(bank, "-1") && isnt(bank, "1") && isnt(bank, "2") && isnt(bank, "3") && isnt(bank, "4") &&
+		isnt(bank, "23"))
 	{
 		int new_weapon = SetMainWeapon(bank, slot);
 
@@ -1671,18 +1688,18 @@ void ProcessCustomConfig( bot_t *pBot, const char *line_buffer )
 		}
 	}
 	// set backup weapon
-	if ((bank != "-1") && ((bank == "4") || (bank == "5") || (bank == "6") || (bank == "10"))
+	if (isnt(bank, "-1") && (FStrEq(bank, "4") || FStrEq(bank, "5") || FStrEq(bank, "6") || FStrEq(bank, "10"))
 		&& (pBot->backup_weapon == -1))
 		pBot->backup_weapon = SetBackupWeapon(pBot, bank, slot);
 	// set grenades
-	if ((bank != "-1") && (bank == "3") && (pBot->grenade_slot == -1))
+	if (isnt(bank, "-1") && FStrEq(bank, "3") && (pBot->grenade_slot == -1))
 		pBot->grenade_slot = SetGrenade(bank, slot);
 	// set claymore
-	if ((bank != "-1") && (bank == "3") && (pBot->claymore_slot == -1))
+	if (isnt(bank, "-1") && FStrEq(bank, "3") && (pBot->claymore_slot == -1))
 		pBot->claymore_slot = SetMine(bank, slot);
 
-	// we didn't find correct token or we can't spawn it now
-	if ((bank != "-1") && (slot != "-1"))
+	// check for validity of the arguments before calling the command
+	if (isnt(bank, "-1") && isnt(slot, "-1"))
 		FakeClientCommand(pEdict, "loadpreconfig", bank, slot);
 
 	return;
@@ -1731,9 +1748,9 @@ void RearrangeWeapons(bot_t *pBot)
 
 
 		//@@@@@@@@@@@@@TEMPORARY
-		#ifdef _DEBUG
-		ALERT(at_console, "\n!!!!REARRANGING WEAPONS!!!!\n");
-		#endif
+#ifdef _DEBUG
+		ALERT(at_console, "\n!!!!REARRANGING WEAPONS (backup cleared)\n");
+#endif
 	}
 }
 
@@ -1759,9 +1776,9 @@ bool RearrangeWeapons(bot_t *pBot, int weapon)
 
 
 		//@@@@@@@@@@@@@TEMPORARY
-		#ifdef _DEBUG
-		ALERT(at_console, "\n!!!!REARRANGING WEAPONS!!!!\n");
-		#endif
+#ifdef _DEBUG
+		ALERT(at_console, "\n!!!!REARRANGING WEAPONS (main became backup)\n");
+#endif
 	}
 
 	return TRUE;
@@ -2099,34 +2116,25 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 
 	number_of_skills = NumberOfFASkills(pBot);
 	
-	if ((strcmp(line_buffer, "marksmanship1") == 0) &&
-		!(pBot->bot_fa_skill & MARKS1))
+	if ((strcmp(line_buffer, "marksmanship1") == 0) && !(pBot->bot_fa_skill & MARKS1))
 	{
 		// handle only systems 1 and 2
 		// if the bot was promoted then ignore the skill count
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			pBot->bot_fa_skill |= MARKS1;		// set also FA_skill that are spawned
 
 			FakeClientCommand(pEdict, "setskill", "0", NULL);
-
-#ifdef _DEBUG
-			//@@@@@
-			//char dmsg[256];
-			//sprintf(dmsg, "***spawning skill %s", line_buffer);
-			//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "marksmanship2") == 0) &&
-		!(pBot->bot_fa_skill & MARKS2))
+	if ((strcmp(line_buffer, "marksmanship2") == 0) && !(pBot->bot_fa_skill & MARKS2))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			// has the bot marksmanship1
 			if (pBot->bot_fa_skill & MARKS1)
@@ -2134,13 +2142,6 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 				pBot->bot_fa_skill |= MARKS2;
 
 				FakeClientCommand(pEdict, "setskill", "1", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 			// otherwise take the marksmanship1 first
 			else
@@ -2148,214 +2149,129 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 				pBot->bot_fa_skill |= MARKS1;
 
 				FakeClientCommand(pEdict, "setskill", "0", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 		}
 		
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "nomenclature") == 0) &&
-		!(pBot->bot_fa_skill & NOMEN))
+	if ((strcmp(line_buffer, "nomenclature") == 0) && !(pBot->bot_fa_skill & NOMEN))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			pBot->bot_fa_skill |= NOMEN;
 
 			FakeClientCommand(pEdict, "setskill", "2", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 
 		return TRUE;		
 	}
 
-	if ((strcmp(line_buffer, "battlefield_agility") == 0) &&
-		!(pBot->bot_fa_skill & BATTAG))
+	if ((strcmp(line_buffer, "battlefield_agility") == 0) && !(pBot->bot_fa_skill & BATTAG))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{			
 			pBot->bot_fa_skill |= BATTAG;
 
 			FakeClientCommand(pEdict, "setskill", "3", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 		
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "leadership") == 0) &&
-		!(pBot->bot_fa_skill & LEADER))
+	if ((strcmp(line_buffer, "leadership") == 0) && !(pBot->bot_fa_skill & LEADER))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{		
 			pBot->bot_fa_skill |= LEADER;
 
 			FakeClientCommand(pEdict, "setskill", "4", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 		
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "first_aid") == 0) &&
-		!(pBot->bot_fa_skill & FAID))
+	if ((strcmp(line_buffer, "first_aid") == 0) && !(pBot->bot_fa_skill & FAID))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			pBot->bot_fa_skill |= FAID;
 
 			FakeClientCommand(pEdict, "setskill", "5", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "field_medicine") == 0) &&
-		!(pBot->bot_fa_skill & MEDIC))
+	if ((strcmp(line_buffer, "field_medicine") == 0) && !(pBot->bot_fa_skill & MEDIC))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			if (pBot->bot_fa_skill & FAID)
 			{
 				pBot->bot_fa_skill |= MEDIC;
 
 				FakeClientCommand(pEdict, "setskill", "6", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 			else
 			{
 				pBot->bot_fa_skill |= FAID;
 
 				FakeClientCommand(pEdict, "setskill", "5", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 		}
 		
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "artillery1") == 0) &&
-		!(pBot->bot_fa_skill & ARTY1))
+	if ((strcmp(line_buffer, "artillery1") == 0) && !(pBot->bot_fa_skill & ARTY1))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{		
 			pBot->bot_fa_skill |= ARTY1;
 
 			FakeClientCommand(pEdict, "setskill", "7", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 		
 		return TRUE;
 	}
 	
-	if ((strcmp(line_buffer, "artillery2") == 0) &&
-		!(pBot->bot_fa_skill & ARTY2))
+	if ((strcmp(line_buffer, "artillery2") == 0) && !(pBot->bot_fa_skill & ARTY2))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			if (pBot->bot_fa_skill & ARTY1)
 			{
 				pBot->bot_fa_skill |= ARTY2;
 
 				FakeClientCommand(pEdict, "setskill", "8", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 			else
 			{
 				pBot->bot_fa_skill |= ARTY1;
 
 				FakeClientCommand(pEdict, "setskill", "7", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 			}
 		}
 		
 		return TRUE;
 	}
 
-	if ((strcmp(line_buffer, "stealth") == 0) &&
-		!(pBot->bot_fa_skill & STEALTH))
+	if ((strcmp(line_buffer, "stealth") == 0) && !(pBot->bot_fa_skill & STEALTH))
 	{
-		if (pBot->IsTask(TASK_PROMOTED) || ((skill_system == 1.0) && (number_of_skills < 1)) ||
-			((skill_system == 2.0) && (number_of_skills < 4)))
+		if (pBot->IsTask(TASK_PROMOTED) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
+			((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)))
 		{
 			pBot->bot_fa_skill |= STEALTH;
 
 			FakeClientCommand(pEdict, "setskill", "9", NULL);
-
-#ifdef _DEBUG
-				//@@@@@
-				//char dmsg[256];
-				//sprintf(dmsg, "***spawning skill %s", line_buffer);
-				//PrintOutput(NULL, dmsg, msg_null);
-#endif
 		}
 
 		return TRUE;

@@ -57,13 +57,16 @@
     <ClCompile Include="namefunc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PathMap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="waypoint.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="client_commands.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="bot_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -75,9 +78,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="bot_func.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="bot_navigate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="bot_weapons.h">
@@ -92,13 +92,19 @@
     <ClInclude Include="defines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PathMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Config\win32\unistd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="waypoint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="client_commands.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bot_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -107,5 +113,6 @@
     <Text Include="mb_changelog.txt">
       <Filter>Source Files</Filter>
     </Text>
+    <Text Include="mb_readme.txt" />
   </ItemGroup>
 </Project>

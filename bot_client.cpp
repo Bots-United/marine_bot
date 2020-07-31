@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot_client.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
 
 #include "defines.h"
 
@@ -26,6 +30,7 @@
 
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "bot_client.h"
 #include "bot_weapons.h"
 
@@ -48,7 +53,7 @@ void BotClient_FA_VGUI(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		iValue1 = *static_cast<int *>(p);	// store this away we need it
+		iValue1 = *(int *)p;	// store this away we need it
 	}
 	// additionals two values, but we don't use/need them now
 	else if (state == 1)
@@ -127,48 +132,48 @@ void BotClient_FA_WeaponList(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		strcpy(bot_weapon.szClassname, static_cast<char *>(p));
+		strcpy(bot_weapon.szClassname, (char *)p);
 	}
 	else if (state == 1)
 	{
 		state++;
-		bot_weapon.iAmmo1 = *static_cast<int *>(p);  // ammo index 1
+		bot_weapon.iAmmo1 = *(int *)p;  // ammo index 1
 	}
 	else if (state == 2)
 	{
 		state++;
-		bot_weapon.iAmmo1Max = *static_cast<int *>(p);  // max ammo1
+		bot_weapon.iAmmo1Max = *(int *)p;  // max ammo1
 	}
 	else if (state == 3)
 	{
 		state++;
-		bot_weapon.iAmmo2 = *static_cast<int *>(p);  // ammo index 2
+		bot_weapon.iAmmo2 = *(int *)p;  // ammo index 2
 	}
 	else if (state == 4)
 	{
 		state++;
-		bot_weapon.iAmmo2Max = *static_cast<int *>(p);  // max ammo2
+		bot_weapon.iAmmo2Max = *(int *)p;  // max ammo2
 	}
 	else if (state == 5)
 	{
 		state++;
-		bot_weapon.iSlot = *static_cast<int *>(p);  // slot for this weapon
+		bot_weapon.iSlot = *(int *)p;  // slot for this weapon
 	}
 	else if (state == 6)
 	{
 		state++;
-		bot_weapon.iPosition = *static_cast<int *>(p);  // position in slot
+		bot_weapon.iPosition = *(int *)p;  // position in slot
 	}
 	else if (state == 7)
 	{
 		state++;
-		bot_weapon.iId = *static_cast<int *>(p);  // weapon ID
+		bot_weapon.iId = *(int *)p;  // weapon ID
 	}
 	else if (state == 8)
 	{
 		state = 0;
 
-		bot_weapon.iFlags = *static_cast<int *>(p);  // flags for weapon (???)
+		bot_weapon.iFlags = *(int *)p;  // flags for weapon (???)
 
 		// store away this weapon with it's ammo information
 		weapon_defs[bot_weapon.iId] = bot_weapon;
@@ -191,18 +196,18 @@ void BotClient_FA_CurrentWeapon(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		iState = *static_cast<int *>(p);  // state of the current weapon
+		iState = *(int *)p;  // state of the current weapon
 	}
 	else if (state == 1)
 	{
 		state++;
-		iId = *static_cast<int *>(p);  // weapon ID of current weapon
+		iId = *(int *)p;  // weapon ID of current weapon
 	}
 	else if (state == 2)
 	{
 		state++;
 
-		iClip = *static_cast<int *>(p);  // ammo currently in the clip for this weapon
+		iClip = *(int *)p;  // ammo currently in the clip for this weapon
 	}
 	// probably secondary fire handler
 	// if stealth mount supressor (0-normal, 1-silenced)
@@ -211,32 +216,17 @@ void BotClient_FA_CurrentWeapon(void *p, int bot_index)
 	{
 		state++;
 
-		iAttach = *static_cast<int *>(p);
+		iAttach = *(int *)p;
 	}
 	// fire mode handler code
 	else if (state == 4)
 	{
 		state = 0;
 
-		iFireMode = *static_cast<int *>(p);	// 4-auto, 2-burst, 1-single, 0-on weapon where no choice
+		iFireMode = *(int *)p;	// 4-auto, 2-burst, 1-single, 0-on weapon where no choice
 
 		if (iId <= 31)
 		{
-#ifdef _DEBUG
-			extern bool debug_usr_weapon;
-			extern edict_t *pRecipient;
-			extern bot_current_weapon_t usr_current_weapon;
-
-			if ((debug_usr_weapon) && (bot_index == -1))
-			{
-				usr_current_weapon.isActive = iState;
-				usr_current_weapon.iId = iId;
-				usr_current_weapon.iClip = iClip;
-				usr_current_weapon.iAttachment = iAttach;
-				usr_current_weapon.iFireMode = iFireMode;
-			}
-#endif
-
 			if (bot_index != -1)
 			{
 				bots[bot_index].bot_weapons |= (1<<iId);  // set this weapon bit
@@ -273,13 +263,13 @@ void BotClient_FA_AmmoX(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		index = *static_cast<int *>(p);  // ammo index (for type of ammo)
+		index = *(int *)p;  // ammo index (for type of ammo)
 	}
 	else if (state == 1)
 	{
 		state = 0;
 
-		ammount = *static_cast<int *>(p);  // the ammount of ammo currently available
+		ammount = *(int *)p;  // the ammount of ammo currently available
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;  // store it away
 
@@ -309,13 +299,13 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		index = *static_cast<int *>(p);
+		index = *(int *)p;
 	}
 	else if (state == 1)
 	{
 		state = 0;
 
-		ammount = *static_cast<int *>(p);
+		ammount = *(int *)p;
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;
 
@@ -330,20 +320,33 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 }
 
 /*
+*																			NEW CODE 094
 * this message gets sent when the bot picks up a weapon
 */
 void BotClient_FA_WeaponPickup(void *p, int bot_index)
 {
 	int index;
 
-	index = *static_cast<int *>(p);
+	index = *(int *)p;
 
+#ifdef DEBUG
+
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	NEW CODE 094 (remove it)
+	//char dmsg[256];
+	//sprintf(dmsg, "FA weap pickup() -> index =<%d>\n", index);
+	//UTIL_DebugInFile(dmsg);
+	//ALERT(at_console, dmsg);
+
+
+#endif // DEBUG
+
+	
 	// set this weapon bit to indicate that we are carrying this weapon
-	bots[bot_index].bot_weapons |= (1<<index);
+	bots[bot_index].bot_weapons |= (1 << index);
 
-	if (bots[bot_index].bot_weapons & (1<<fa_weapon_claymore))
+	if (bots[bot_index].bot_weapons & (1 << fa_weapon_claymore))
 	{
-		if (bots[bot_index].claymore_slot == -1)
+		if (bots[bot_index].claymore_slot == NO_VAL)
 			bots[bot_index].claymore_slot = fa_weapon_claymore;
 
 		if (bots[bot_index].f_use_clay_time != 0.0)
@@ -353,9 +356,9 @@ void BotClient_FA_WeaponPickup(void *p, int bot_index)
 			bots[bot_index].clay_action = ALTW_NOTUSED;
 	}
 
-	if (bots[bot_index].bot_weapons & (1<<fa_weapon_frag))
+	if (bots[bot_index].bot_weapons & (1 << fa_weapon_frag))
 	{
-		if (bots[bot_index].grenade_slot == -1)
+		if (bots[bot_index].grenade_slot == NO_VAL)
 			bots[bot_index].grenade_slot = fa_weapon_frag;
 
 		if (bots[bot_index].grenade_time != 0.0)
@@ -363,11 +366,15 @@ void BotClient_FA_WeaponPickup(void *p, int bot_index)
 
 		if (bots[bot_index].grenade_action != ALTW_NOTUSED)
 			bots[bot_index].grenade_action = ALTW_NOTUSED;
+
+		// if the bot picked this grenade up while already in game then let him check for other grenades he may carry
+		if (bots[bot_index].IsSubTask(ST_NOOTHERNADE))
+			bots[bot_index].RemoveSubTask(ST_NOOTHERNADE);
 	}
 
-	if (bots[bot_index].bot_weapons & (1<<fa_weapon_concussion))
+	if (bots[bot_index].bot_weapons & (1 << fa_weapon_concussion))
 	{
-		if (bots[bot_index].grenade_slot == -1)
+		if (bots[bot_index].grenade_slot == NO_VAL)
 			bots[bot_index].grenade_slot = fa_weapon_concussion;
 
 		if (bots[bot_index].grenade_time != 0.0)
@@ -375,11 +382,14 @@ void BotClient_FA_WeaponPickup(void *p, int bot_index)
 
 		if (bots[bot_index].grenade_action != ALTW_NOTUSED)
 			bots[bot_index].grenade_action = ALTW_NOTUSED;
+
+		if (bots[bot_index].IsSubTask(ST_NOOTHERNADE))
+			bots[bot_index].RemoveSubTask(ST_NOOTHERNADE);
 	}
 
-	if (bots[bot_index].bot_weapons & (1<<fa_weapon_flashbang))
+	if (bots[bot_index].bot_weapons & (1 << fa_weapon_flashbang))
 	{
-		if (bots[bot_index].grenade_slot == -1)
+		if (bots[bot_index].grenade_slot == NO_VAL)
 			bots[bot_index].grenade_slot = fa_weapon_flashbang;
 
 		if (bots[bot_index].grenade_time != 0.0)
@@ -387,11 +397,14 @@ void BotClient_FA_WeaponPickup(void *p, int bot_index)
 
 		if (bots[bot_index].grenade_action != ALTW_NOTUSED)
 			bots[bot_index].grenade_action = ALTW_NOTUSED;
+
+		if (bots[bot_index].IsSubTask(ST_NOOTHERNADE))
+			bots[bot_index].RemoveSubTask(ST_NOOTHERNADE);
 	}
 
-	if (bots[bot_index].bot_weapons & (1<<fa_weapon_stg24))
+	if (bots[bot_index].bot_weapons & (1 << fa_weapon_stg24))
 	{
-		if (bots[bot_index].grenade_slot == -1)
+		if (bots[bot_index].grenade_slot == NO_VAL)
 			bots[bot_index].grenade_slot = fa_weapon_stg24;
 
 		if (bots[bot_index].grenade_time != 0.0)
@@ -399,6 +412,9 @@ void BotClient_FA_WeaponPickup(void *p, int bot_index)
 
 		if (bots[bot_index].grenade_action != ALTW_NOTUSED)
 			bots[bot_index].grenade_action = ALTW_NOTUSED;
+
+		if (bots[bot_index].IsSubTask(ST_NOOTHERNADE))
+			bots[bot_index].RemoveSubTask(ST_NOOTHERNADE);
 	}
 }
 
@@ -416,7 +432,7 @@ void BotClient_FA_ItemPickup(void *p, int bot_index)
 */
 void BotClient_FA_Health(void *p, int bot_index)
 {
-	bots[bot_index].bot_health = *static_cast<int *>(p);  // health ammount
+	bots[bot_index].bot_health = *(int *)p;  // health ammount
 }
 
 /*
@@ -424,7 +440,7 @@ void BotClient_FA_Health(void *p, int bot_index)
 */
 void BotClient_FA_Bandages(void *p, int bot_index)
 {
-	bots[bot_index].bot_bandages = *static_cast<int *>(p);  // bandages ammount
+	bots[bot_index].bot_bandages = *(int *)p;  // bandages ammount
 }
 
 /*
@@ -445,7 +461,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state++;
 
-		strcpy(event_type, static_cast<char *>(p));
+		strcpy(event_type, (char *)p);
 	}
 	else if (state == 2)
 	{
@@ -455,7 +471,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state++;
 		
-		if (*static_cast<int *>(p) == 255)
+		if (*(int *)p == 255)
 		{
 			if (strcmp(event_type, "parachute") == 0)
 			{
@@ -463,7 +479,22 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 			}
 			else if (strcmp(event_type, "bipod") == 0)
 			{
-				bots[bot_index].SetTask(TASK_BIPOD);	// bipod used
+				bots[bot_index].SetTask(TASK_BIPOD);			// bipod used
+				bots[bot_index].SetBehaviour(BOT_DONTGOPRONE);	// bipod prevents changing stance so we can't go prone
+
+
+
+#ifdef DEBUG
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@											// NEW CODE 094 (remove it)
+				char dm[256];
+				sprintf(dm, "(bot_client.cpp) %s got BIPOD DISPLAYED message and SET DONTGOPRONE behaviour!\n", bots[bot_index].name);
+				//ALERT(at_console, dm); 
+				UTIL_DebugInFile(dm);
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+
+
+
 			}
 			// NOTE: No use for this yet
 			else if (strcmp(event_type, "dmg_conc") == 0)
@@ -471,7 +502,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 				;	// concussion grenade stun
 			}
 		}
-		else if (*static_cast<int *>(p) == 0)
+		else if (*(int *)p == 0)
 		{
 			// parachute was thrown off so reset variables to allow bot to use another parachute if needed
 			if (strcmp(event_type, "parachute") == 0)
@@ -483,6 +514,22 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 			else if (strcmp(event_type, "bipod") == 0)
 			{
 				bots[bot_index].RemoveTask(TASK_BIPOD);
+				bots[bot_index].RemoveBehaviour(BOT_DONTGOPRONE);	// now we are free to go/resume prone again
+
+
+
+
+#ifdef DEBUG
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@											// NEW CODE 094 (remove it)
+				char dm[256];
+				sprintf(dm, "(bot_client.cpp) %s got BIPOD HIDE message and removed DONTGOPRONE behaviour!\n", bots[bot_index].name);
+				//ALERT(at_console, dm); 
+				UTIL_DebugInFile(dm);
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+
+
+
 			}
 			else if (strcmp(event_type, "dmg_conc") == 0)
 			{
@@ -494,31 +541,30 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state = 0;
 
-		if (*static_cast<int *>(p) == 128)
+		if (*(int *)p == 128)
 		{
 			if (strcmp(event_type, "gotitem") == 0)
 			{
 				bots[bot_index].SetTask(TASK_GOALITEM);	// the bot carries a goal item now
 
 
-
+#ifdef _DEBUG
 				//@@@@@@@@@@@
-				#ifdef _DEBUG
-				ALERT(at_console, "***bot picked up the goal item\n");
-				#endif
+				//ALERT(at_console,"***bot picked up the goal item\n");
+#endif
 			}
 		}
-		else if (*static_cast<int *>(p) == 0)
+		else if (*(int *)p == 0)
 		{
 			if (strcmp(event_type, "gotitem") == 0)
 			{
 				bots[bot_index].RemoveTask(TASK_GOALITEM);	// the bot got it to goal area
 
 
+#ifdef _DEBUG
 				//@@@@@@@@@@@
-				#ifdef _DEBUG
-				ALERT(at_console, "***bot finished the goal item action (captured it)\n");
-				#endif
+				//ALERT(at_console,"***bot finished the goal item action (captured it)\n");
+#endif
 			}
 		}
 	}
@@ -544,39 +590,38 @@ void BotClient_FA_Parachute(void *p, int bot_index)
 void BotClient_FA_BrokenLeg(void *p, int bot_index)
 {
 	static int state = 0;   // current state machine state
-	extern bool override_auto_balance;
 	
 	if (state == 0)
 	{
 		state++;
 
-		if (*static_cast<int *>(p) == 0)
+		if (*(int *)p == 0)
 		{
-			override_auto_balance = TRUE;
+			botmanager.SetOverrideTeamsBalance(true);
 		}
 	}
 	else if (state == 1)
 	{
 		state++;
 
-		if (*static_cast<int *>(p) == 0)
+		if (*(int *)p == 0)
 		{
-			override_auto_balance = TRUE;
+			botmanager.SetOverrideTeamsBalance(true);
 		}
 	}
 	else if (state == 2)
 	{
 		state = 0;
 
-		if (*static_cast<int *>(p) <= 4)
+		if (*(int *)p <= 4)
 		{
 			bots[bot_index].RemoveTask(TASK_SPRINT);	// no sprint is allowed
 		}
-		else if (*static_cast<int *>(p) <= 15)
+		else if (*(int *)p <= 15)
 		{
 			bots[bot_index].SetTask(TASK_NOJUMP);		// no jump is allowed
 		}
-		else if (*static_cast<int *>(p) >= 35)
+		else if (*(int *)p >= 35)
 		{
 			bots[bot_index].RemoveTask(TASK_NOJUMP);	// the bot can jump again
 		}
@@ -588,7 +633,7 @@ void BotClient_FA_BrokenLeg(void *p, int bot_index)
 */
 void BotClient_FA_Battery(void *p, int bot_index)
 {
-	bots[bot_index].bot_armor = *static_cast<int *>(p);  // armor ammount
+	bots[bot_index].bot_armor = *(int *)p;  // armor ammount
 }
 
 /*
@@ -605,45 +650,46 @@ void BotClient_FA_Damage(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		damage_armor = *static_cast<int *>(p);
+		damage_armor = *(int *)p;
 	}
 	else if (state == 1)
 	{
 		state++;
-		damage_taken = *static_cast<int *>(p);
+		damage_taken = *(int *)p;
 	}
 	else if (state == 2)
 	{
 		state++;
-		damage_bits = *static_cast<int *>(p);
+		damage_bits = *(int *)p;
 	}
 	else if (state == 3)
 	{
 		state++;
-		damage_origin.x = *static_cast<float *>(p);
+		damage_origin.x = *(float *)p;
 	}
 	else if (state == 4)
 	{
 		state++;
-		damage_origin.y = *static_cast<float *>(p);
+		damage_origin.y = *(float *)p;
 	}
 	else if (state == 5)
 	{
 		state = 0;
 
-		extern bool b_botignoreall;
-
 		// ignore all types of damage if the bot is in "I'm ignoring all" mode
-		if (b_botignoreall)
+		if (botdebugger.IsIgnoreAll())
 			return;
 
-		damage_origin.z = *static_cast<float *>(p);
+		damage_origin.z = *(float *)p;
 
 		if ((damage_armor > 0) || (damage_taken > 0))
 		{
+			// NOTE: In FA 3.0 bleeding seems to have new value (1<<25) so as int value it's 33554432
+			//			I'm not using it, because it doesn't seem to cause any unwanted turn around
+
 			// ignore bleeding hurt etc. (ie do not try to face it)
 			// we won't facing this hurt, because bot does stupid turn arounds
-			if (damage_bits == 2048)
+			if (damage_bits == 2048)	// i.e. (1<<11)
 				return;
 			
 			// if bot fall off something and is hurt store new health value
@@ -657,8 +703,7 @@ void BotClient_FA_Damage(void *p, int bot_index)
 
 			// set the drowing flag to know that the bot is drowing
 			// we have to handle FA2.9 changes
-			if ((damage_bits & DMG_DROWN) ||
-				((damage_bits & DMG_ALWAYSGIB) &&
+			if ((damage_bits & DMG_DROWN) || ((damage_bits & DMG_ALWAYSGIB) &&
 				((g_mod_version == FA_29) || (g_mod_version == FA_30))))
 			{
 				bots[bot_index].SetTask(TASK_DROWNING);
@@ -709,26 +754,26 @@ void BotClient_FA_Damage(void *p, int bot_index)
 				}
 			}
 
-			float current_dist, enemy_dist;
+			float curr_enemy_dist, new_enemy_dist;
 
-			current_dist = enemy_dist = 9999.0;
+			curr_enemy_dist = new_enemy_dist = 9999.0;
 
 			// get the vector to new enemy
-			Vector v_enemy = damage_origin - bots[bot_index].pEdict->v.origin;
+			Vector v_new_enemy = damage_origin - bots[bot_index].pEdict->v.origin;
 
 			// get the distance to new enemy
-			enemy_dist = v_enemy.Length();
+			new_enemy_dist = v_new_enemy.Length();
 
 			// if the bot already has an enemy
 			if (bots[bot_index].pBotEnemy)
 			{
 				// get the distance for current enemy
-				current_dist = (bots[bot_index].pBotEnemy->v.origin -
+				curr_enemy_dist = (bots[bot_index].pBotEnemy->v.origin -
 					bots[bot_index].pEdict->v.origin).Length();
 
 				// is current enemy closer than the new enemy AND does the bot see him
 				// then ignore new enemy
-				if ((current_dist < enemy_dist) &&
+				if ((curr_enemy_dist < new_enemy_dist) &&
 					(bots[bot_index].f_bot_wait_for_enemy_time < gpGlobals->time))
 					return;
 
@@ -737,7 +782,9 @@ void BotClient_FA_Damage(void *p, int bot_index)
 				// is the bot sniper AND the new enemy is too close keep the current enemy
 				// (ie. bot isn't able to change to gun that fast so it's better if he try to do
 				// as many damage to the current enemy as he can)
-				if ((bots[bot_index].bot_behaviour & SNIPER) && (enemy_dist < 400))
+				//if ((bots[bot_index].bot_behaviour & SNIPER) && (enemy_dist < 400))			NEW CODE 094 (prev code)
+				if ((bots[bot_index].bot_behaviour & SNIPER) && (new_enemy_dist < 200) &&
+					(bots[bot_index].f_bot_wait_for_enemy_time < gpGlobals->time))
 					return;
 
 				// if the bot has clear view at current enemy AND
@@ -752,11 +799,11 @@ void BotClient_FA_Damage(void *p, int bot_index)
 			}
 			// it's a completely new enemy or the bot switched on this enemy so...
 
-			if (bots[bot_index].IsTask(TASK_GOALITEM) && enemy_dist > ENEMY_DIST_GOALITEM)
+			if (bots[bot_index].IsTask(TASK_GOALITEM) && (new_enemy_dist > ENEMY_DIST_GOALITEM))
 				return;
 			
 			// face the attacker (ie. the new enemy)
-			Vector bot_angles = UTIL_VecToAngles(v_enemy);
+			Vector bot_angles = UTIL_VecToAngles(v_new_enemy);
 			bots[bot_index].pEdict->v.ideal_yaw = bot_angles.y;
 
 			BotFixIdealYaw(bots[bot_index].pEdict);
@@ -766,8 +813,7 @@ void BotClient_FA_Damage(void *p, int bot_index)
 			// we need to know if bot turned more than a few degree to a side
 			// if so then we have to trace that direction immediatelly to see
 			// if there's danger of death fall
-			if (bots[bot_index].IsTask(TASK_DEATHFALL) &&
-				(bots[bot_index].f_dontmove_time < gpGlobals->time))
+			if (bots[bot_index].IsTask(TASK_DEATHFALL) && (bots[bot_index].f_dontmove_time < gpGlobals->time))
 			{
 				bots[bot_index].move_speed = SPEED_NO;
 				bots[bot_index].SetDontMoveTime(1.0);
@@ -781,10 +827,12 @@ void BotClient_FA_Damage(void *p, int bot_index)
 			}
 
 			// don't look for waypoint while searching the enemy
-			bots[bot_index].f_dont_look_for_waypoint_time = gpGlobals->time + 0.2;
+			bots[bot_index].f_dont_look_for_waypoint_time = gpGlobals->time + 0.4f;			// was 0.2
 
-			// stop using bandages
-			bots[bot_index].bandage_time = 0.0;
+			// if not already bandaging then prevent starting it
+			if (bots[bot_index].bandage_time <= gpGlobals->time)							// NEW CODE 094
+				bots[bot_index].bandage_time = -1.0;
+			
 			// break wpt_action_time
 			bots[bot_index].wpt_action_time = 0.0;
 		}
@@ -860,60 +908,247 @@ void BotClient_FA_TextMsg(void *p, int bot_index)
 		char the_text[256];
 
 		// get the message and its length engine sends
-		strcpy(the_text, static_cast<char *>(p));
+		strcpy(the_text, (char *)p);
 		pos = strlen(the_text);
 
 		// remove '\n' sign from its end
 		the_text[pos - 1] = 0;
 		pos--;
 
+
 		// prevents going prone for some time
 		if ((strcmp(the_text, "Not enough room to go prone here!") == 0) ||
 			(strcmp(the_text, "Cannot prone on another player!") == 0))
 		{
-#ifdef _DEBUG
-			//@@@@@@@@@@@@@@@@@
-			//ALERT(at_console, "!!!CANT PRONE!!!\n");
-#endif
+#ifdef DEBUG
 
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s CANNOT PRONE message -> SET CANTPRONE subtask!\n", bots[bot_index].name);
+			//ALERT(at_console, dm); 
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-			bots[bot_index].f_cant_prone = gpGlobals->time + 2.5;
+#endif // DEBUG
+
+			bots[bot_index].SetSubTask(ST_CANTPRONE);
 		}
 
 		// switches to secondary fire for m16
 		else if (strcmp(the_text, "Switched to M203 fire") == 0)
 		{
 			bots[bot_index].secondary_active = TRUE;
+
+
+#ifdef DEBUG
+
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s got SWITCHED TO M203 message!\n", bots[bot_index].name);
+			ALERT(at_console, dm);
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+
 		}
 		// switches back to primary fire for m16
 		else if (strcmp(the_text, "Switched to M16 fire") == 0)
 		{
 			bots[bot_index].secondary_active = FALSE;
+
+
+#ifdef DEBUG
+
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s got SWITCHED TO M16 FIRE message!\n", bots[bot_index].name);
+			ALERT(at_console, dm);
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+
 		}
 		// switches to secondary fire for ak74
 		else if (strcmp(the_text, "Switched to gp25 fire") == 0)
 		{
 			bots[bot_index].secondary_active = TRUE;
+
+
+
+#ifdef DEBUG
+
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s got SWITCHED TO GP25 message!\n", bots[bot_index].name);
+			ALERT(at_console, dm);
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+
+
 		}
 		// switches back to primary fire for ak74
 		else if (strcmp(the_text, "Switched to normal fire") == 0)
 		{
 			bots[bot_index].secondary_active = FALSE;
+
+
+
+#ifdef DEBUG
+
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s got SWITCHED TO NORMAL(ak74) fire message!\n", bots[bot_index].name);
+			ALERT(at_console, dm); 
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+
 		}
 		// player has been promoted
 		else if (strncmp(the_text, "You have been promoted ", 23) == 0)
 		{
 			bots[bot_index].SetTask(TASK_PROMOTED);
 		}
-		// the bot is under medical treatment
-		else if ((strcmp(the_text, "You have been treated") == 0) ||
-			(strcmp(the_text, "You are being bandaged") == 0))
+		// the bot is merging magazines
+		else if (strncmp(the_text, "Merging magazines...", 20) == 0)
 		{
-			bots[bot_index].f_pause_time = gpGlobals->time + RANDOM_LONG(3.5, 4.5);
+			// so pause him for some time to finish it
+			// from the tests I did it seems that the proccess takes roughly 3 seconds
+			bots[bot_index].SetPauseTime(RANDOM_FLOAT(3.7, 5.0));
+
+			bots[bot_index].weapon_action = W_INMERGEMAGS;
+
+			// and clear both bits to prevent doing this over and over again
+			bots[bot_index].RemoveWeaponStatus(WS_MERGEMAGS1);
+			bots[bot_index].RemoveWeaponStatus(WS_MERGEMAGS2);
+
+#ifdef DEBUG
+
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s got MERGING MAGAZINES message!\n", bots[bot_index].name);
+			UTIL_DebugInFile(dm);
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+		}
+		// the bot is under medical treatment
+		else if ((strncmp(the_text, "You are being bandaged", 22) == 0) ||
+			(strncmp(the_text, "You have been treated", 21) == 0) || (strncmp(the_text, "%s applies sulfer", 17) == 0))
+		{
+			// we must first fix the message system for these messages
+			// because these messages have additional string
+			// (ie. it's not a message of 2 lines, but a message of 3 lines)
+			state = 2;
+
+
+#ifdef DEBUG
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s is being healed by a teammate!\n", bots[bot_index].name);
+			//ALERT(at_console, dm);
+			UTIL_DebugInFile(dm);
+#endif // DEBUG
+
+
+
+
+
+
+			// TODO:	Need to check exact time of sulfer treatment
+			//			It seems to be not as long as healing so the pause could then be shorter
+			//			Also sulfer doesn't seem to invalidate the weapon action.
+			//			More tests are needed to prove it.
+
+
+
+
+
+
+
+			// based on tests in FA 3.0 healing teammate takes 3.1 seconds
+			// we'll pause the bot for a little longer though
+			// to give game engine enough time to make the weapon usable,
+			// because FA disables weapon during healing and then it takes a while to be able to use it again,
+			// if we allowed the bot to manipulate with the gun too soon the engine wouldn't recognize it
+			// and the bot would be stuck in endless reloading loop for example
+			bots[bot_index].SetPauseTime(RANDOM_FLOAT(4.3, 4.8));
+
+			// if the bot is in process of reloading his weapon then
+			// it will be invalidated when someone else started to heal him
+			if (bots[bot_index].IsWeaponStatus(WS_PRESSRELOAD))
+			{
+				bots[bot_index].SetWeaponStatus(WS_INVALID);
+				bots[bot_index].f_reload_time = 0.0f;
+
+#ifdef DEBUG
+				char dm[256];
+				sprintf(dm, "(bot_client.cpp) %s invalidated weapon reloading, because of being healed by a teammate!\n", bots[bot_index].name);
+				//ALERT(at_console, dm);
+				sprintf(dm, "%s pause time needed to finish the treatment will end at %.3f\n", dm, bots[bot_index].f_pause_time);
+				UTIL_DebugInFile(dm);
+#endif // DEBUG
+
+
+			}
+			// or is the bot changing current weapon?
+			else if ((bots[bot_index].weapon_action == W_TAKEOTHER) || (bots[bot_index].weapon_action == W_INCHANGE))
+			{
+				// we must invalide this action, because often the engine doesn't recognize it fast enough
+				// and the player ends with the original weapon instead of with the selected one
+				// so we have to tell the bot to start anew after the treatment is over
+				bots[bot_index].SetWeaponStatus(WS_INVALID);
+
+
+#ifdef DEBUG
+				char dm[256];
+				sprintf(dm, "(bot_client.cpp) %s invalidated weapon change, because of being healed by a teammate!\n", bots[bot_index].name);
+				//ALERT(at_console, dm);
+				sprintf(dm, "%s pause time needed to finish the treatment will end at %.3f\n", dm, bots[bot_index].f_pause_time);
+				UTIL_DebugInFile(dm);
+#endif // DEBUG
+			
+			
+			
+			}
+		}
+		// the bot bandage his wounds
+		// NOTE: This message also gets sent when teammate start to bandage this bot/player
+		// (this one is sent first and is followed by message 'You're being bandaged by <teammate name here>')
+		else if (strncmp(the_text, "You bandage your wounds", 23) == 0)
+		{
+			// this is sort of safety call, because the bot isn't allowed to start bandaging his wounds and
+			// start to reload current weapon at the same time, but if it happens somehow
+			// then we must invalidate the reloading so the bot can do it again after he finishes bandaging his wounds
+			if (bots[bot_index].IsWeaponStatus(WS_PRESSRELOAD))
+			{
+				bots[bot_index].SetWeaponStatus(WS_INVALID);
+				bots[bot_index].f_reload_time = 0.0f;
+
+#ifdef DEBUG
+				char dm[256];
+				sprintf(dm, "(bot_client.cpp) %s invalidated weapon reloading, because of doing it at the same time as bandaging wounds!\n", bots[bot_index].name);
+				//ALERT(at_console, dm); 
+				UTIL_DebugInFile(dm);
+#endif // DEBUG
+			}
 		}
 		// the bot successfully finished medevac
-		else if ((strcmp(the_text, "Patient life sustained") == 0) ||
-			(strcmp(the_text, "Patient will MEDEVAC") == 0))
+		else if ((strcmp(the_text, "Patient life sustained") == 0) || (strcmp(the_text, "Patient will MEDEVAC") == 0))
 		{
 			bots[bot_index].SetSubTask(ST_MEDEVAC_DONE);
 		}
@@ -924,12 +1159,44 @@ void BotClient_FA_TextMsg(void *p, int bot_index)
 		{
 			bots[bot_index].SetSubTask(ST_RESETCLAYMORE);
 			
+#ifdef DEBUG
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s is placing the claymore too close to a wall/object!\n", bots[bot_index].name);
+			//ALERT(at_console, dm); 
+			UTIL_DebugInFile(dm);
+#endif // DEBUG
+		}
+		// the bot is doing medical treatment
+		else if ((strncmp(the_text, "You apply a bandage to", 22) == 0) ||
+			(strncmp(the_text, "You apply sulfer to", 19) == 0))
+		{
+			// the only thing we must do here is that
+			// we must fix the message system for these messages
+			// because these messages have additional string
+			// (ie. it's not a message of 2 lines, but a message of 3 lines)
+			// without this fix the whole message system would get corrupted for this particular bot
+			// (ie. he would have not been able to decode the following text messages correctly)
+			state = 2;
 
-			#ifdef _DEBUG
-			ALERT(at_console, "Bot is placing the claymore too close to a wall/object\n");
-			#endif
+
+#ifdef DEBUG
+			char dm[256];
+			sprintf(dm, "(bot_client.cpp) %s is doing medical treatment to his teammate!\n", bots[bot_index].name);
+			//ALERT(at_console, dm);
+			UTIL_DebugInFile(dm);
+#endif // DEBUG
+
+
+
+
+
 		}
 	}
+	// there's nothing important on the 3rd line
+	// just the name of the teammate who is doing or receives the treatment
+	// so we just reset it back to "start"
+	else if (state == 2)
+		state = 0;
 }
 
 /*
@@ -950,7 +1217,7 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 	else if (state == 1)
 	{
 		// get the message the engine sends
-		strcpy(the_text, static_cast<char *>(p));
+		strcpy(the_text, (char *)p);
 
 		if (strstr(the_text, "Force occupies") != NULL)
 		{
@@ -980,7 +1247,7 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 	{
 		state = 0;
 
-		strcpy(the_item, static_cast<char *>(p));
+		strcpy(the_item, (char *)p);
 
 		char temp_text[sizeof(the_text)];
 
@@ -1033,42 +1300,6 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 		}
 	}
 }
-/*
-// ORIGINAL CODE
-void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
-{
-	static int state = 0;   // current state machine state
-
-	if (state == 0)
-		state++;
-
-	else if (state == 1)
-	{
-		char the_text[256];
-
-		// get the message the engine sends
-		strcpy(the_text, (char *)p);
-
-		if (strstr(the_text, "Force occupies") != NULL)
-		{
-			UpdateWaypointData();
-		}
-		if (WaypointMatchingTriggerMessage(the_text))
-		{
-
-
-
-			//@@@@@@@@@@@@@@@2
-			#ifdef _DEBUG
-			ALERT(at_console, "TRIGGER MSG - one of trigger msgs do match this text!!!\n");
-			#endif
-
-			// we will update waypoints as well just to "know" about the latest events
-			UpdateWaypointData();
-		}
-	}
-}
-/**/
 
 /*
 * this message gets send when any HUD text (the fancy colored and bit transparent one) is printed on the client's screen
@@ -1090,7 +1321,7 @@ void BotClient_FA_HUDMsg(void *p, int bot_index)
 			
 			char the_text[256];
 			// get the message the engine sends
-			strcpy(the_text, static_cast<char *>(p));
+			strcpy(the_text, (char *)p);
 			
 			// check if the message matches any user-defined trigger event
 			if (WaypointMatchingTriggerMessage(the_text))
@@ -1111,15 +1342,15 @@ void BotClient_FA_HUDMsg(void *p, int bot_index)
 */
 void BotClient_FA_FOV(void *p, int bot_index)
 {
-	if (*static_cast<int *>(p) == NO_ZOOM)
+	if (*(int *)p == NO_ZOOM)
 	{
 		bots[bot_index].secondary_active = FALSE;
 	}
-	else if (*static_cast<int *>(p) == ZOOM_05X)
+	else if (*(int *)p == ZOOM_05X)
 	{
 		;		// do nothing for now -- no code for those weapons (anaconda, g36e, m14)
 	}
-	else if (*static_cast<int *>(p) == ZOOM_1X)
+	else if (*(int *)p == ZOOM_1X)
 	{
 		// m82 has better zoom so don't set the flag now for it
 		if (bots[bot_index].current_weapon.iId != fa_weapon_m82)
@@ -1127,7 +1358,7 @@ void BotClient_FA_FOV(void *p, int bot_index)
 			bots[bot_index].secondary_active = TRUE;
 		}
 	}
-	else if (*static_cast<int *>(p) == ZOOM_2X)
+	else if (*(int *)p == ZOOM_2X)
 	{
 		bots[bot_index].secondary_active = TRUE;
 	}
@@ -1139,26 +1370,21 @@ void BotClient_FA_FOV(void *p, int bot_index)
 */
 void BotClient_FA_Stamina(void *p, int bot_index)
 {
-	if (*static_cast<int *>(p) <= 4)
+	if (*(int *)p <= 4)
 	{
 		bots[bot_index].RemoveTask(TASK_SPRINT);	// no sprint is allowed
 	}
-	else if (*static_cast<int *>(p) <= 15)
+	else if (*(int *)p <= 15)
 	{
 		bots[bot_index].SetTask(TASK_NOJUMP);		// no jump is allowed
-
-
-#ifdef _DEBUG
-			//@@@@@@@@@@@@@@@@@
-			//ALERT(at_console, "!!!CANT JUMP -- no stamina!!!\n");
-#endif
-
 	}
-	else if (*static_cast<int *>(p) >= 35)
+	else if (*(int *)p >= 35)
 	{
 		bots[bot_index].RemoveTask(TASK_NOJUMP);	// the bot can jump again
 	}
 }
+
+
 
 
 // note by Frank WHY??? why here it has nothing to do with HL engine message decoding
@@ -1202,25 +1428,24 @@ void SetHarakiri(int team) {
 void BotClient_FA_Reins(void *p, int bot_index)
 {
 	static int state = 0;   // current state machine state
-	extern bool override_auto_balance;
 	int team_gamers;
 
 	if (state == 0)
 	{
 		state++;
 		
-		if (*static_cast<int *>(p) == 0)
+		if (*(int *)p == 0)
 		{
-			override_auto_balance = TRUE;
+			botmanager.SetOverrideTeamsBalance(true);
 		}
 	}
 	else if (state == 1)
 	{
 		state = 0;
 
-		if (*static_cast<int *>(p) == 0)
+		if (*(int *)p == 0)
 		{
-			override_auto_balance = TRUE;
+			botmanager.SetOverrideTeamsBalance(true);
 		}
 	}
 
@@ -1229,7 +1454,7 @@ void BotClient_FA_Reins(void *p, int bot_index)
 //		Next thing is that you need to add it also to BotClient_FA_BrokenLeg() due to
 //		differences in FA versions
 
-	if(*static_cast<int *>(p)<=0) { //reinforcements is ended. 
+	if(*(int *)p<=0) { //reinforcements is ended. 
 		team_gamers = UTIL_CountPlayers(TEAM_BLUE - state);
 		//ALERT(at_console, "REINF change p=%d auto_balance=%d state=%d team_gamers=%d\n", 
 			//*(int*)p, override_auto_balance, state, team_gamers);
@@ -1256,7 +1481,7 @@ void BotClient_FA_Concuss(void *p, int bot_index)
 {
 	static int duration;
 
-	duration = *static_cast<int *>(p);
+	duration = *(int *)p;
 
 	if (duration > 0)
 	{
@@ -1280,17 +1505,17 @@ void BotClient_FA_ScreenFade(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		duration = *static_cast<int *>(p);
+		duration = *(int *)p;
 	}
 	else if (state == 1)
 	{
 		state++;
-		hold_time = *static_cast<int *>(p);
+		hold_time = *(int *)p;
 	}
 	else if (state == 2)
 	{
 		state++;
-		fade_flags = *static_cast<int *>(p);
+		fade_flags = *(int *)p;
 	}
 	else if (state == 6)
 	{

@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // engine.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91 4477)
+#endif
 
 #include "defines.h"
 
@@ -26,6 +30,7 @@
 #include "bot.h"
 #include "bot_client.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "engine.h"
 
 
@@ -66,12 +71,21 @@ int message_ScreenFade = 0;
 static FILE *fp;
 
 
+#ifndef NEWSDKAM
+// if you're getting errors here then go to defines.h and change the NEWSDKAM setting
 int pfnPrecacheModel(char* s)
+#else
+int pfnPrecacheModel(const char* s)
+#endif
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPrecacheModel: %s\n",s); fclose(fp); }
 	return (*g_engfuncs.pfnPrecacheModel)(s);
 }
+#ifndef NEWSDKAM
 int pfnPrecacheSound(char* s)
+#else
+int pfnPrecacheSound(const char* s)
+#endif
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPrecacheSound: %s\n",s); fclose(fp); }
 	return (*g_engfuncs.pfnPrecacheSound)(s);
@@ -96,7 +110,11 @@ void pfnSetSize(edict_t *e, const float *rgflMin, const float *rgflMax)
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetSize: %x rgflMin: %f rgflMax: %f\n",e,*rgflMin,*rgflMax); fclose(fp); }
 	(*g_engfuncs.pfnSetSize)(e, rgflMin, rgflMax);
 }
+#ifndef NEWSDKAM
 void pfnChangeLevel(char* s1, char* s2)
+#else
+void pfnChangeLevel(const char* s1, const char* s2)
+#endif
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangeLevel: s1: %s s2: %s\n",s1,s2); fclose(fp); }
 	
@@ -119,14 +137,14 @@ void pfnChangeLevel(char* s1, char* s2)
 void pfnGetSpawnParms(edict_t *ent)
 {
 #ifdef _DEBUG
-	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetSpawnParms: edict=%x\n",ent); fclose(fp); }
+	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetSpawnParms: edict=%p\n",ent); fclose(fp); }
 #endif
 	(*g_engfuncs.pfnGetSpawnParms)(ent);
 }
 void pfnSaveSpawnParms(edict_t *ent)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSaveSpawnParms: edict=%x\n",ent); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSaveSpawnParms: edict=%p\n",ent); fclose(fp); }
 #endif
    (*g_engfuncs.pfnSaveSpawnParms)(ent);
 }
@@ -143,21 +161,21 @@ void pfnVecToAngles(const float *rgflVectorIn, float *rgflVectorOut)
 void pfnMoveToOrigin(edict_t *ent, const float *pflGoal, float dist, int iMoveType)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMoveToOrigin: edict=%x pflGoal: %f dist: %f iMoveType: %d\n",ent,*pflGoal,dist,iMoveType); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMoveToOrigin: edict=%p pflGoal: %f dist: %f iMoveType: %d\n",ent,*pflGoal,dist,iMoveType); fclose(fp); }
 #endif
    (*g_engfuncs.pfnMoveToOrigin)(ent, pflGoal, dist, iMoveType);
 }
 void pfnChangeYaw(edict_t* ent)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangeYaw: edict=%x\n",ent); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangeYaw: edict=%p\n",ent); fclose(fp); }
 #endif
    (*g_engfuncs.pfnChangeYaw)(ent);
 }
 void pfnChangePitch(edict_t* ent)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangePitch: edict=%x\n",ent); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnChangePitch: edict=%p\n",ent); fclose(fp); }
 #endif
    (*g_engfuncs.pfnChangePitch)(ent);
 }
@@ -199,7 +217,7 @@ edict_t* pfnEntitiesInPVS(edict_t *pplayer)
 }
 void pfnMakeVectors(const float *rgflVector)
 {
-	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMakeVectors:\n"); fclose(fp); }
+	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMakeVectors: rgflVector=%f\n", *rgflVector); fclose(fp); }
 	(*g_engfuncs.pfnMakeVectors)(rgflVector);
 }
 void pfnAngleVectors(const float *rgflVector, float *forward, float *right, float *up)
@@ -215,9 +233,9 @@ edict_t* pfnCreateEntity(void)
 	{
 		fp=fopen(debug_fname,"a");
 		if (pent->v.classname != NULL)
-			fprintf(fp,"pfnCreateEntity: %x (classname: %s)\n",pent, STRING(pent->v.classname));
+			fprintf(fp,"pfnCreateEntity: %p (classname: %s)\n",pent, STRING(pent->v.classname));
 		else
-			fprintf(fp,"pfnCreateEntity: %x\n",pent);
+			fprintf(fp,"pfnCreateEntity: %p\n",pent);
 		fclose(fp);
 	}
 #endif
@@ -230,9 +248,9 @@ void pfnRemoveEntity(edict_t* e)
 	{
 		fp=fopen(debug_fname,"a");
 		if (e->v.classname != NULL)
-			fprintf(fp,"pfnRemoveEntity: %x (classname: %s)\n",e, STRING(e->v.classname));
+			fprintf(fp,"pfnRemoveEntity: %p (classname: %s)\n",e, STRING(e->v.classname));
 		else
-			fprintf(fp,"pfnRemoveEntity: %x\n",e);
+			fprintf(fp,"pfnRemoveEntity: %p\n",e);
 		if (e->v.model != 0)
 			fprintf(fp," model=%s\n", STRING(e->v.model));
 		fclose(fp);
@@ -245,7 +263,7 @@ edict_t* pfnCreateNamedEntity(int className)
 {
 	edict_t *pent = (*g_engfuncs.pfnCreateNamedEntity)(className);
 #ifdef _DEBUG
-	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCreateNamedEntity: edict=%x name=%s\n",pent,STRING(className)); fclose(fp); }
+	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCreateNamedEntity: edict=%p name=%s\n",pent,STRING(className)); fclose(fp); }
 #endif
 	return pent;
 }
@@ -281,31 +299,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 
 	if (gpGlobals->deathmatch)
 	{
-		//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnEmitSound: edict=%x sound=%s channel=%d volume=%.2f attenuation=%.2f fFlags=%d, pitch=%d\n",entity,sample,channel,volume,attenuation,fFlags,pitch); fclose(fp); }
-
-#ifdef _DEBUG
-		//@@@@@@@@
-		extern bool debug_sound;
-
-
-
-		//@@@@@@@@@@@@@
-		if (debug_sound)
-		{
-			if (debug_engine)
-			{
-				fp=fopen(debug_fname,"a");
-				fprintf(fp,"pfnEmitSound: edict=%x sound=%s channel=%d volume=%.2f attenuation=%.2f fFlags=%d, pitch=%d\n",entity,sample,channel,volume,attenuation,fFlags,pitch);
-				fclose(fp);
-			}
-
-			ALERT(at_console, "pfnEmitSound: edict=%x sound=%s volume=%.2f\n",
-				entity,sample,volume);
-		}
-#endif
-
-
-
+		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnEmitSound: edict=%p sound=%s channel=%d volume=%.2f attenuation=%.2f fFlags=%d, pitch=%d (gametime=%.3f)\n",entity,sample,channel,volume,attenuation,fFlags,pitch,gpGlobals->time); fclose(fp); }
 
 		// did the bot heard a grenade that has been just thrown
 		if (strstr(sample, "fuze.wav") != NULL)
@@ -324,10 +318,6 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 						{
 							bots[index].BotSpeak(SAY_GRENADE_OUT);
 
-#ifdef _DEBUG
-							//@@@@@@@@@@@
-							//ALERT(at_console, "%s used a grenade (engine.cpp)\n", bots[index].name);
-#endif
 							break;
 						}
 					}
@@ -354,7 +344,9 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 
 						// the bot bleeds
 						if (volume > 0.0)
+						{
 							bots[index].SetTask(TASK_BLEEDING);
+						}
 
 						break;
 					}
@@ -367,12 +359,6 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 					// they will have to call for medic if they need help
 					if (externals.GetPassiveHealing())
 					{
-#ifdef _DEBUG
-						//@@@@@@@@
-						ALERT(at_console, "%s heard bleeding, but ignores it because of passive healing\n",
-							bots[index].name);
-#endif
-
 						break;
 					}
 
@@ -402,6 +388,51 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 			}
 		}
 
+		// is someone merging magazines?
+		else if (strstr(sample, "mergemags.wav") != NULL)
+		{
+			// can it really be heard?
+			if (volume > 0.0)
+			{
+				for (index = 0; index < MAX_CLIENTS; index++)
+				{
+					if (bots[index].is_used)
+					{
+						pEdict = bots[index].pEdict;
+
+						// is it this bot who does merge magazines?
+						if (entity == pEdict)
+						{
+							// then pause him for some time to finish it
+							// the proccess takes roughly 3 seconds, but we'll set longer pause time
+							bots[index].SetPauseTime(RANDOM_FLOAT(3.7, 5.0));
+
+							// set correct weapon action
+							bots[index].weapon_action = W_INMERGEMAGS;
+
+							// and clear both bits to prevent doing this over and over again
+							bots[index].RemoveWeaponStatus(WS_MERGEMAGS1);
+							bots[index].RemoveWeaponStatus(WS_MERGEMAGS2);
+
+#ifdef DEBUG
+
+							//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@													// NEW CODE 094 (remove it)
+							char dm[256];
+							sprintf(dm, "(engine.cpp) %s heard his own MERGING MAGAZINES sound!\n", bots[index].name);
+							//ALERT(at_console, dm); 
+							UTIL_DebugInFile(dm);
+							//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		// skip all muted sounds for the rest of sound messages
 		if (volume == 0.0)
 		{
@@ -426,13 +457,24 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is any medic close AND this bot is bleeding?
-		else if ((strstr(sample, "voice_medhere.wav") != NULL) ||
-			(strstr(sample, "voice_treatyou.wav") != NULL))
+		else if ((strstr(sample, "voice_medhere.wav") != NULL) || (strstr(sample, "voice_treatyou.wav") != NULL))
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
 				if (bots[index].is_used)  // is this slot used?
 				{
+
+					// does this bot bleed and the bot doesn't bandage himself,
+					// pause for a while to allow the medic to get close
+					if (bots[index].IsTask(TASK_BLEEDING) && (bots[index].bandage_time < gpGlobals->time) &&
+						UTIL_HeardIt(&bots[index], entity, 600))
+					{
+						bots[index].SetPauseTime(RANDOM_FLOAT(2.5, 5.0));
+					}
+
+
+					//																		NEW CODE 094 (prev code)
+					/*/
 					float distance = (bots[index].pEdict->v.origin - entity->v.origin).Length();
 
 					// don't react if this bot is too far from the medic
@@ -448,20 +490,11 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 
 					// does this bot bleed and the bot doesn't bandage himself,
 					// pause for a while to allow the medic to get close
-					if (bots[index].IsTask(TASK_BLEEDING) &&
-						(bots[index].bandage_time <= gpGlobals->time))
+					if (bots[index].IsTask(TASK_BLEEDING) && (bots[index].bandage_time <= gpGlobals->time))
 					{
-						bots[index].f_pause_time = gpGlobals->time + RANDOM_LONG(2.5, 5.0);
-
-
-#ifdef _DEBUG
-						//@@@@@@@@
-						ALERT(at_console, "%s heard that medic is coming and will react\n",
-							bots[index].name);
-#endif
-
-
+						bots[index].SetPauseTime(RANDOM_FLOAT(2.5, 5.0));
 					}
+					/**/
 				}
 			}
 		}
@@ -523,14 +556,6 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 							
 							UTIL_Radio(pEdict, "yes");
 							bots[index].speak_time = gpGlobals->time;
-
-
-#ifdef _DEBUG
-						//@@@@@@@@
-						ALERT(at_console, "%s heard that and will react\n", bots[index].name);
-#endif
-
-
 						}
 						// say no, this "user" already has enough "followers"
 						else
@@ -568,7 +593,7 @@ int pfnTraceMonsterHull(edict_t *pEdict, const float *v1, const float *v2, int f
 }
 void pfnTraceHull(const float *v1, const float *v2, int fNoMonsters, int hullNumber, edict_t *pentToSkip, TraceResult *ptr)
 {
-   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnTraceHull:\n"); fclose(fp); }
+   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnTraceHull: v1=%f v2=%f fnoMonsters=%d, hullNumber=%d pentToSkip=%x traceresult=%f\n", *v1, *v2, fNoMonsters, hullNumber, pentToSkip, ptr->flFraction); fclose(fp); }
    (*g_engfuncs.pfnTraceHull)(v1, v2, fNoMonsters, hullNumber, pentToSkip, ptr);
 }
 void pfnTraceModel(const float *v1, const float *v2, int hullNumber, edict_t *pent, TraceResult *ptr)
@@ -591,7 +616,11 @@ void pfnGetAimVector(edict_t* ent, float speed, float *rgflReturn)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetAimVector:\n"); fclose(fp); }
    (*g_engfuncs.pfnGetAimVector)(ent, speed, rgflReturn);
 }
+#ifndef NEWSDKAM
 void pfnServerCommand(char* str)
+#else
+void pfnServerCommand(const char* str)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnServerCommand: %s\n",str); fclose(fp); }
    (*g_engfuncs.pfnServerCommand)(str);
@@ -601,7 +630,11 @@ void pfnServerExecute(void)
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnServerExecute:\n"); fclose(fp); }
    (*g_engfuncs.pfnServerExecute)();
 }
+#ifndef NEWSDKAM
 void pfnClientCommand(edict_t* pEdict, char* szFmt, ...)
+#else
+void pfnClientCommand(edict_t* pEdict, const char* szFmt, ...)
+#endif
 {
 	if (debug_engine)
 	{
@@ -609,7 +642,7 @@ void pfnClientCommand(edict_t* pEdict, char* szFmt, ...)
 		ALERT(at_console, "pfnClientCommand=%s\n",szFmt);
 		
 		fp=fopen(debug_fname,"a");
-		fprintf(fp,"pfnClientCommand=%s\n",szFmt);
+		fprintf(fp,"pfnClientCommand=%s (time=%.3f)\n",szFmt,gpGlobals->time);
 		fclose(fp);
 	}
 	
@@ -630,7 +663,11 @@ void pfnParticleEffect(const float *org, const float *dir, float color, float co
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnParticleEffect:\n"); fclose(fp); }
    (*g_engfuncs.pfnParticleEffect)(org, dir, color, count);
 }
+#ifndef NEWSDKAM
 void pfnLightStyle(int style, char* val)
+#else
+void pfnLightStyle(int style, const char* val)
+#endif
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnLightStyle:\n"); fclose(fp); }
    (*g_engfuncs.pfnLightStyle)(style, val);
@@ -651,28 +688,12 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 	{
 		int index = -1;
 
-#ifdef _DEBUG
-		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMessageBegin: edict=%x dest=%d type=%d\n",ed,msg_dest,msg_type); fclose(fp); }
-#endif
+		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMessageBegin: edict=%p dest=%d type=%d (gametime=%.3f)\n", ed, msg_dest, msg_type, gpGlobals->time); fclose(fp); }
+
 		
 		if (ed)
 		{
 			index = UTIL_GetBotIndex(ed);
-
-#ifdef _DEBUG
-			if (index == -1)
-			{
-				if (msg_type == message_CurWeapon)
-				{
-					botMsgFunction = NULL;     // no msg function until known otherwise
-					botMsgEndFunction = NULL;  // no msg end function until known otherwise
-					botMsgIndex = index;       // index of bot receiving message
-					
-					if (msg_type == message_CurWeapon)
-						botMsgFunction = BotClient_FA_CurrentWeapon;
-				}
-			}
-#endif
 
 			// is this message for a bot?
 			if (index != -1)
@@ -709,7 +730,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 
 						// ugly technique to handle this message
 						if (botMsgFunction)
-							(*botMsgFunction)(static_cast<void *>(NULL), botMsgIndex);
+							(*botMsgFunction)((void *)NULL, botMsgIndex);
 					}
 					else if (msg_type == message_BrokenLeg)	// code for FA 2.65 and versions below
 						botMsgFunction = BotClient_FA_BrokenLeg;
@@ -777,7 +798,7 @@ void pfnWriteByte(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
+			(*botMsgFunction)((void *)&iValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteByte)(iValue);
@@ -790,7 +811,7 @@ void pfnWriteChar(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
+			(*botMsgFunction)((void *)&iValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteChar)(iValue);
@@ -803,7 +824,7 @@ void pfnWriteShort(int iValue)
 
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
+			(*botMsgFunction)((void *)&iValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteShort)(iValue);
@@ -816,7 +837,7 @@ void pfnWriteLong(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
+			(*botMsgFunction)((void *)&iValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteLong)(iValue);
@@ -829,7 +850,7 @@ void pfnWriteAngle(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&flValue), botMsgIndex);
+			(*botMsgFunction)((void *)&flValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteAngle)(flValue);
@@ -842,7 +863,7 @@ void pfnWriteCoord(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&flValue), botMsgIndex);
+			(*botMsgFunction)((void *)&flValue, botMsgIndex);
 	}
 
 	(*g_engfuncs.pfnWriteCoord)(flValue);
@@ -868,7 +889,7 @@ void pfnWriteEntity(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)(static_cast<void *>(&iValue), botMsgIndex);
+			(*botMsgFunction)((void *)&iValue, botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteEntity)(iValue);
@@ -899,12 +920,24 @@ void pfnCVarSetString(const char *szVarName, const char *szValue)
    (*g_engfuncs.pfnCVarSetString)(szVarName, szValue);
 }
 
-void* pfnPvAllocEntPrivateData(edict_t *pEdict, int32 cb)
-
+#if !defined ( NEWSDKAM ) && !defined ( NEWSDKVALVE ) && !defined ( NEWSDKMM ) && !defined ( __linux__ )
+// original HL SDK v2.3
+// if you're getting errors here then go to 'defines.h' and set the correct flag
+// matching your HL SDK version
+void* pfnPvAllocEntPrivateData(edict_t *pEdict, long cb)
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPvAllocEntPrivateData:\n"); fclose(fp); }
    return (*g_engfuncs.pfnPvAllocEntPrivateData)(pEdict, cb);
 }
+#else
+// all other newer HL SDKs and original HL SDK v2.3 on Linux
+void* pfnPvAllocEntPrivateData(edict_t* pEdict, int32 cb)
+{
+	if (debug_engine) { fp = fopen(debug_fname, "a"); fprintf(fp, "pfnPvAllocEntPrivateData:\n"); fclose(fp); }
+	return (*g_engfuncs.pfnPvAllocEntPrivateData)(pEdict, cb);
+}
+#endif
+
 void* pfnPvEntPrivateData(edict_t *pEdict)
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPvEntPrivateData:\n"); fclose(fp); }
@@ -947,8 +980,8 @@ int pfnIndexOfEdict(const edict_t *pEdict)
 }
 edict_t* pfnPEntityOfEntIndex(int iEntIndex)
 {
-#ifdef _DEBUG
-	edict_t* pent = (*g_engfuncs.pfnPEntityOfEntIndex)(iEntIndex);
+//#ifdef _DEBUG
+	//edict_t* pent = (*g_engfuncs.pfnPEntityOfEntIndex)(iEntIndex);
 	
 	/*/			// gets called really often
 	if (debug_engine)
@@ -973,10 +1006,10 @@ edict_t* pfnPEntityOfEntIndex(int iEntIndex)
 		fclose(fp);
 	}
 	/**/
-	return pent;
-#else
+	//return pent;
+//#else
 	return (*g_engfuncs.pfnPEntityOfEntIndex)(iEntIndex);
-#endif
+//#endif
 }
 edict_t* pfnFindEntityByVars(entvars_t* pvars)
 {
@@ -1059,18 +1092,37 @@ void pfnGetBonePosition(const edict_t* pEdict, int iBone, float *rgflOrigin, flo
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetBonePosition:\n"); fclose(fp); }
    (*g_engfuncs.pfnGetBonePosition)(pEdict, iBone, rgflOrigin, rgflAngles);
 }
-uint32 pfnFunctionFromName( const char *pName )
+
+#if !defined ( NEWSDKAM ) && !defined ( NEWSDKVALVE ) && !defined ( NEWSDKMM ) && !defined ( __linux__ )
+// original HL SDK v2.3
+unsigned long pfnFunctionFromName( const char *pName )
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnFunctionFromName:\n"); fclose(fp); }
 
-   return (*g_engfuncs.pfnFunctionFromName)(pName);
+   return FUNCTION_FROM_NAME(pName);
 }
-const char *pfnNameForFunction( uint32 function )
+const char *pfnNameForFunction( unsigned long function )
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnNameForFunction:\n"); fclose(fp); }
-   
-   return (*g_engfuncs.pfnNameForFunction)(function);
+
+   return NAME_FOR_FUNCTION(function);
 }
+#else
+// all other newer HL SDKs and original HL SDK v2.3 on Linux
+uint32 pfnFunctionFromName(const char* pName)
+{
+	if (debug_engine) { fp = fopen(debug_fname, "a"); fprintf(fp, "pfnFunctionFromName:\n"); fclose(fp); }
+
+	return (*g_engfuncs.pfnFunctionFromName)(pName);
+}
+const char* pfnNameForFunction(uint32 function)
+{
+	if (debug_engine) { fp = fopen(debug_fname, "a"); fprintf(fp, "pfnNameForFunction:\n"); fclose(fp); }
+
+	return (*g_engfuncs.pfnNameForFunction)(function);
+}
+#endif
+
 void pfnClientPrintf( edict_t* pEdict, PRINT_TYPE ptype, const char *szMsg )
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnClientPrintf: %s\n", szMsg); fclose(fp); }
@@ -1111,11 +1163,23 @@ CRC32_t pfnCRC32_Final(CRC32_t pulCRC)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCRC32_Final:\n"); fclose(fp); }
    return (*g_engfuncs.pfnCRC32_Final)(pulCRC);
 }
-int32 pfnRandomLong(int32 lLow, int32 lHigh)
+
+#if !defined ( NEWSDKAM ) && !defined ( NEWSDKVALVE ) && !defined ( NEWSDKMM ) && !defined ( __linux__ )
+// original HL SDK v2.3
+long pfnRandomLong(long lLow, long lHigh)
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnRandomLong: lLow=%d lHigh=%d\n",lLow,lHigh); fclose(fp); }
    return (*g_engfuncs.pfnRandomLong)(lLow, lHigh);
 }
+#else
+// all other newer HL SDKs and original HL SDK v2.3 on Linux
+int32 pfnRandomLong(int32 lLow, int32 lHigh)
+{
+	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnRandomLong: lLow=%d lHigh=%d\n",lLow,lHigh); fclose(fp); }
+	return (*g_engfuncs.pfnRandomLong)(lLow, lHigh);
+}
+#endif
+
 float pfnRandomFloat(float flLow, float flHigh)
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnRandomFloat:\n"); fclose(fp); }
@@ -1124,7 +1188,7 @@ float pfnRandomFloat(float flLow, float flHigh)
 void pfnSetView(const edict_t *pClient, const edict_t *pViewent )
 {
 #ifdef _DEBUG
-	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetView: pClient %x pViewent %x\n", pClient, pViewent); fclose(fp); }
+	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetView: pClient %p pViewent %p\n", pClient, pViewent); fclose(fp); }
 #endif
 
 	// NOTE: This seems to finally FIXED the bloody trigger_camera crash on obj_armory
@@ -1154,7 +1218,11 @@ void pfnCrosshairAngle(const edict_t *pClient, float pitch, float yaw)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCrosshairAngle:\n"); fclose(fp); }
    (*g_engfuncs.pfnCrosshairAngle)(pClient, pitch, yaw);
 }
+#ifndef NEWSDKAM
 byte *pfnLoadFileForMe(char *filename, int *pLength)
+#else
+byte* pfnLoadFileForMe(const char* filename, int* pLength)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnLoadFileForMe: filename=%s\n",filename); fclose(fp); }
    return (*g_engfuncs.pfnLoadFileForMe)(filename, pLength);
@@ -1192,7 +1260,7 @@ void pfnFadeClientVolume(const edict_t *pEdict, int fadePercent, int fadeOutSeco
 void pfnSetClientMaxspeed(const edict_t *pEdict, float fNewMaxspeed)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetClientMaxspeed: edict=%x %f\n",pEdict,fNewMaxspeed); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetClientMaxspeed: edict=%p %f\n",pEdict,fNewMaxspeed); fclose(fp); }
 
 
    //@@@@@@@@@@@@@22
@@ -1254,22 +1322,38 @@ char* pfnGetInfoKeyBuffer(edict_t *e)
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetInfoKeyBuffer:\n"); fclose(fp); }
    return (*g_engfuncs.pfnGetInfoKeyBuffer)(e);
 }
+#ifndef NEWSDKAM
 char* pfnInfoKeyValue(char *infobuffer, char *key)
+#else
+char* pfnInfoKeyValue(char* infobuffer, const char* key)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnInfoKeyValue: %s %s\n",infobuffer,key); fclose(fp); }
    return (*g_engfuncs.pfnInfoKeyValue)(infobuffer, key);
 }
+#ifndef NEWSDKAM
 void pfnSetKeyValue(char *infobuffer, char *key, char *value)
+#else
+void pfnSetKeyValue(char* infobuffer, const char* key, const char* value)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetKeyValue: %s %s\n",key,value); fclose(fp); }
    (*g_engfuncs.pfnSetKeyValue)(infobuffer, key, value);
 }
+#ifndef NEWSDKAM
 void pfnSetClientKeyValue(int clientIndex, char *infobuffer, char *key, char *value)
+#else
+void pfnSetClientKeyValue(int clientIndex, char* infobuffer, const char* key, const char* value)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetClientKeyValue: %s %s\n",key,value); fclose(fp); }
    (*g_engfuncs.pfnSetClientKeyValue)(clientIndex, infobuffer, key, value);
 }
+#ifndef NEWSDKAM
 int pfnIsMapValid(char *filename)
+#else
+int pfnIsMapValid(const char* filename)
+#endif
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnIsMapValid:\n"); fclose(fp); }
    return (*g_engfuncs.pfnIsMapValid)(filename);
@@ -1279,7 +1363,11 @@ void pfnStaticDecal( const float *origin, int decalIndex, int entityIndex, int m
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnStaticDecal:\n"); fclose(fp); }
    (*g_engfuncs.pfnStaticDecal)(origin, decalIndex, entityIndex, modelIndex);
 }
+#ifndef NEWSDKAM
 int pfnPrecacheGeneric(char* s)
+#else
+int pfnPrecacheGeneric(const char* s)
+#endif
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPrecacheGeneric: %s\n",s); fclose(fp); }
    return (*g_engfuncs.pfnPrecacheGeneric)(s);
@@ -1289,7 +1377,7 @@ int pfnGetPlayerUserId(edict_t *e )
 #ifdef _DEBUG
    if (gpGlobals->deathmatch)
    {
-      if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerUserId: %x\n",e); fclose(fp); }
+      if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerUserId: %p\n",e); fclose(fp); }
    }
 #endif
 
@@ -1298,7 +1386,7 @@ int pfnGetPlayerUserId(edict_t *e )
 const char *pfnGetPlayerAuthId (edict_t *e)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerAuthId: %x\n",e); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerAuthId: %p\n",e); fclose(fp); }
 #endif
    
    if (e->v.flags & FL_FAKECLIENT)
@@ -1329,7 +1417,7 @@ cvar_t* pfnCVarGetPointer(const char *szVarName)
 unsigned int pfnGetPlayerWONId(edict_t *e)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerWONId: %x\n",e); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerWONId: %p\n",e); fclose(fp); }
 #endif
 
    if (e->v.flags & FL_FAKECLIENT)
@@ -1349,14 +1437,14 @@ void pfnInfo_RemoveKey(char *s, const char *key)
 const char *pfnGetPhysicsKeyValue(const edict_t *pClient, const char *key)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPhysicsKeyValue: %x %s\n", pClient, key); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPhysicsKeyValue: %p %s\n", pClient, key); fclose(fp); }
 #endif
    return (*g_engfuncs.pfnGetPhysicsKeyValue)(pClient, key);
 }
 void pfnSetPhysicsKeyValue(const edict_t *pClient, const char *key, const char *value)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetPhysicsKeyValue: client=%x key=%s value=%s\n", pClient, key, value); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetPhysicsKeyValue: client=%p key=%s value=%s (time=%.3f)\n", pClient, key, value, gpGlobals->time); fclose(fp); }
 #endif
    (*g_engfuncs.pfnSetPhysicsKeyValue)(pClient, key, value);
 }
@@ -1374,7 +1462,7 @@ void pfnPlaybackEvent(int flags, const edict_t *pInvoker, unsigned short eventin
    float *origin, float *angles, float fparam1,float fparam2, int iparam1, int iparam2, int bparam1, int bparam2)
 {
 #ifdef _DEBUG
-   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPlaybackEvent: flags=%d invoker=%x index=%d\n", flags, pInvoker, eventindex); fclose(fp); }
+   if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnPlaybackEvent: flags=%d invoker=%p index=%d\n", flags, pInvoker, eventindex); fclose(fp); }
 #endif
    (*g_engfuncs.pfnPlaybackEvent)(flags, pInvoker, eventindex, delay, origin, angles, fparam1, fparam2, iparam1, iparam2, bparam1, bparam2);
 }
@@ -1385,12 +1473,12 @@ unsigned char *pfnSetFatPVS(float *org)
 }
 unsigned char *pfnSetFatPAS(float *org)
 {
-   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetFatPAS:\n"); fclose(fp); }
+   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnSetFatPAS: org=%f\n", *org); fclose(fp); }
    return (*g_engfuncs.pfnSetFatPAS)(org);
 }
 int pfnCheckVisibility(const edict_t *entity, unsigned char *pset)
 {
-   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCheckVisibility:\n"); fclose(fp); }
+   //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCheckVisibility: entity=%x\n", entity); fclose(fp); }
    return (*g_engfuncs.pfnCheckVisibility)(entity, pset);
 }
 void pfnDeltaSetField(struct delta_s *pFields, const char *fieldname)
@@ -1403,7 +1491,11 @@ void pfnDeltaUnsetField(struct delta_s *pFields, const char *fieldname)
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnDeltaUnsetField:\n"); fclose(fp); }
    (*g_engfuncs.pfnDeltaUnsetField)(pFields, fieldname);
 }
+#ifndef NEWSDKAM
 void pfnDeltaAddEncoder(char *name, void (*conditionalencode)( struct delta_s *pFields, const unsigned char *from, const unsigned char *to))
+#else
+void pfnDeltaAddEncoder(const char* name, void (*conditionalencode)(struct delta_s* pFields, const unsigned char* from, const unsigned char* to))
+#endif
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnDeltaAddEncoder:\n"); fclose(fp); }
    (*g_engfuncs.pfnDeltaAddEncoder)(name, conditionalencode);
@@ -1430,7 +1522,7 @@ void pfnDeltaSetFieldByIndex(struct delta_s *pFields, int fieldNumber)
 }
 void pfnDeltaUnsetFieldByIndex(struct delta_s *pFields, int fieldNumber)
 {
-	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnDeltaUnsetFieldByIndex:\n"); fclose(fp); }
+	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnDeltaUnsetFieldByIndex: filednumber=%d\n", fieldNumber); fclose(fp); }
 	(*g_engfuncs.pfnDeltaUnsetFieldByIndex)(pFields, fieldNumber);
 }
 void pfnSetGroupMask(int mask, int op)
@@ -1443,7 +1535,11 @@ int pfnCreateInstancedBaseline(int classname, struct entity_state_s *baseline)
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCreateInstancedBaseline:\n"); fclose(fp); }
 	return (*g_engfuncs.pfnCreateInstancedBaseline)(classname, baseline);
 }
+#ifndef NEWSDKAM
 void pfnCvar_DirectSet(struct cvar_s *var, char *value)
+#else
+void pfnCvar_DirectSet(struct cvar_s* var, const char* value)
+#endif
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnCvar_DirectSet:\n"); fclose(fp); }
 	(*g_engfuncs.pfnCvar_DirectSet)(var, value);
@@ -1458,10 +1554,14 @@ void pfnGetPlayerStats(const edict_t *pClient, int *ping, int *packet_loss)
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetPlayerStats:\n"); fclose(fp); }
 	(*g_engfuncs.pfnGetPlayerStats)(pClient, ping, packet_loss);
 }
+#ifndef NEWSDKAM
 void pfnAddServerCommand(char *cmd_name, void (*function)(void))
+#else
+void pfnAddServerCommand(const char* cmd_name, void (*function)(void))
+#endif
 {
 #ifdef _DEBUG
-	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnAddServerCommand: %s %x\n",cmd_name,function); fclose(fp); }
+	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnAddServerCommand: %s %p\n",cmd_name,function); fclose(fp); }
 #endif
 	(*g_engfuncs.pfnAddServerCommand)(cmd_name, function);
 }

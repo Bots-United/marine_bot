@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // waypoint.h
@@ -36,9 +36,10 @@
 
 // flag types ie. fake waypoint flags
 // to handle the problem with not enough space for all waypoint flags we (will/would) need
-typedef enum
+typedef enum class WaypointTypes
 {
-	wpt_normal = 0,
+	scrapped_flagtype = 0,	// in case we would need to scrap any waypoint flag type
+	wpt_normal,
 	wpt_crouch,
 	wpt_prone,
 	wpt_jump,
@@ -56,15 +57,13 @@ typedef enum
 	wpt_mine,
 	wpt_fire,
 	wpt_aim,
-	wpt_flag,
+	wpt_pushpoint,
 	wpt_trigger,
 	wpt_cross,
 	wpt_goback,
 	wpt_no,		// deleted
-} WPT_TYPES;
-
-// in case we need to scrap some flag types
-const int default_flagtype = -1;
+};
+typedef WaypointTypes WptT;
 
 
 // waypoints.flags constants (waypoint types)
@@ -190,16 +189,21 @@ extern int num_waypoints;
 
 
 // constants used to highlight certain paths
-#define HIGHLIGHT_RED		-10
-#define HIGHLIGHT_BLUE		-20
-#define HIGHLIGHT_ONEWAY	-30
+// they must be negative because positive values are standard path indexs needed when we highlight one specific path
+#define HIGHLIGHT_DISABLED		-1	// turned off
+#define HIGHLIGHT_RED			-2
+#define HIGHLIGHT_BLUE			-3
+#define HIGHLIGHT_ONEWAY		-4
+#define HIGHLIGHT_SNIPER		-5
+#define HIGHLIGHT_MGUNNER		-6
 
 
 // flag types ie. fake path flags
 // to handle the problem with not enough space for all the flags we (will/would) need
-typedef enum
+typedef enum class WaypointPathTypes
 {
-	path_both = 0,
+	scrapped_flagtype = 0,	// in case we would need to scrap any path flag type
+	path_both,
 	path_red,
 	path_blue,
 	path_one,
@@ -219,7 +223,8 @@ typedef enum
 	path_ignore,
 	path_gitem,
 	path_danger,
-} PATH_TYPES;
+};
+typedef WaypointPathTypes PathT;
 
 
 // team flag constants
@@ -249,6 +254,9 @@ typedef enum
 #define P_FL_MISC_IGNORE		(1<<26)		// the bot will ignore enemy unless the enemy is right next to the bot
 #define P_FL_MISC_GITEM			(1<<27)		// the bot will prefer this path whenever carrying the goal/captured item (case, flag, ammo ... whatever)
 #define P_FL_MISC_DANGER		(1<<28)		// --UNDONE-- there's a danger of death fall somewhere on this path (designed for things like the bridge or the avanlanche spot on ps_coldwar)
+
+// used to let the path algorithm know that bot should do a turn and continue in opposite direction
+#define PATH_TURNBACK (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE)
 
 
 typedef struct w_path {
@@ -285,8 +293,10 @@ extern W_PATH *w_paths[MAX_W_PATHS];
 extern int num_w_paths;
 
 
-// define the names for trigger event messages
-typedef enum
+// define the IDs for trigger event messages
+// the order cannot be changed otherwise some
+// conversion routines would return wrong data
+typedef enum class WaypointTriggersIDs
 {
 	trigger_none = 0,
 	trigger1,
@@ -297,14 +307,15 @@ typedef enum
 	trigger6,
 	trigger7,
 	trigger8
-} TRIGGER_NAME;
+};
+typedef WaypointTriggersIDs TriggerId;
 
 // max triggers we can use
 #define MAX_TRIGGERS	8
 
 // trigger event structure that's being saved into the waypoint files
 typedef struct {
-	TRIGGER_NAME	name;			// it's ID
+	TriggerId		name;			// it's ID
 	char			message[256];
 } TRIGGER_EVENT;
 
@@ -314,7 +325,7 @@ extern TRIGGER_EVENT trigger_events[MAX_TRIGGERS];
 // old trigger event structure (used for conversions)
 // (this was used in version 6)
 typedef struct {
-	TRIGGER_NAME	name;			// it's ID
+	TriggerId		name;			// it's ID
 	bool			used;
 	char			message[256];
 	bool			triggered;
@@ -329,8 +340,8 @@ public:
 	trigger_event_gamestate_t() { Init(); }
 	void Init (void);
 	void Reset (int i = -1);
-	inline void SetName (TRIGGER_NAME new_name) { name = new_name; }
-	inline TRIGGER_NAME GetName (void) { return name; }
+	inline void SetName (TriggerId new_name) { name = new_name; }
+	inline TriggerId GetName (void) { return name; }
 	inline void SetUsed (bool flag) { used = flag; }
 	inline bool GetUsed (void) { return used; }
 	inline void SetTriggered (bool flag) { triggered = flag; }
@@ -339,7 +350,7 @@ public:
 	inline float GetTime (void) { return (float) time; }
 
 private:
-	TRIGGER_NAME	name;			// it's ID - the glue to the trigger structure
+	TriggerId		name;			// it's ID - the glue to the trigger structure
 	bool			used;			// is this trigger being used?
 	bool			triggered;		// did this event happened?
 	float			time;			// the time when this event happened
@@ -353,32 +364,94 @@ typedef struct {
 	int wpt_value;			// its value in terms of priority/usefulness over other waypoints
 } WAYPOINT_VALUE;
 
+// class of variables used to display waypoints, paths and connections
+// basically tools to allow proper waypoints debugging 
+class waypointsbrowser_t
+{
+public:
+	waypointsbrowser_t();
+	void ResetOnMapChange(void);
+	inline void SetShowWaypoints(bool newVal) { waypoints_on = newVal; }
+	inline bool IsShowWaypoints(void) { return waypoints_on; }
+	inline void ResetShowWaypoints(void) { waypoints_on = false; }
+	inline void SetShowPaths(bool newVal) { paths_on = newVal; }
+	inline bool IsShowPaths(void) { return paths_on; }
+	inline void ResetShowPaths(void) { paths_on = false; }
+	inline void SetCheckAims(bool newVal) { check_aim_connections = newVal; }
+	inline bool IsCheckAims(void) { return check_aim_connections; }
+	inline void ResetCheckAims(void) { check_aim_connections = false; }
+	inline void SetCheckCross(bool newVal) { check_cross_connections = newVal; }
+	inline bool IsCheckCross(void) { return check_cross_connections; }
+	inline void ResetCheckCross(void) { check_cross_connections = false; }
+	inline void SetCheckRanges(bool newVal) { check_waypoints_ranges = newVal; }
+	inline bool IsCheckRanges(void) { return check_waypoints_ranges; }
+	inline void ResetCheckRanges(void) { check_waypoints_ranges = false; }
+	inline void SetAutoWaypointing(bool newVal) { auto_waypointing = newVal; }
+	inline bool IsAutoWaypointing(void) { return auto_waypointing; }
+	inline void ResetAutoWaypointing(void) { auto_waypointing = false; }
+	inline void SetAutoAddToPath(bool newVal) { auto_add_to_path = newVal; }
+	inline bool IsAutoAddToPath(void) { return auto_add_to_path; }
+	inline void ResetAutoAddToPath(void) { auto_add_to_path = false; }
+	inline void SetWaypointsDrawDistance(float newVal) { waypoints_draw_distance = newVal; }
+	inline float GetWaypointsDrawDistance(void) { return waypoints_draw_distance; }
+	inline void ResetWaypointsDrawDistance(void) { waypoints_draw_distance = (float)800.0; }
+	inline void SetAutoWaypointingDistance(float newVal) { auto_waypointing_distance = newVal; }
+	inline float GetAutoWaypointingDistance(void) { return auto_waypointing_distance; }
+	inline void ResetAutoWaypointingDistance(void) { auto_waypointing_distance = (float)200.0; }
+	inline void SetCompassIndex(int newVal) { waypoint_compass_index = newVal; }
+	inline int GetCompassIndex(void) { return waypoint_compass_index; }
+	inline void ResetCompassIndex(void) { waypoint_compass_index = NO_VAL; }
+	inline void SetPathToHighlight(int newVal) { path_to_highlight = newVal; }
+	inline int GetPathToHighlight(void) { return path_to_highlight; }
+	inline void ResetPathToHighlight(void) { path_to_highlight = HIGHLIGHT_DISABLED; }
+	inline bool IsPathToHighlightAPathIndex(void) { return ((path_to_highlight >= 0) && (path_to_highlight < num_w_paths)); }
+
+private:
+	bool waypoints_on;				// to show waypoints
+	bool paths_on;					// to show paths
+	bool check_aim_connections;		// to show connections between waypoints with wait time and nearby aim waypoints
+	bool check_cross_connections;	// to show connections between cross waypoint and all waypoints within its range
+	bool check_waypoints_ranges;	// shows waypoint range using two thin beams intersecting in the middle of the waypoint
+	bool auto_waypointing;			// allows to automatically add waypoints as the user moves around
+	bool auto_add_to_path;			// allows to automatically add "touched" waypoint to current path
+	float waypoints_draw_distance;	// max distance for a waypoint to show on screen, distance between user and waypoint
+	float auto_waypointing_distance;// the distance between any two waypoints when auto waypointing
+	int waypoint_compass_index;		// index of the waypoint the user is looking for
+	int path_to_highlight;			// allows displaying of only certain paths or one specific path
+};
+
+extern waypointsbrowser_t wptser;
 
 // waypoint function prototypes...
 void WaypointInit(void);
 int  WaypointFindNearest(edict_t *pEntity, float distance, int team);
 bool WaypointReposition(edict_t *pEntity, int wpt_index);
 void WaypointDelete(edict_t *pEntity);
+void StartAutoWaypointg(bool switch_on);//															NEW CODE 094
 void WaypointThink(edict_t *pEntity);
 void SelfControlledWaypointReposition(float &the_range, Vector &new_origin, float move_d, float dec_r, bool dont_move, edict_t *pentIgnore);
 
-bool  WaypointSubscribe(char *signature, bool author);
-char  *WaypointAuthors(bool author);
+bool  WaypointSubscribe(char *signature, bool author, bool enforced = false);
+void  WaypointAuthors(char *author, char *modified_by);
 void  WaypointDestroy(void);
 void  WaypointResetTriggers(void);
 int   WaypointAddTriggerEvent(const char *trigger_name, const char *trigger_message);
 int   WaypointDeleteTriggerEvent(const char *trigger_name);
 int   WaypointConnectTriggerEvent(edict_t *pEntity, const char *trigger_name, const char *state);
 int   WaypointRemoveTriggerEvent(edict_t *pEntity, const char *state);
-bool  WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES waypoint_type);
+int	  WaypointValidatePath(int path_index);
+void  WaypointValidatePath(void);
+bool  WaypointScanPathForBadCombinationOfFlags(int path_index, PathT path_type, WptT waypoint_type);
 int   WaypointRepairInvalidPathEnd(int path_index);
 void  WaypointRepairInvalidPathEnd(void);
 int   WaypointCheckInvalidPathEnd(int path_index, bool log_in_file);
-int   WaypointRepairInvalidPathMerge(int path_index);
+int   WaypointRepairInvalidPathMerge(int path_index, bool repair_it = true, bool log_in_file = false);
 void  WaypointRepairInvalidPathMerge(void);
-int	  WaypointCheckInvalidPathMerge(int path_index, bool log_in_file);
+//int	  WaypointCheckInvalidPathMerge(int path_index, bool log_in_file);				REPLACED BY THE REPAIR INVALID MERGE
 int	  WaypointRepairSniperSpot(int path_index);
 void  WaypointRepairSniperSpot(void);
+float WaypointRepairCrossRange(int wpt_index);
+void  WaypointRepairCrossRange(void);
 int	  WaypointLoad(edict_t *pEntity, char *name);
 bool  WaypointSave(const char *name);
 bool  WaypointLoadUnsupported(edict_t *pEntity);
@@ -388,15 +461,18 @@ bool  WaypointAutoSave(void);
 //void  WaypointRawSave(bool flags, bool priority, bool time, bool class_preference);	// NOT USED
 int	  WaypointGetSystemVersion(void);
 bool  IsFlagSet(int flag, int wpt_index, int team = TEAM_NONE);
-int   WaypointReturnPriority(int wpt_index, int team);
+int   WaypointGetPriority(int wpt_index, int team);
+float WaypointGetWaitTime(int wpt_index, int team, const char* loc = NULL);
 int	  WaypointFindAvailable(bot_t *pBot);
 int	  WaypointFindFirst(bot_t *pBot, float range, int skip_this_index);
-int	  WaypointFindNearestAiming(bot_t *pBot, Vector v_origin);
+int	  WaypointFindNearestAiming(bot_t *pBot, Vector *v_origin);
 int	  WaypointSearchNewInRange(bot_t *pBot, int wpt_index, int curr_path);
 bool  WaypointFindLastPatrol(bot_t *pBot);
-bool  IsWaypoint(int wpt_index, WPT_TYPES flag_type);
+void  DrawBeam(edict_t *pEntity, Vector start, Vector end, int life, int red, int green, int blue, int speed);
+bool  IsWaypoint(int wpt_index, WptT flag_type);
 char  *WptAdd(edict_t *pEntity, const char *wpt_type);
 void  WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3);
+bool  WaypointCompass(edict_t *pEntity, const char *arg2);
 void  WaypointPrintAllWaypoints(edict_t *pEntity);
 void  WaypointTriggerPrintInfo(edict_t *pEntity);
 char  *WptFlagChange(edict_t *pEntity, const char *arg2);
@@ -409,6 +485,7 @@ bool  WptResetAdditional(edict_t *pEntity, const char* arg1, const char* arg2, c
 int   FindRightLadderWpt(bot_t *pBot);
 
 // path functions
+int	 FindPath(int current_wpt_index);
 int  WaypointGetPathLength(int path_index);
 int  WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4, const char *arg5);
 bool WaypointCreatePath(edict_t *pEntity);
@@ -416,6 +493,7 @@ bool WaypointFinishPath(edict_t *pEntity);
 bool WaypointPathContinue(edict_t *pEntity, int path_index);
 bool WaypointAddIntoPath(edict_t *pEntity);
 bool WaypointRemoveFromPath(edict_t *pEntity, int path_index);
+int  WaypointSplitPath(edict_t *pEntity, const char *arg2, const char *arg3);
 bool WaypointDeletePath(edict_t *pEntity, int path_index);
 bool WaypointPathInfo(edict_t *pEntity, int path_index);
 bool WaypointPrintAllPaths(edict_t *pEntity, int wpt_index);

@@ -4,9 +4,9 @@ REM Copy the .dll to all game directories
 REM This is easier way than using the MSVC custom build option for
 REM all commands
 
-set CODEDIR="D:\Coding\HLSdk\Multiplayer Source\marine_bot"
-set WONDIR=D:\WON2\Half-Life
-set STEAMDIR="C:\Program Files (x86)\Steam\steamapps\mailtomapper@centrum.cz\half-life"
+set CODEDIR="."
+set WONDIR=C:\Games\Half-Life
+set STEAMDIR="C:\Program Files (x86)\Steam\steamapps\common\Half-Life"
 
 echo on
 

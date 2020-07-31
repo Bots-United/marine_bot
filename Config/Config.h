@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // Config.h
@@ -109,7 +109,7 @@ class SetupBaseType_uint : public SetupBaseType {
     public:
 	SetupBaseType_uint(unsigned int &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = static_cast<unsigned int>(strtoul(str_val.c_str(), NULL, 10));
+	    val = (unsigned int) strtoul(str_val.c_str(), NULL, 10);
 	}
 };
 
@@ -129,7 +129,7 @@ class SetupBaseType_ushort : public SetupBaseType {
     public:
 	SetupBaseType_ushort(unsigned short &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = static_cast<unsigned short>(strtoul(str_val.c_str(), NULL, 10));
+	    val = (unsigned short) strtoul(str_val.c_str(), NULL, 10);
 	}
 };
 

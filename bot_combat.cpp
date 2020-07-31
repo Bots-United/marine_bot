@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot_combat.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91 4477)
+#endif
 
 #include "defines.h"
 
@@ -26,16 +30,15 @@
 
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "bot_weapons.h"
 
 extern bot_weapon_t weapon_defs[MAX_WEAPONS];
-extern bool b_observer_mode;
-extern bool b_botdontshoot;
-extern bool g_debug_bot_on;
-extern float is_team_play;
-extern bool checked_teamplay;
 
 float rg_modif = 2.5;		// multiplier that modifies all effective ranges for game purpose
+
+// better bot = longer delay between two sprints towards enemy (i.e. better bots hold their positions more often)
+float g_combat_advance_delay[BOT_SKILL_LEVELS] = { 7.0, 5.5, 4.0, 2.5, 1.0 };
 
 #ifdef _DEBUG
 
@@ -56,8 +59,7 @@ bool in_bot_dev_level2 = FALSE;		// detailed info - print every action
 #define RETURN_PRIMING		8
 
 // we need these variables to handle different weapon IDs in FA versions
-// we have to init them by -10, because of some checks where -1 would cause bug eg. pBot->main_weapon
-int default_ID = -10;
+int default_ID = 0;
 int fa_weapon_knife =		default_ID;
 int fa_weapon_coltgov =		default_ID;
 int fa_weapon_ber92f =		default_ID;
@@ -112,8 +114,9 @@ void BotFireMountedGun(Vector v_enemy, bot_t *pBot);
 int BotFireWeapon(Vector v_enemy, bot_t *pBot);
 int BotUseKnife(Vector v_enemy, bot_t *pBot);
 int BotThrowGrenade(Vector v_enemy, bot_t *pBot);
+bool CanUseBackupInsteadofReload(bot_t *pBot, float enemy_distance = 0.0);
 inline void IsChanceToAdvance(bot_t *pBot);
-inline void CheckStance(bot_t *pBot);
+inline void CheckStance(bot_t *pBot, float enemy_distance);
 bool IsEnemyTooClose(bot_t *pBot, float enemy_distance);
 
 
@@ -523,15 +526,15 @@ void BotWeaponArraysInit(Section *conf_weapons)
 				}
 				catch (errGetVal &er_val)
 				{
-					sprintf(msg, "** missing variable '%s'\n", er_val.key.c_str());
-					
-					PrintOutput(NULL, msg, msg_error);
+					sprintf(msg, "** missing variable '%s'", er_val.key.c_str());
+
+					PrintOutput(NULL, msg, MType::msg_error);
 				}
-				if (modif==true)
+				if (modif==true) 
 				{
 					bot_weapon_select[index].max_effective_distance *= rg_modif;
 				}
-				
+
 				for (i=0; i<BOT_SKILL_LEVELS; ++i)
 				{
 					bot_fire_delay[index].primary_min_delay[i] = 0.0;
@@ -559,25 +562,70 @@ void BotWeaponArraysInit(Section *conf_weapons)
 			}
 		}
 	}
-/*/
-	FILE *ff = fopen("\\kota_debug.txt", "a+");
-	if (ff != NULL) {
-		for (index = 0; index < MAX_WEAPONS; ++index)
-		{
-			fprintf(ff,"bot_weapon_select[%d]=%d\n",index, bot_weapon_select[index].iId);
-			fprintf(ff,"\tmax_effective_distance=%f\n", bot_weapon_select[index].max_effective_distance);
-			fprintf(ff,"\tmin_safe_distance=%f\n",bot_weapon_select[index].min_safe_distance);;
-			fprintf(ff,"\tbot_fire_delay=%f\n", bot_fire_delay[index].primary_base_delay);
-			for (i=0; i<BOT_SKILL_LEVELS; ++i)
-			{
-				fprintf(ff,"\t\tprimary_min_delay=%f\n",bot_fire_delay[index].primary_min_delay[i]);
-				fprintf(ff,"\t\tprimary_max_delay=%f\n",bot_fire_delay[index].primary_max_delay[i]);
-			}
-		}
-		fclose(ff);
-	}
-/**/
+
 	ALERT(at_console, "MarineBot firearms weapons initialisation done\n");
+}
+
+
+/*
+* checks the amount of magazines for main weapon
+* and sets out of ammo if there are no magazines left
+* and the weapon clip is also empty
+*/
+bool bot_t::CheckMainWeaponOutOfAmmo(const char* loc)
+{
+	if ((current_weapon.iClip == 0) && (current_weapon.iAmmo1 == 0) && (main_no_ammo == false) &&
+		(weapon_action == W_READY) && (current_weapon.iId == main_weapon))
+	{
+		main_no_ammo = true;
+
+
+#ifdef DEBUG
+		if (loc != NULL)
+		{
+			char dbgmsg[256];
+			sprintf(dbgmsg, "MainWeaponOutOfAmmo() called @ %s)\n", loc);
+			HudNotify(dbgmsg, this);
+		}
+#else
+		if (botdebugger.IsDebugActions())
+			HudNotify("MAIN weapon completely out of ammo (no magazines)\n", this);
+#endif // DEBUG
+
+	}
+
+	return main_no_ammo;
+}
+
+
+/*
+* checks the amount of magazines for backup weapon
+* and sets out of ammo if there are no magazines left
+* and the weapon clip is also empty
+*/
+bool bot_t::CheckBackupWeaponOutOfAmmo(const char* loc)
+{
+	if ((current_weapon.iClip == 0) && (current_weapon.iAmmo1 == 0) && (backup_no_ammo == false) &&
+		(weapon_action == W_READY) && (current_weapon.iId == backup_weapon))
+	{
+		backup_no_ammo = true;
+
+
+#ifdef DEBUG
+		if (loc != NULL)
+		{
+			char dbgmsg[256];
+			sprintf(dbgmsg, "BackupWeaponOutOfAmmo() called @ %s)\n", loc);
+			HudNotify(dbgmsg, this);
+		}
+#else
+		if (botdebugger.IsDebugActions())
+			HudNotify("BACKUP weapon completely out of ammo (no magazines)\n", this);
+#endif // DEBUG
+
+	}
+
+	return backup_no_ammo;
 }
 
 
@@ -587,6 +635,35 @@ void BotWeaponArraysInit(Section *conf_weapons)
 */
 float bot_t::GetEffectiveRange(int weapon_index)
 {
+	//																					NEW CODE 094
+	if (weapon_index == NO_VAL)
+	{
+		// always try main weapon first
+		// the bot may have backup weapon in hands at the moment, but can still switch back to main (unless it's empty)
+		if ((main_weapon != NO_VAL) && !main_no_ammo)
+			weapon_index = main_weapon;
+		else
+			// if the bot has no main weapon or is out of ammo for it then take the current one
+			weapon_index = current_weapon.iId;
+	}
+
+	// if there's no weapon at all return zero ... just for sure
+	if (weapon_index == NO_VAL)
+		return 0.0;
+
+	float range;
+
+	range = bot_weapon_select[weapon_index].max_effective_distance;
+
+	// see if we do limit the max distance the bot can see (ie. view distance)
+	// if so and the weapon effective range is bigger then the limit
+	// we will use the view distance limit instead
+	if (internals.IsEnemyDistanceLimit() && (range > internals.GetEnemyDistanceLimit()))
+		range = internals.GetEnemyDistanceLimit();
+
+	return range;
+
+	/*///																				NEW CODE 094 (prev code)
 	// if the bot has no main weapon than take the current one
 	if (weapon_index == -1)
 		weapon_index = current_weapon.iId;
@@ -606,6 +683,7 @@ float bot_t::GetEffectiveRange(int weapon_index)
 		range = internals.GetMaxDistance();
 
 	return range;
+	/**/
 }
 
 
@@ -617,11 +695,11 @@ void BotCheckTeamplay(void)
 {
 	// is this mod Firearms?
 	if (mod_id == FIREARMS_DLL)
-		is_team_play = 1.0;
+		internals.SetTeamPlay(1.0);
 	else
-		is_team_play = CVAR_GET_FLOAT("mp_teamplay");  // teamplay enabled?
+		internals.SetTeamPlay(CVAR_GET_FLOAT("mp_teamplay"));  // teamplay enabled?
 
-	checked_teamplay = TRUE;
+	internals.SetTeamPlayChecked(true);
 }
 
 /*
@@ -665,7 +743,7 @@ void BotReactions(bot_t *pBot)
 			react_time -= (float) externals.GetReactionTime() / 3.0;	// use only 66% of it
 			break;
 		case 4:
-			react_time += (float) externals.GetReactionTime() / 4.0;	// use 150% of it
+			react_time += (float) externals.GetReactionTime() / 2.0;	// use 150% of it
 			break;
 		case 5:
 			react_time += (float) externals.GetReactionTime();			// use 200% or it
@@ -681,14 +759,6 @@ void BotReactions(bot_t *pBot)
 
 	// store the reaction time
 	pBot->f_reaction_time = gpGlobals->time + react_time;
-
-
-#ifdef _DEBUG
-	//@@@@@@@@@@@@@@@
-	//char msg[256];
-	//sprintf(msg, "***Reaction time has been set to %.2f for <%s>\n", react_time, pBot->name);
-	//HudNotify(msg);
-#endif
 }
 
 /*
@@ -699,81 +769,96 @@ inline void DontSeeEnemyActions(bot_t *pBot)
 {
 	edict_t *pEdict = pBot->pEdict;
 
-	// is there NO enemy for a while so bot can use bandages
-	if ((pBot->bandage_time == -1.0) && (pBot->f_bot_see_enemy_time > 0) &&
-		(pBot->f_bot_see_enemy_time + 0.5 <= gpGlobals->time))
+	// is there NO enemy for a while AND NOT doing any weapon beased action ...
+	if ((pBot->bandage_time == -1.0) && pBot->NotSeenEnemyfor(0.5) && (pBot->weapon_action == W_READY))
 	{
+		// then bot is allowed to use bandages again
 		pBot->bandage_time = gpGlobals->time;
+
+
+#ifdef _DEBUG
+		if (botdebugger.IsDebugActions())
+		{
+			HudNotify("bot_combat.cpp|DontSeeEnemy Actions() -> bandaging ALLOWED again\n", pBot);
+		}
+#endif
+
 	}
 
-	// is the bot holding m3 AND have ammo AND
-	// is some time bot seen an enemy so reload OR is bot waiting for enemy
-	if ((pBot->current_weapon.iId == fa_weapon_benelli) &&
-		(pBot->current_weapon.iAmmo1 != 0) &&
-		(((pBot->f_bot_see_enemy_time > 0) &&
-		((pBot->f_bot_see_enemy_time + 0.5) < gpGlobals->time)) ||
-		(pBot->f_bot_wait_for_enemy_time > gpGlobals->time)))
+	// if the bot doesn't use main weapon and can use it then try to switch back to it
+	pBot->BotSelectMainWeapon("DontSeeEnemy Actions() -> time to switch back to MAIN WEAPON");
+
+	// bot is waiting if the enemy become visible again AND current weapon is ready AND not going to/resume from prone
+	if ((pBot->f_bot_wait_for_enemy_time > gpGlobals->time) && (pBot->weapon_action == W_READY) && !pBot->IsGoingProne())
 	{
-		// if NOT already reloading start reloading
-		if ((pBot->current_weapon.iClip != 7) && (pBot->f_reload_time < gpGlobals->time))
+		//																		PREVIOUS CODE
+		/*/
+
+
+		// is the bot holding partly loaded m3/remington AND have ammo AND can manipulate with gun AND
+		// not doing any waypoint action AND is some time bot seen an enemy OR is bot waiting for enemy
+		if ((pBot->current_weapon.iId == fa_weapon_benelli) && (pBot->current_weapon.iClip < 8) &&
+			(pBot->current_weapon.iAmmo1 != 0))
 		{
-			pEdict->v.button |= IN_RELOAD;
-			// set lower time than need to allow bot to shoot as soon as possible even
-			// if not fully loaded
-			pBot->f_reload_time = gpGlobals->time + 1.0;
+			pBot->ReloadWeapon("bot_combat.cpp|DontSeeEnemy Actions() -> remington-benelli clip < 8");
 		}
-		// reset reload time when already fully loaded
-		else if (pBot->current_weapon.iClip == 7)
-			pBot->f_reload_time = gpGlobals->time - 0.1;
-	}
-	// is the bot holding colt AND have ammo AND
-	// is some time bot seen an enemy OR is bot waiting for enemy
-	else if ((pBot->current_weapon.iId == fa_weapon_anaconda) &&
-		(pBot->current_weapon.iAmmo1 != 0) &&
-		(((pBot->f_bot_see_enemy_time > 0) &&
-		((pBot->f_bot_see_enemy_time + 0.5) < gpGlobals->time)) ||
-		(pBot->f_bot_wait_for_enemy_time > gpGlobals->time)))
-	{
-		if ((pBot->current_weapon.iClip != 6) && (pBot->f_reload_time < gpGlobals->time))
+		// is the bot holding colt with less than half rounds in it AND have ammo AND
+		// is some time bot seen an enemy OR is bot waiting for enemy
+		else if ((pBot->current_weapon.iId == fa_weapon_anaconda) && (pBot->current_weapon.iClip < 3) &&
+			(pBot->current_weapon.iAmmo1 != 0))
 		{
-			pEdict->v.button |= IN_RELOAD;
-			pBot->f_reload_time = gpGlobals->time + 1.0;
+			pBot->ReloadWeapon("bot_combat.cpp|DontSeeEnemy Actions() -> anaconda clip < 3");
 		}
-		else if (pBot->current_weapon.iClip == 6)
-			pBot->f_reload_time = gpGlobals->time - 0.1;
+		// is clip empty AND have at least one magazine AND
+		// is some time bot seen an enemy so reload
+		else if ((pBot->current_weapon.iClip == 0) && (pBot->current_weapon.iAmmo1 != 0))
+		{
+			pBot->ReloadWeapon("bot_combat.cpp|DontSeeEnemy Actions() -> weapon clip is empty");
+		}
+		/**/
+
+		if (UTIL_ShouldReload(pBot, "bot_combat.cpp|DontSeeEnemy Actions()"))
+			pBot->ReloadWeapon("bot_combat.cpp|DontSeeEnemy Actions()");
 	}
-	// is clip empty AND have at least one magazine AND
-	// is some time bot seen an enemy so reload
-	else if ((pBot->current_weapon.iClip == 0) && (pBot->current_weapon.iAmmo1 != 0) &&
-		(((pBot->f_bot_see_enemy_time > 0) &&
-		((pBot->f_bot_see_enemy_time + 0.5) < gpGlobals->time)) ||
-		(pBot->f_bot_wait_for_enemy_time > gpGlobals->time)))
+
+	// did the bot lost his enemy while switched to GL attachement on m16 or ak74
+	if (pBot->secondary_active && pBot->NotSeenEnemyfor(1.5) && (pBot->weapon_action == W_READY) &&
+		(pBot->f_bot_wait_for_enemy_time < gpGlobals->time) && (pBot->f_pause_time < gpGlobals->time) &&
+		((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74)))
 	{
-		pEdict->v.button |= IN_RELOAD;
-		pBot->f_reload_time = gpGlobals->time + 0.6; // average time for most of weapons
+		// then switch back to normal fire mode
+		pBot->pEdict->v.button |= IN_ATTACK2;
+		pBot->SetPauseTime(1.0);
+
+
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@											NEW CODE 094 (remove it)
+		if (botdebugger.IsDebugActions())
+			HudNotify("Lost enemy while m203/gp25 ready -> switching back to normal fire mode on m16/ak74\n", pBot);
+#endif // DEBUG
+
+
+
 	}
 
 	// didn't the bot seen ememy in last few seconds AND
 	// is chance to speak (time to area clear)?
-	if (!externals.GetDontSpeak() && ((pBot->f_bot_see_enemy_time > 0) &&
-		((pBot->f_bot_see_enemy_time + 8.0) < gpGlobals->time)) &&
-		((pBot->speak_time + RANDOM_FLOAT(25.5, 40.0)) < gpGlobals->time) &&
-		(RANDOM_LONG(1, 100) <= 1))
+	if (!externals.GetDontSpeak() && pBot->NotSeenEnemyfor(8.0) &&
+		((pBot->speak_time + RANDOM_FLOAT(25.5, 40.0)) < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 1))
 	{
 		UTIL_Radio(pEdict, "clear");
 		pBot->speak_time = gpGlobals->time;
 	}
 
 	// remove ignore enemy task if the bot is not by/on the "crucial" waypoint/path
-	if (pBot->IsTask(TASK_IGNORE_ENEMY) && pBot->crowded_wpt_index == -1 && !pBot->IsIgnorePath())
+	if (pBot->IsTask(TASK_IGNORE_ENEMY) && (pBot->crowded_wpt_index == -1) && !pBot->IsIgnorePath())
 	{
 		pBot->RemoveTask(TASK_IGNORE_ENEMY);
 
 #ifdef _DEBUG
-		extern bool debug_actions;
-		if (debug_actions)
+		if (botdebugger.IsDebugActions())
 		{
-			ALERT(at_console, "***Removed IGNORE ENEMY flag for bot %s\n", pBot->name);
+			HudNotify("bot_combat.cpp|DontSeeEnemy Actions() -> Removed IGNORE ENEMY flag\n", pBot);
 		}
 #endif
 	}
@@ -786,25 +871,66 @@ inline void DontSeeEnemyActions(bot_t *pBot)
 void bot_t::BotForgetEnemy(void)
 {
 #ifdef _DEBUG
-	ALERT(at_console, "***ForgetEnemy called for bot %s\n", name);
+	extern edict_t* g_debug_bot;
+	extern bool g_debug_bot_on;
+
+	// can't use hudnotify() here, because it can crash hl engine if the bot gets hit
+	// then the code in botclient.cpp -> fa dmg message can call this method
+	// (clientprint in hudnotify() starts new engine msg before the fa_dmg one was finished and hl crashes)
+	if (g_debug_bot_on && (g_debug_bot == pEdict) || !g_debug_bot_on)
+	{
+		char femsg[128];
+		sprintf(femsg, "%s called ForgetEnemy()\n", name);
+		ALERT(at_console, femsg);
+
+
+		// so if there is a need to log things in file we have to do it manually right here
+		UTIL_DebugInFile(femsg);
+
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+		// @@@@@@@@@@@@		^^^^ (uncomment logging in file if it is needed for tests) ^^^^					NEW CODE 094
+
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+	}
+
 #endif
 
 	// don't have an enemy anymore so null out the pointer
 	pBotEnemy = NULL;	
 	// clear his backed up position
-	v_last_enemy_position = Vector(0, 0, 0);	
+	v_last_enemy_position = g_vecZero;//Vector(0, 0, 0);	
 	// reset wait & watch time
-	f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;	
-	// reset prone prevention time
-	f_cant_prone = gpGlobals->time - 0.1;
-	// no enemy so bot is clear to use bandages
-	bandage_time = gpGlobals->time;	
+	f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
+	
+	// if the bot is doing any weapon action like reloading for example we can't clear these two, because
+	// bot can start one of these in the next frame and weapon action would be invalidated
+	// (e.g. bot would end up with empty weapon)
+	//if (weapon_action == W_READY)																	// NEW CODE 094
+	//{
+		// reset prone prevention time
+		//f_cant_prone = gpGlobals->time - 0.1;														NEW CODE 094
+
+		// no enemy so bot is clear to use bandages													<<< BUGS THINGS
+		//bandage_time = gpGlobals->time;
+	//}
+
 	// reset enemy distance backup
 	f_prev_enemy_dist = 0.0;
 	// clear medical treatment flag
 	RemoveTask(TASK_HEALHIM);
 	// clear heavy tracelining
 	RemoveTask(TASK_DEATHFALL);
+	// bot most probably fired couple rounds at this enemy so let him check his weapon clip
+	SetSubTask(ST_W_CLIP);
+	// allow the bot to try deploying bipod later on when he finds new enemy
+	RemoveWeaponStatus(WS_CANTBIPOD);
+
+#ifdef _DEBUG
+	curr_aim_offset = g_vecZero;//Vector(0, 0, 0);
+	target_aim_offset = g_vecZero;//Vector(0, 0, 0);
+#endif
 }
 
 
@@ -842,8 +968,7 @@ edict_t * bot_t::BotFindEnemy()
 			if (sniping_time > gpGlobals->time)
 			{
 				// break snipe time only if bot is NOT using bipod AND is chance
-				if ((UTIL_IsMachinegun(current_weapon.iId)) &&
-					!IsTask(TASK_BIPOD) && (RANDOM_LONG(1, 100) < 10))
+				if ((UTIL_IsMachinegun(current_weapon.iId)) && !IsTask(TASK_BIPOD) && (RANDOM_LONG(1, 100) < 10))
 				{
 					sniping_time = gpGlobals->time;	// so stop sniping
 #ifdef _DEBUG
@@ -852,7 +977,7 @@ edict_t * bot_t::BotFindEnemy()
 					{
 						char msg[80];
 						sprintf(msg, "BREAKING sniping time\n");
-						ALERT(at_console, msg);
+						HudNotify(msg);
 					}
 #endif
 				}
@@ -893,7 +1018,7 @@ edict_t * bot_t::BotFindEnemy()
 			if (IsTask(TASK_AVOID_ENEMY))
 			{
 				float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
-				if (enemy_distance > GetEffectiveRange() && enemy_distance > RANGE_MELEE)
+				if (enemy_distance > GetEffectiveRange() && (enemy_distance > RANGE_MELEE))
 				{
 					BotForgetEnemy();
 					return (pBotEnemy);
@@ -943,34 +1068,7 @@ edict_t * bot_t::BotFindEnemy()
 					
 					// apply reaction_time
 					BotReactions(this);
-					
-					
-					
-					
-					
-//@@@@@@@@@@@@@
-//#ifdef _DEBUG
-					//if (test)
-					//ALERT(at_console, "<%s> ***FullyVisible - bot is in W&W ---> applying REACTIONS (%.4f)\n",
-					//	name, gpGlobals->time);
-//#endif
-					
-					
-					
 				}
-				
-				
-//@@@@@@@@@@@@@@@@@@
-/*/
-#ifdef _DEBUG
-				else
-					ALERT(at_console, "FullyVisible - enemy is FULLY VISIBLE (%.2f)\n",
-						gpGlobals->time);
-#endif
-/**/
-
-
-
 
 				// should the bot search for different enemy?
 				if (IsTask(TASK_FIND_ENEMY))
@@ -1015,16 +1113,6 @@ edict_t * bot_t::BotFindEnemy()
 				// see if the bot can wait and watch for the enemy to become visible again
 				if (f_bot_wait_for_enemy_time < gpGlobals->time)
 				{
-
-
-
-					//@@@@@@@@@@@@@@@
-					//#ifdef _DEBUG
-					//ALERT(at_console, "<%s> ***ENEMY ISN'T VISIBLE!\n", name);
-					//#endif
-
-
-
 					// generate the percentage chance
 					int do_watch = RANDOM_LONG(1, 100);
 					
@@ -1051,13 +1139,6 @@ edict_t * bot_t::BotFindEnemy()
 						return (pBotEnemy);
 					}
 					
-					
-					//@@@@@@@@@@@@@@@
-					//#ifdef _DEBUG
-					//ALERT(at_console, "ENEMY ISN'T VISIBLE --->>> FORGET ABOUT IT!!!!\n");
-					//#endif
-
-
 					BotForgetEnemy();
 					return (pBotEnemy);
 				}
@@ -1112,7 +1193,8 @@ edict_t * bot_t::BotFindEnemy()
 
 //@@@@@@@@@@@@@
 #ifdef _DEBUG
-					if (v_last_enemy_position == Vector(0, 0, 0))
+					//if (v_last_enemy_position == Vector(0, 0, 0))
+					if (v_last_enemy_position == g_vecZero)
 					{
 						ALERT(at_console, "***<%s> last known position is (0,0,0)\n", name);
 						char smsg[256];
@@ -1159,9 +1241,9 @@ edict_t * bot_t::BotFindEnemy()
 				nearest_distance = (v_last_enemy_position - pEdict->v.origin).Length();
 		}
 		// do we limit max enemy distance?
-		else if (internals.IsDistLimit())
+		else if (internals.IsEnemyDistanceLimit())
 		{
-			nearest_distance = internals.GetMaxDistance();
+			nearest_distance = internals.GetEnemyDistanceLimit();
 		}
 		else
 		{
@@ -1170,7 +1252,7 @@ edict_t * bot_t::BotFindEnemy()
 				nearest_distance = 9999;
 			// otherwise search for "close" enemies
 			else
-				nearest_distance = internals.GetMaxDistance();
+				nearest_distance = internals.GetEnemyDistanceLimit();
 		}
 
 		// tweak the distance based on situation
@@ -1201,14 +1283,15 @@ edict_t * bot_t::BotFindEnemy()
 				if (!IsAlive(pPlayer))
 					continue;
 
-				if ((b_observer_mode) && !(pPlayer->v.flags & FL_FAKECLIENT))
+				// ignore observerving player
+				if (botdebugger.IsObserverMode() && !(pPlayer->v.flags & FL_FAKECLIENT))
 					continue;
 
-				if (!checked_teamplay)  // check for team play...
+				if (internals.IsTeamPlayChecked() == false)  // check for team play...
 					BotCheckTeamplay();
 
 				// is team play enabled?
-				if (is_team_play > 0.0)
+				if (internals.GetTeamPlay() > 0.0)
 				{
 					int player_team = UTIL_GetTeam(pPlayer);
 					int bot_team = UTIL_GetTeam(pEdict);
@@ -1284,6 +1367,12 @@ edict_t * bot_t::BotFindEnemy()
 		// and if we didn't update it with the new enemy the rections would be set incorrectly
 		pBotEnemy = pNewEnemy;
 
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+		if (botdebugger.IsDebugActions())
+			HudNotify("***FindEnemy() -> Got NEW ENEMY!!!\n", this);
+#endif // DEBUG
+
 		// apply reaction_time
 		BotReactions(this);
 
@@ -1300,8 +1389,7 @@ edict_t * bot_t::BotFindEnemy()
 		// warn comrades only if had no enemy before
 		// (i.e. if completely new enemy) AND is chance to speak
 		if (!externals.GetDontSpeak() && (pPrevEnemy == NULL) &&
-			((speak_time + RANDOM_FLOAT(25.5, 59.0)) < gpGlobals->time)
-			&& (RANDOM_LONG(1, 100) <= 50))
+			((speak_time + RANDOM_FLOAT(25.5, 59.0)) < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 50))
 		{
 			UTIL_Voice(pEdict, "getdown");
 			speak_time = gpGlobals->time;
@@ -1314,9 +1402,8 @@ edict_t * bot_t::BotFindEnemy()
 
 #ifdef _DEBUG
 			//@@@@@
-			extern bool debug_paths;
-			if (debug_paths)
-				ALERT(at_console, "PATROL path return flag set on\n");
+			if (botdebugger.IsDebugPaths())
+				HudNotify("FindEnemy() -> PATROL path return flag SET on\n", this);
 #endif
 		}
 
@@ -1324,35 +1411,34 @@ edict_t * bot_t::BotFindEnemy()
 		// his waypoint isn't dont move waypoint
 		int last_wpt = prev_wpt_index.get();
 
-		if (IsTask(TASK_DONTMOVE) && (crowded_wpt_index == -1) &&
+		if (IsTask(TASK_DONTMOVEINCOMBAT) && (crowded_wpt_index == -1) &&
 			(UTIL_IsSmallRange(curr_wpt_index) == FALSE) && // the bot is heading towards to it
 			(UTIL_IsSmallRange(last_wpt) == FALSE) && // is standing at it
 			(UTIL_IsDontMoveWpt(pEdict, curr_wpt_index, FALSE) == FALSE) &&
 			(UTIL_IsDontMoveWpt(pEdict, last_wpt, TRUE) == FALSE))
 		{
-			RemoveTask(TASK_DONTMOVE);
+			RemoveTask(TASK_DONTMOVEINCOMBAT);
 
 
+			//@@@@@@@@@@@@@22
 #ifdef _DEBUG
-			//@@@@@@@@@@@@@@@@@@@@@
-			ALERT(at_console, "DontMove cleared -- enemy is far\n");
+			if (botdebugger.IsDebugActions() || botdebugger.IsDebugStuck())
+			{
+				HudNotify("FindEnemy() -> removing DONT MOVE IN COMBAT TASK\n", this);
+			}
 #endif
+
+
 		}
 
 		pPrevEnemy = NULL;	// null out pointer just for sure
-
-		//@@@@@@@@@@@@@@@
-		//#ifdef _DEBUG
-		//ALERT(at_console, "<%s> *** GOT NEW ENEMY! His name is %s\n", name,
-		//	STRING(pBotEnemy->v.netname));
-		//#endif
 	}
 
 	DontSeeEnemyActions(this);
 
 	// is some time after we saw an enemy so reset it
 	// to prevent doing all those things (speaking etc.) again and again
-	if ((f_bot_see_enemy_time > 0) && ((f_bot_see_enemy_time + 15.0) < gpGlobals->time))
+	if (NotSeenEnemyfor(15.0))
 		f_bot_see_enemy_time = -1;
 
 	return (pNewEnemy);
@@ -1555,7 +1641,7 @@ Vector BotBodyTarget(bot_t *pBot)
 
 //@@@@@@@@@@@@@@@@@@
 #ifdef _DEBUG
-	pBot->curr_aim_location = target;
+	pBot->curr_aim_offset = target;
 #endif
 
 
@@ -1834,13 +1920,13 @@ float y_coord_mod = 0.0;
 bool dbl_coords = false;
 bool mod_coords = false;
 bool inv_coords = false;
-bool test_code = false;
+
 bool ignore_aim_error_code = false;
 //bool ignore_aim_error_code = true;			// << for tests I need headshots all the time
-float modifier = 1;
+float some_modifier = 1;
 #endif
 
-bool g_test_aim_code = true;		// global switch to allow the new aim patch even in release compilation
+bool g_test_aim_code = false;		// global switch to allow the new aim patch even in release compilation
 
 /*
 * find best point to target based on visiblity and aim skill level
@@ -1853,24 +1939,28 @@ Vector BotBodyTarget(bot_t *pBot)
 	int d_x, d_y, d_z;
 	int hs_percentage;		// precentage chance to do head shot
 	float x_corr, y_corr;	// origin modifier default value is for distance around 1000 units
-	bool use_aim_patch_v1 = false;		// NEW CODE
-	bool use_aim_patch_v2 = false;		// NEW CODE
+	bool use_aim_patch_v1 = false;		// current aiming patch implemented in version 092
+	bool use_aim_patch_v2 = false;		// needs NEW CODE
 
 	edict_t *pEdict = pBot->pEdict;
 	edict_t *pBotEnemy = pBot->pBotEnemy;
 
 	foe_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
 
-	// first decide which weapon works in these versions and which doesn't
+	// apply aim patch only in these lastest FA version
 	if (g_mod_version == FA_29 || g_mod_version == FA_30)
 	{
 		// see if the user turned the test aim code under release compilation
 		if (g_test_aim_code)
 		{
+			use_aim_patch_v2 = true;
+		}
+		// default setting is to use aim patch implemented in mb version 092
+		else
+		{
 			int weapon = pBot->current_weapon.iId;
-			
-			// these 3 seem to always work in FA2.9 and above
-			// also knife, grenades and the grenade launcher don't need any aim patch
+
+			// all these weapons seem to always work in FA2.9 and above (i.e. don't need any aim patch)
 			if (UTIL_IsShotgun(weapon) || weapon == fa_weapon_anaconda || weapon == fa_weapon_knife ||
 				weapon == fa_weapon_concussion || weapon == fa_weapon_frag || weapon == fa_weapon_m79)
 				;
@@ -1883,18 +1973,9 @@ Vector BotBodyTarget(bot_t *pBot)
 				use_aim_patch_v1 = true;
 			}
 		}
-		// default setting is to ignore the new aim code because it isn't fully finished
-		else
-		{
-			// sniper rifles don't need any patching at all
-			if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
-				;
-			// all other weapons need to use the original aim patch
-			else
-				use_aim_patch_v2 = true;
-		}
 	}
 	
+	// NOTE: this is only temporary solution, the code is really complicated, ugly and not 100% working
 	// special code to aim correctly ... well at least better than without it cause there are still some bugs in there
 	if (use_aim_patch_v1)
 	{
@@ -1915,8 +1996,6 @@ Vector BotBodyTarget(bot_t *pBot)
 		x_corr = x_coord_mod;
 		y_corr = y_coord_mod;
 
-		if (test_code)
-		{
 #endif
 
 
@@ -2234,18 +2313,16 @@ Vector BotBodyTarget(bot_t *pBot)
 		
 #ifdef _DEBUG
 
-		}		// end of test_code
-
 		//@@@@
 		if (dbl_coords)
 		{
 			x_corr *= 2.0;
 			y_corr *= 2.0;
 		}
-		if (mod_coords && modifier != 0)
+		if (mod_coords && some_modifier != 0)
 		{
-			x_corr *= modifier;
-			y_corr *= modifier;
+			x_corr *= some_modifier;
+			y_corr *= some_modifier;
 		}
 		if (inv_coords)
 		{
@@ -2255,420 +2332,23 @@ Vector BotBodyTarget(bot_t *pBot)
 
 
 		//@@@@@@@
-		ALERT(at_console, "corrs (x=%.2f y=%.2f) dist %.2f (dist/1000 %.2f) BYaw %.2f (rotated %.2f) TYaw %.1f (rotated %.2f) HitAngle %.2f\n",
-			x_corr, y_corr, foe_distance, foe_distance / 1000.0, bot_yaw_angle, RotateYawAngle(bot_yaw_angle), target_yaw_angle,
-			RotateYawAngle(target_yaw_angle), hit_angle);
+		//ALERT(at_console, "corrs (x=%.2f y=%.2f) dist %.2f (dist/1000 %.2f) BYaw %.2f (rotated %.2f) TYaw %.1f (rotated %.2f) HitAngle %.2f\n",
+		//	x_corr, y_corr, foe_distance, foe_distance / 1000.0, bot_yaw_angle, RotateYawAngle(bot_yaw_angle), target_yaw_angle,
+		//	RotateYawAngle(target_yaw_angle), hit_angle);
 #endif
 		
 		
 		target_origin = v_fake_origin + Vector (x_corr, y_corr, 0);
 		target_head = pBotEnemy->v.view_ofs;
 	}
-	// NOTE: this is only temporary solution, the code is really complicated, ugly and not 100% working
-	// special code to aim correctly ... ehm better than without it cause there is still many bugs in there
+#ifdef DEBUG
+	// brand new aiming code should be here
 	else if (use_aim_patch_v2 && !use_aim_patch_v1)
 	{
-		Vector t_size = pBot->pBotEnemy->v.size;
-		Vector v_fake_origin = pBot->pBotEnemy->v.origin;
-		float fake_origin_zcoord;
-
-		
-		/**/	// NEW CODE END
-		
-
-
-		// if the enemy is proned then aim slightly above the real origin z coord because when
-		// the player is proned then the head is below the origin so if we aim a bit down then
-		// the bot will hit ground instead of the enemy
-		if (pBot->pBotEnemy->v.flags & FL_PRONED)
-			//fake_origin_zcoord = (t_size.z * 0.55);	// worked quite fine
-			fake_origin_zcoord = (t_size.z * 0.65);
-		// otherwise aim slightly below real origin z coord
-		else
-			fake_origin_zcoord = (t_size.z * 0.4);
-
-		// if the enemy is really close use common aiming (similar to origin based)
-		if (foe_distance < 300)
-			v_fake_origin = pBotEnemy->v.absmin + Vector((t_size.x * 0.5), (t_size.y * 0.5), fake_origin_zcoord);
-		else
-		{
-			// is it right back side from default turning angle
-			if ((pEdict->v.angles.y <= -90) && (pEdict->v.angles.y > -180))
-			{
-				if (foe_distance < 1000)
-				{
-					float dist_corr;
-					dist_corr = foe_distance / 1000;
-					x_corr = 0.5 - fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-					x_corr += (dist_corr / 2.0);
-
-					if ((pEdict->v.flags & FL_PRONED) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.5;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 0.8;
-					}
-					else if (pEdict->v.flags & FL_DUCKING)
-					{
-						y_corr = 0.5 + dist_corr + fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 0.8 + dist_corr + fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-					}
-					else
-					{
-						y_corr = 0.5 + dist_corr + fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 0.8 + dist_corr + fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-					}
-				}
-				else
-				{
-					float dist_corr = 0.5 * (foe_distance / 10000);
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e) ||
-						(pBot->current_weapon.iId == fa_weapon_m14))
-						dist_corr = foe_distance / 10000;
-
-					x_corr = 0.6 - fabs(((180 - fabs(pEdict->v.angles.y)) / 200));
-					x_corr += dist_corr;
-
-					if (pEdict->v.flags & FL_PRONED)
-					{
-						y_corr = 0.0 + (dist_corr * 10);
-
-						if (pBot->current_weapon.iId == fa_weapon_pkm)
-						{
-							x_corr = -0.4 - (0.9 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 1.7 * (dist_corr * 10);
-						}
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-						{
-							x_corr = -0.5 - (1.7 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 2.1 * (dist_corr * 10);
-						}
-
-						if (pBot->current_weapon.iId == fa_weapon_m60)
-						{
-							x_corr = -0.5 - (1.2 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 1.6 * (dist_corr * 10);
-						}
-					}
-					else if ((pEdict->v.flags & FL_DUCKING) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.45 + (dist_corr * 10);
-
-						if (pBot->current_weapon.iId == fa_weapon_pkm)
-						{
-							x_corr = -0.5 - (1.1 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 1.9 * (dist_corr * 10);
-						}
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-						{
-							x_corr = -0.5 - (1.7 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 2.3 * (dist_corr * 10);
-						}
-
-						if (pBot->current_weapon.iId == fa_weapon_m60)
-						{
-							x_corr = -0.5 - (1.2 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 1.8 * (dist_corr * 10);
-						}
-					}
-					else
-					{
-						y_corr = 1.05 + (dist_corr * 10);
-
-						if (pBot->current_weapon.iId == fa_weapon_pkm)
-						{
-							x_corr = -1.5;							
-							y_corr = 2.2 * (dist_corr * 10);
-						}
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-						{
-							x_corr = -1.0 - (1.6 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 2.6 * (dist_corr * 10);
-						}
-
-						if (pBot->current_weapon.iId == fa_weapon_m60)
-						{
-							x_corr = -0.5 - (1.2 * fabs(((180 - fabs(pEdict->v.angles.y)) / 100)));
-							y_corr = 2.3 * (dist_corr * 10);
-						}
-					}
-				}
-			}
-			
-			// left back side
-			if ((pEdict->v.angles.y >= 90) && (pEdict->v.angles.y < 180))
-			{
-				if (foe_distance < 1000)
-				{
-					x_corr = 1.15;
-
-					if ((pEdict->v.flags & FL_PRONED) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.4;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 0.7;
-					}
-					else if (pEdict->v.flags & FL_DUCKING)
-					{
-						y_corr = 0.45;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 1.05;
-					}
-					else
-					{
-						y_corr = 1.15;
-						
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 1.5;
-					}
-				}
-				else
-				{
-					float dist_corr = 0.5 * (foe_distance / 10000);
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e))
-						dist_corr = foe_distance / 10000;
-
-					x_corr = 1.15 + dist_corr;
-
-					if ((pEdict->v.flags & FL_PRONED) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.05 + (dist_corr * 10);
-
-						if (pBot->current_weapon.iId == fa_weapon_pkm)
-							y_corr = 1.5 * (dist_corr * 10);
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-							y_corr = 2.0 * (dist_corr * 10);
-						if (pBot->current_weapon.iId == fa_weapon_m60)
-							y_corr = 1.6 * (dist_corr * 10);
-					}
-					else if (pEdict->v.flags & FL_DUCKING)
-					{
-						y_corr = 0.2 + (dist_corr * 10);
-
-						if ((pBot->current_weapon.iId == fa_weapon_pkm) ||
-							(pBot->current_weapon.iId == fa_weapon_m60))
-							y_corr = 1.8 * (dist_corr * 10);
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-							y_corr = 2.25 * (dist_corr * 10);
-					}
-					else
-					{
-						y_corr = 1.15 + (dist_corr * 10);
-
-						if ((pBot->current_weapon.iId == fa_weapon_pkm) ||
-							(pBot->current_weapon.iId == fa_weapon_m60))
-							y_corr = 2.25 * (dist_corr * 10);
-						if (pBot->current_weapon.iId == fa_weapon_m249)
-							y_corr = 2.6 * (dist_corr * 10);
-					}
-				}
-			}
-			
-			
-			
-			// right front side
-			if ((pEdict->v.angles.y < 0) && (pEdict->v.angles.y > -90))
-			{
-				if (foe_distance < 1000)
-				{
-					x_corr = 0.25;
-
-					if (pEdict->v.flags & FL_PRONED)
-					{
-						y_corr = 0.4;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.3;
-					}
-					else if ((pEdict->v.flags & FL_DUCKING) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.2;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.7;
-					}
-					else
-						y_corr = -0.25;
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e))
-						y_corr -= 0.25;
-				}
-				else
-				{
-					float dist_corr = 0.5 * (foe_distance / 10000);
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e))
-						dist_corr = foe_distance / 10000;
-
-					x_corr = -0.25 - dist_corr;
-
-					if (pEdict->v.flags & FL_PRONED)
-					{
-						y_corr = 0.5 - (dist_corr);
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.3 - dist_corr;
-					}
-					else if ((pEdict->v.flags & FL_DUCKING) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 1.05 - (dist_corr * 10);
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.7 - dist_corr;
-					}
-					else
-					{
-						y_corr = -0.25 - (dist_corr * 10);
-						
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = 0.0 - (dist_corr * 10);
-					}
-				}
-			}
-			
-			// left front side
-			if ((pEdict->v.angles.y >= 0) && (pEdict->v.angles.y < 90))
-			{
-				if (foe_distance < 1000)
-				{
-					x_corr = 0.5 + (pEdict->v.angles.y / 100);
-
-					if (pEdict->v.flags & FL_PRONED)
-					{
-						y_corr = 0.75;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.3;
-					}
-					else if ((pEdict->v.flags & FL_DUCKING) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 0.75;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.2;
-					}
-					else
-						y_corr = -0.45;
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e))
-						y_corr -= 0.15;
-				}
-				else
-				{
-					float dist_corr = 0.5 * (foe_distance / 10000);
-
-					if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-						UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-						(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-						(pBot->current_weapon.iId == fa_weapon_g36e))
-						dist_corr = foe_distance / 10000;
-
-					x_corr = 0.5 + (pEdict->v.angles.y / 100) + (dist_corr * 2.0);
-
-					if (pEdict->v.flags & FL_PRONED)
-					{
-						y_corr = 0.5 - dist_corr;
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.3 - dist_corr;
-					}
-					else if ((pEdict->v.flags & FL_DUCKING) || (pBot->pBotEnemy->v.flags & FL_PRONED))
-					{
-						y_corr = 1.05 - (dist_corr * 10);
-
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.7 - dist_corr;
-					}
-					else
-					{
-						y_corr = -0.45 - (dist_corr * 10);
-						
-						if (UTIL_IsSMG(pBot->current_weapon.iId) ||
-							UTIL_IsMachinegun(pBot->current_weapon.iId) ||
-							(pBot->current_weapon.iId == fa_weapon_ber92f) ||
-							(pBot->current_weapon.iId == fa_weapon_g36e))
-							y_corr = -0.2 - (dist_corr * 10);
-					}
-				}
-			}
-
-			v_fake_origin = pBot->pBotEnemy->v.absmin +
-				Vector((t_size.x * x_corr), (t_size.y * y_corr), fake_origin_zcoord);
-		}
-		/**/
-
-		target_origin = v_fake_origin;
-		target_head = pBotEnemy->v.view_ofs;
+		// TODO: write something that would really work
 	}
+#endif
+	// standard aiming ... used in older FA versions need just this
 	else
 	{
 		target_origin = pBotEnemy->v.origin;
@@ -2678,12 +2358,11 @@ Vector BotBodyTarget(bot_t *pBot)
 
 
 #ifdef _DEBUG
+	/*/
 	if (ignore_aim_error_code)		//@@@@@@@@@@@@temp to ignore the code that simulates human like errors
 	{
 
 	target = target_origin + target_head;
-	
-	pBot->curr_aim_location = target;
 	
 	extern edict_t *listenserver_edict;
 	Vector color = Vector(255, 50, 50);
@@ -2692,7 +2371,7 @@ Vector BotBodyTarget(bot_t *pBot)
 	
 	return target;
 
-	}
+	}/**/
 #endif
 
 
@@ -2939,15 +2618,8 @@ Vector BotBodyTarget(bot_t *pBot)
 		target = target + Vector(0, 0, aim_fix);
 	}
 
-#ifdef _DEBUG
-	pBot->curr_aim_location = target;
-#endif
-
 	return target;
 }
-
-
-// end test
 
 
 /*
@@ -2971,8 +2643,8 @@ void BotFireMountedGun(Vector v_enemy, bot_t *pBot)
 			pBot->f_shoot_time = gpGlobals->time;
 	}
 
-	// check if bot can press trigger -> b_botdontshoot
-	if (b_botdontshoot == FALSE)
+	// check if bot can press the trigger
+	if (botdebugger.IsDontShoot() == FALSE)
 		pBot->pEdict->v.button |= IN_ATTACK;  // press primary attack button
 
 	return;
@@ -2995,7 +2667,11 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 	float distance = v_enemy.Length2D();  // how far away is the enemy (ignoring his z-coord)?
 	int weaponID;//, select_index;
 
-	// these are for handling M203/GP25 attachment
+	// this is for handling M203/GP25 attachment, the time is based on in game tests in FA 3.0,
+	// best time is what the engine allows us (delay between the switch command and firing the nade)
+	// and all the other times are increased a little to represent less skilled bots
+	float switch_delay[BOT_SKILL_LEVELS] = { 2.3, 2.5, 2.8, 3.2, 3.7 };
+
 	float min_safe_distance, base_delay, min_delay, max_delay;
 	
 #ifdef _DEBUG
@@ -3003,6 +2679,12 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 	if (in_bot_dev_level2)
 		in_bot_dev_level1 = TRUE;
 #endif
+
+	// if the weapon is NOT ready yet break it
+	if (pBot->weapon_action != W_READY)
+	{
+		return RETURN_NOTFIRED;
+	}
 
 	// see which weapon is used
 	if (pBot->forced_usage == USE_MAIN)
@@ -3023,36 +2705,28 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 		return RETURN_NOTFIRED;
 	}
 
-	press_trigger = FALSE;		// reset press_trigger flag first
-
 	// is this slot empty
 	if (weaponID == -1)
 	{
 		// change to knife, we know that each player gets knife by default in Firearms
-		pBot->forced_usage = USE_KNIFE;
+		pBot->UseWeapon(USE_KNIFE);
 
 		return RETURN_NOTFIRED;
 	}
 	
 	// if the bot doesn't carry this weapon
-	if ((pBot->current_weapon.iId != weaponID) && (pBot->weapon_action == W_READY))
+	if (pBot->current_weapon.iId != weaponID)
 	{
 		// set this flag to allow weapon change
 		pBot->weapon_action = W_TAKEOTHER;
 
-#ifdef _DEBUG
-		// testing - right weapon
-		if (in_bot_dev_level2)
-			ALERT(at_console, "Taking new weapon (ID=%d)\n", weaponID);
-#endif
+		if (botdebugger.IsDebugActions())
+			HudNotify("FireWeapon() -> going to change current weapon\n", pBot);
+		
 		return RETURN_TAKING;
 	}
 
-	// if the weapon is NOT ready yet break it
-	if (pBot->weapon_action != W_READY)
-	{
-		return RETURN_NOTFIRED;
-	}
+	press_trigger = FALSE;		// reset press_trigger flag first
 
 	// normal fire action statement, most weapons have NO secondary (special) action
 	if (pBot->secondary_active == FALSE)
@@ -3071,8 +2745,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 					if (in_bot_dev_level2)
 					{
 						ALERT(at_console, "No ammo for weapon ID=%d (inClip=%d Magazines=%d)\n",
-							pBot->current_weapon.iId, pBot->current_weapon.iClip,
-							pBot->current_weapon.iAmmo1);
+							pBot->current_weapon.iId, pBot->current_weapon.iClip, pBot->current_weapon.iAmmo1);
 					}
 #endif
 					// no_ammo flag must be set
@@ -3093,8 +2766,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 						if (in_bot_dev_level2)
 						{
 							ALERT(at_console, "No ammo for weapon ID=%d (inClip=%d Magazines=%d)\n",
-								pBot->current_weapon.iId, pBot->current_weapon.iClip,
-								pBot->current_weapon.iAmmo1);
+								pBot->current_weapon.iId, pBot->current_weapon.iClip, pBot->current_weapon.iAmmo1);
 						}
 #endif
 						// no_ammo flag must be set
@@ -3110,26 +2782,13 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 			// otherwise the bot has at least one magazine
 			else
 			{
-#ifdef _DEBUG
-				// testing - right weapon and iClip info
-				if (in_bot_dev_level2)
+				// see if we can fast switch to backup weapon instead of realoding
+				if (CanUseBackupInsteadofReload(pBot, distance))
 				{
-					ALERT(at_console, "Reloading weapon ID=%d (inClip=%d)\n",
-						pBot->current_weapon.iId, pBot->current_weapon.iClip);
+					return RETURN_NOTFIRED;
 				}
-#endif
-				// press reload button and set some delay to allow proper reload action
-				pEdict->v.button |= IN_RELOAD;
 
-				// is current weapon benelli/remington
-				if (pBot->current_weapon.iId == fa_weapon_benelli)
-					pBot->f_reload_time = gpGlobals->time + 4.5; // estimated min delay for 7 shells
-				// is current weapon anaconda
-				else if (pBot->current_weapon.iId == fa_weapon_anaconda)
-					pBot->f_reload_time = gpGlobals->time + 6.5; // estimated min delay for 6 rounds
-				// otherwise all other weapons
-				else
-					pBot->f_reload_time = gpGlobals->time + 0.6; // estimated delay (was 1.5)
+				pBot->ReloadWeapon("bot_combat.cpp|FireWeapon()|weapon clip is empty");
 
 				return RETURN_RELOADING;
 			}
@@ -3146,18 +2805,16 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 				ALERT(at_console, "Reloading weapon ID=%d (inClip=%d) (second gun)\n",
 					pBot->current_weapon.iId, pBot->current_weapon.iClip);
 			}
-#endif
+#endif // DEBUG
 
-			pEdict->v.button |= IN_RELOAD;
-			pBot->f_reload_time = gpGlobals->time + 0.6;
+			pBot->ReloadWeapon("bot_combat.cpp|FireWeapon()|2nd m11 is empty");
 
 			return RETURN_RELOADING;
 		}
 
 		// these weapons have to ignore safe distance specified in the struct
 		// it's used only for firing the gl attachment
-		if ((pBot->current_weapon.iId == fa_weapon_m16) ||
-			(pBot->current_weapon.iId == fa_weapon_ak74))
+		if ((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74))
 			min_safe_distance = 0.0;		
 		else
 			min_safe_distance = pSelect[weaponID].min_safe_distance;
@@ -3167,15 +2824,12 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 		max_delay = pDelay[weaponID].primary_max_delay[pBot->bot_skill];
 
 		// carries the bot this weapon AND is that weapon active (ie. in hands)
-		if ((pBot->bot_weapons & (1<<pSelect[weaponID].iId)) &&
-			(pBot->current_weapon.isActive == 1))
+		if ((pBot->bot_weapons & (1<<pSelect[weaponID].iId)) && (pBot->current_weapon.isActive == 1))
 		{
 			// is the bot in effective range of this weapon
-			if ((distance <= pSelect[weaponID].max_effective_distance) &&
-				(distance >= min_safe_distance))
+			if ((distance <= pSelect[weaponID].max_effective_distance) && (distance >= min_safe_distance))
 			{				
-#ifdef _DEBUG
-				// testing - firing weapon and ammo info
+#ifdef _DEBUG	// testing - firing weapon and ammo info
 				if (in_bot_dev_level1)
 				{					
 					ALERT(at_console, "FIRE weapon ID=%d Array ID=%d (iClip=%d Mags=%d Dist=%.2f)\n",
@@ -3186,18 +2840,14 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 				press_trigger = TRUE;	// bot is ready to fire
 
 				// don't move if using one of these weapons
-				if (UTIL_IsSniperRifle(pBot->current_weapon.iId) ||
-					UTIL_IsMachinegun(pBot->current_weapon.iId))
+				if (UTIL_IsSniperRifle(pBot->current_weapon.iId) || UTIL_IsMachinegun(pBot->current_weapon.iId))
 				{
-#ifdef _DEBUG
-					// testing - special weapons
+#ifdef _DEBUG		// testing - special weapons slow down
 					if (in_bot_dev_level2)
-						ALERT(at_console, "Must slow down to fire weapon ID=%d\n",
-							pBot->current_weapon.iId);
+						ALERT(at_console, "Must slow down to fire weapon ID=%d\n", pBot->current_weapon.iId);
 #endif
 					// is it time to set new sniping time
-					if ((pBot->sniping_time < gpGlobals->time) &&
-						(pBot->f_combat_advance_time < gpGlobals->time))
+					if ((pBot->sniping_time < gpGlobals->time) && (pBot->f_combat_advance_time < gpGlobals->time))
 					{
 						bool start_sniping = FALSE;
 
@@ -3205,8 +2855,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 						if (pBot->IsTask(TASK_BIPOD))
 							start_sniping = TRUE;
 						// does the bot use m82 AND is 95% chance
-						else if ((pBot->current_weapon.iId == fa_weapon_m82) &&
-							(RANDOM_LONG(1, 100) <= 95))
+						else if ((pBot->current_weapon.iId == fa_weapon_m82) && (RANDOM_LONG(1, 100) <= 95))
 							start_sniping = TRUE;
 						// all other weapons need chance 85% to start sniping
 						else if (RANDOM_LONG(1, 100) <= 85)
@@ -3222,15 +2871,14 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 #ifdef _DEBUG
 							// testing - snipe time
 							if (in_bot_dev_level2)
-								ALERT(at_console, "Sniping time set %.2f\n", pBot->sniping_time);
-#endif
-							if (g_debug_bot_on)
 							{
+								/*/
 								char msg[80];
-								extern edict_t *pRecipient;
 								sprintf(msg, "Sniping time set %.2f\n", pBot->sniping_time);
-								ClientPrint(pRecipient, HUD_PRINTNOTIFY, msg);
+								HudNotify(msg, pBot);
+								/**/
 							}
+#endif
 						}
 					}
 
@@ -3242,15 +2890,15 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 						((pBot->current_weapon.iId == fa_weapon_psg1) ||
 						(pBot->current_weapon.iId == fa_weapon_m82)))
 					{
-						if (g_debug_bot_on)
-						{
-							extern edict_t *pRecipient;
-							ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Using unscoped in FA25\n");
-						}
+#ifdef _DEBUG
+						if (in_bot_dev_level2)
+							HudNotify("Using unscoped in FA25\n", pBot);
+#endif
 					}
 
 					// has the bot this weapon AND scope is NOT active AND is snipe time
-					else if ((pBot->current_weapon.iId == fa_weapon_ssg3000) &&
+					else if (((pBot->current_weapon.iId == fa_weapon_ssg3000) ||
+						(pBot->current_weapon.iId == fa_weapon_svd)) &&
 						(pEdict->v.fov == NO_ZOOM) && (pBot->sniping_time > gpGlobals->time))
 					{
 						pEdict->v.button |= IN_ATTACK2;				// switch to scope
@@ -3259,41 +2907,13 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 #ifdef _DEBUG
 						// testing - weapon with scope
 						if (in_bot_dev_level2)
-							ALERT(at_console, "Trying scope 1X (WeaponID=%d)\n",
-								pBot->current_weapon.iId);
+							ALERT(at_console, "Trying scope 1X (WeaponID=%d)\n", pBot->current_weapon.iId);
 #endif
-						if (g_debug_bot_on)
-						{
-							extern edict_t *pRecipient;
-							ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Trying scope 1X\n");
-						}
 						
 						return RETURN_SECONDARY;
 					}
 
-					else if ((pBot->current_weapon.iId == fa_weapon_svd) &&
-						(pEdict->v.fov == NO_ZOOM) && (pBot->sniping_time > gpGlobals->time))
-					{
-						pEdict->v.button |= IN_ATTACK2;
-						pBot->f_shoot_time = gpGlobals->time + 0.4;
-
-#ifdef _DEBUG
-						// testing - weapon with scope
-						if (in_bot_dev_level2)
-							ALERT(at_console, "Trying scope 1X (WeaponID=%d)\n",
-								pBot->current_weapon.iId);
-#endif
-						if (g_debug_bot_on)
-						{
-							extern edict_t *pRecipient;
-							ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Trying scope 1X\n");
-						} 
-
-						return RETURN_SECONDARY;
-					}
-
-					else if ((pBot->current_weapon.iId == fa_weapon_m82) &&
-						(pBot->sniping_time > gpGlobals->time))
+					else if ((pBot->current_weapon.iId == fa_weapon_m82) && (pBot->sniping_time > gpGlobals->time))
 					{
 						if (pEdict->v.fov == ZOOM_1X)
 						{
@@ -3302,14 +2922,8 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 #ifdef _DEBUG
 							// testing - weapon with scope
 							if (in_bot_dev_level2)
-								ALERT(at_console, "Trying scope 2X (WeaponID=%d)\n",
-									pBot->current_weapon.iId);
+								ALERT(at_console, "Trying scope 2X (WeaponID=%d)\n", pBot->current_weapon.iId);
 #endif
-							if (g_debug_bot_on)
-							{
-								extern edict_t *pRecipient;
-								ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Trying scope 2X\n");
-							}
 						}
 						else if (pEdict->v.fov == NO_ZOOM)
 						{
@@ -3318,75 +2932,61 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 #ifdef _DEBUG
 							// testing - weapon with scope
 							if (in_bot_dev_level2)
-								ALERT(at_console, "Trying scope 1X (WeaponID=%d)\n",
-									pBot->current_weapon.iId);
+								ALERT(at_console, "Trying scope 1X (WeaponID=%d)\n", pBot->current_weapon.iId);
 #endif
-							if (g_debug_bot_on)
-							{
-								extern edict_t *pRecipient;
-								ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Trying Scope 1X\n");
-							}
 						}
 
 						return RETURN_SECONDARY;
 					}
 
 					// if the bot is moving too fast then don't allow shooting
-					if (UTIL_IsSniperRifle(pBot->current_weapon.iId) &&
-						(pEdict->v.velocity.Length() > 0))
+					if (UTIL_IsSniperRifle(pBot->current_weapon.iId) && (pEdict->v.velocity.Length() > 0))
 					{
 						return RETURN_NOTFIRED;
 					}
 					// we know that the bot can use only machinegun now
 					// don't allow shoting while in move in FA29
-					if (((g_mod_version == FA_29) || (g_mod_version == FA_30)) &&
-						(pEdict->v.velocity.Length() > 0))
+					if (((g_mod_version == FA_29) || (g_mod_version == FA_30)) && (pEdict->v.velocity.Length() > 0))
 					{
 						return RETURN_NOTFIRED;
 					}
 					// otherwise allow shooting only if crouch or prone movements
 					else if ((pEdict->v.velocity.Length() > 0) &&
-						!(pEdict->v.flags & FL_PRONED) && !(pEdict->v.flags & FL_DUCKING))
+						(pBot->IsBehaviour(BOT_PRONED) == FALSE) && (pBot->IsBehaviour(BOT_CROUCHED) == FALSE))
 					{
 						return RETURN_NOTFIRED;
 					}
 				}
 
-				// has the bot one of these weapons
-				else if ((pBot->current_weapon.iId == fa_weapon_m16) ||
-					(pBot->current_weapon.iId == fa_weapon_ak74))
+				// has the bot one of these weapons? then try to switch to the attached grenade launcher
+				else if ((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74))
 				{
 					// is the bot in safe distance AND is chance to use gl AND
 					// have ammo2 AND necessary skill (arty1)
-					if ((distance > pSelect[weaponID].min_safe_distance) &&
-						(RANDOM_LONG(1, 100) < 15) &&
-						(pBot->current_weapon.iAttachment > 0) &&
-						(pBot->bot_fa_skill & ARTY1))
+					if ((distance > pSelect[weaponID].min_safe_distance) && (RANDOM_LONG(1, 100) < 15) &&
+						(pBot->current_weapon.iAttachment > 0) && (pBot->bot_fa_skill & ARTY1))
 					{
 						// there's no switching to gl attachment in this version
 						// it will just fire it on IN_ATTACK2 command
 						if (UTIL_IsOldVersion())
 						{
 							pBot->secondary_active = TRUE;
-							// add short delay to all bot to aim a bit up before firing the gl
-							pBot->f_shoot_time = gpGlobals->time + 0.3;
+							// add short delay to allow the bot to aim a bit up before firing the gl
+							pBot->f_shoot_time = gpGlobals->time + base_delay;
 						}
 						else
 						{
 							pEdict->v.button |= IN_ATTACK2;			// switch to attached gl
-							pBot->f_shoot_time = gpGlobals->time + 1.5;	// time to take effect
+							//pBot->f_shoot_time = gpGlobals->time + 1.5;	// time to take effect		NEW CODE 094 (prev code)
+							
+							// time to take effect
+							pBot->f_shoot_time = gpGlobals->time + switch_delay[pBot->bot_skill];
 						}
 
 #ifdef _DEBUG
 						if (in_bot_dev_level2)						
-							ALERT(at_console, "Changing to GL (ID=%d)\n",
-								pBot->current_weapon.iId);
+							ALERT(at_console, "Changing to GL (ID=%d)\n", pBot->current_weapon.iId);
 #endif
-						if (g_debug_bot_on)
-						{
-							extern edict_t *pRecipient;
-							ClientPrint(pRecipient, HUD_PRINTNOTIFY, "Changing to GL attachment\n");
-						}
 
 						return RETURN_SECONDARY;
 					}
@@ -3395,8 +2995,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 				// don't move if using m79
 				else if (pBot->current_weapon.iId == fa_weapon_m79)
 				{
-					if ((pBot->sniping_time < gpGlobals->time) &&
-						(pBot->f_combat_advance_time < gpGlobals->time) &&
+					if ((pBot->sniping_time < gpGlobals->time) && (pBot->f_combat_advance_time < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) <= 75))
 					{
 						// set short sniping time for firing just one grenade
@@ -3407,7 +3006,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 						{
 							char msg[80];
 							sprintf(msg, "Sniping delay=%f\n", pBot->sniping_time);
-							ALERT(at_console, msg);
+							HudNotify(msg);
 						}
 #endif
 					}
@@ -3447,9 +3046,8 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 			}
 		}// END is bot carrying this weapon
 
-#ifdef _DEBUG
+#ifdef _DEBUG // testing - check if weapons in array pSelect and in array pDelay are in same order
 		extern int debug_engine;
-		// testing - check if weapons in array pSelect and in array pDelay are in same order
 		if (debug_engine == 1)
 		{
 			if (pSelect[weaponID].iId != pDelay[weaponID].iId)
@@ -3457,7 +3055,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 				ALERT(at_console, "Weapon order in pSelect(weapon ID=%d) isn't same as in pDelay(weapon ID=%d)\n",
 					pSelect[weaponID].iId, pDelay[weaponID].iId);
 
-				UTIL_DebugInFile("BotCombat|BotFireWeapon()|pSelect != pDelay\n");
+				UTIL_DebugInFile("BotCombat|FireWeapon()|pSelect != pDelay\n");
 
 				return RETURN_NOTFIRED;
 			}
@@ -3507,18 +3105,20 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 			// otherwise the bot has at least one magazine
 			else
 			{
-				// press reload button and set some delay to allow proper reload action
-				pEdict->v.button |= IN_RELOAD;
+				// first try to fast switch to backup weapon
+				if (CanUseBackupInsteadofReload(pBot, distance))
+				{
+					return RETURN_NOTFIRED;
+				}
 
-				pBot->f_reload_time = gpGlobals->time + 0.6; // estimated delay (was 1.5)
+				pBot->ReloadWeapon("bot_combat.cpp|FireWeapon()|secondary_active -> zoomed sniper rifle is empty");
 
 				return RETURN_RELOADING;
 			}
 		}
 
 		// is it time to set new sniping time
-		if (UTIL_IsSniperRifle(pBot->current_weapon.iId) &&
-			(pBot->sniping_time < gpGlobals->time) &&
+		if (UTIL_IsSniperRifle(pBot->current_weapon.iId) && (pBot->sniping_time < gpGlobals->time) &&
 			(pBot->f_combat_advance_time < gpGlobals->time))
 		{
 			bool start_sniping = FALSE;
@@ -3549,40 +3149,23 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 			return RETURN_NOTFIRED;
 		}
 
-		// is the weapon m16+m203 OR ak74+gp25
-		if ((pBot->current_weapon.iId == fa_weapon_m16) ||
-			(pBot->current_weapon.iId == fa_weapon_ak74))
+		// is the weapon m16+m203 OR ak74+gp25 AND has the bot NO ammo in attached gl chamber
+		if (((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74)) &&
+			(pBot->current_weapon.iAttachment < 1))
 		{
-			float use_delay[BOT_SKILL_LEVELS] = {1.0, 1.2, 1.4, 1.6, 2.0};
+			if (UTIL_IsOldVersion())
+				pBot->secondary_active = FALSE;
 
-			//min_safe_distance = pSelect[select_index].min_safe_distance;
-			min_safe_distance = pSelect[weaponID].min_safe_distance;
-			base_delay = use_delay[pBot->bot_skill];
-			min_delay = 0.0;
-			max_delay = 0.0;
+			pEdict->v.button |= IN_ATTACK2;	// get back primary fire
+			pBot->f_shoot_time = gpGlobals->time + switch_delay[pBot->bot_skill]; // time to take effect
 
-			// has the bot NO ammo in attached gl chamber
-			if (pBot->current_weapon.iAttachment < 1)
-			{
-				if (UTIL_IsOldVersion())
-					pBot->secondary_active = FALSE;
-
-				pEdict->v.button |= IN_ATTACK2;	// get back primary fire
-				pBot->f_shoot_time = gpGlobals->time + base_delay; // time to take effect
-
-				return RETURN_FIRED; // like it was fired
-			}
+			return RETURN_FIRED; // like it was fired
 		}
-		// all other weapons
-		else
-		{
-			int skill = pBot->bot_skill;
 
-			min_safe_distance = pSelect[weaponID].min_safe_distance;
-			base_delay = pDelay[weaponID].primary_base_delay;
-			min_delay = pDelay[weaponID].primary_min_delay[skill];
-			max_delay = pDelay[weaponID].primary_max_delay[skill];
-		}
+		min_safe_distance = pSelect[weaponID].min_safe_distance;
+		base_delay = pDelay[weaponID].primary_base_delay;
+		min_delay = pDelay[weaponID].primary_min_delay[pBot->bot_skill];
+		max_delay = pDelay[weaponID].primary_max_delay[pBot->bot_skill];
 
 		// if still in safe distance
 		if (distance >= min_safe_distance)
@@ -3591,39 +3174,21 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 
 #ifdef _DEBUG
 			if ((in_bot_dev_level2) &&
-				((pBot->current_weapon.iId == fa_weapon_m16) ||
-				(pBot->current_weapon.iId == fa_weapon_ak74)))
+				((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74)))
 			{
-				ALERT(at_console, "SECONADRY_active -- gl is going to be fired (ID=%d)\n",
-					pBot->current_weapon.iId);
+				ALERT(at_console, "SECONADRY_active -- gl is going to be fired (ID=%d)\n", pBot->current_weapon.iId);
 			}
 			else if (in_bot_dev_level2)
 			{
-				ALERT(at_console, "SECONADRY_active -- firing weapon (ID=%d)\n",
-					pBot->current_weapon.iId);
+				ALERT(at_console, "SECONADRY_active -- firing weapon (ID=%d)\n", pBot->current_weapon.iId);
 			}
 #endif
-			if (g_debug_bot_on)
-			{
-				extern edict_t *pRecipient;
-
-				if ((pBot->current_weapon.iId == fa_weapon_m16) ||
-					(pBot->current_weapon.iId == fa_weapon_ak74))
-				{
-					ClientPrint(pRecipient, HUD_PRINTNOTIFY, "SECONADRY_active -- gl is going to be fired\n");
-				}
-				else
-				{
-					ClientPrint(pRecipient, HUD_PRINTNOTIFY, "SECONADRY_active -- firing weapon\n");
-				}
-			}
 		}
 		// otherwise don't fire - risk your life enemy is too close
 		else
 		{
 			// if using m16 or ak74 gl attachment get back to primary fire mode
-			if ((pBot->current_weapon.iId == fa_weapon_m16) ||
-				(pBot->current_weapon.iId == fa_weapon_ak74))
+			if ((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74))
 			{
 				if (UTIL_IsOldVersion())
 					pBot->secondary_active = FALSE;
@@ -3636,11 +3201,6 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 					ALERT(at_console, "SECONADRY_active -- too close for gl --> returning to normal fire (ID=%d)\n",
 						pBot->current_weapon.iId);
 #endif
-				if (g_debug_bot_on)
-				{
-					extern edict_t *pRecipient;
-					ClientPrint(pRecipient, HUD_PRINTNOTIFY, "SECONADRY_active -- too close for gl --> returning to normal fire\n");
-				}
 
 				return RETURN_FIRED; // like it was fired
 			}
@@ -3652,12 +3212,12 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 	// everything is done so fire the weapon and set correct fire delay - based on skill
 	if (press_trigger)
 	{
-		// check if bot can press trigger ie b_botdontshoot
-		if (b_botdontshoot == FALSE)
+		// check if bot can press trigger
+		if (botdebugger.IsDontShoot() == FALSE)
 		{
-			// do we need to fire m16 attached gl in FA25
-			if (((pBot->current_weapon.iId == fa_weapon_m16) && pBot->secondary_active &&
-				UTIL_IsOldVersion()) || UTIL_IsBitSet(WA_USEAKIMBO, pBot->weapon_status))
+			// do we need to fire m16 attached gl in FA25 OR akimbo m11 in FA 2.5
+			if (((pBot->current_weapon.iId == fa_weapon_m16) && pBot->secondary_active && UTIL_IsOldVersion()) ||
+				pBot->IsWeaponStatus(WS_USEAKIMBO))
 			{
 				pEdict->v.button |= IN_ATTACK2;  // press secondary attack button
 			}
@@ -3669,8 +3229,7 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 		// and should use full auto OR
 		// is the right time for auto fire if bot is holding machinegun
 		if (((UTIL_IsMachinegun(pBot->current_weapon.iId) == FALSE) &&
-			(pBot->current_weapon.iId != fa_weapon_saiga) &&
-			(pBot->current_weapon.iFireMode == FM_AUTO)) ||
+			(pBot->current_weapon.iId != fa_weapon_saiga) && (pBot->current_weapon.iFireMode == FM_AUTO)) ||
 			((pBot->f_fullauto_time > 0.0) && UTIL_IsMachinegun(pBot->current_weapon.iId)))
 		{
 			pBot->f_shoot_time = gpGlobals->time;
@@ -3679,6 +3238,10 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 		{
 			pBot->f_shoot_time = gpGlobals->time + base_delay + RANDOM_FLOAT(min_delay, max_delay);
 		}
+
+		//																				NEW CODE 094
+		// so we can reload weapon after the battle if the bot ends it with almost empty clip
+		pBot->SetSubTask(ST_W_CLIP);
 
 		return RETURN_FIRED;
 	}
@@ -3705,21 +3268,19 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 		in_bot_dev_level1 = TRUE;
 #endif
 
-	if ((pBot->current_weapon.iId != fa_weapon_knife) && (pBot->weapon_action == W_READY))
-	{
-		pBot->weapon_action = W_TAKEOTHER;
-
-#ifdef _DEBUG
-		// testing - is it really knife
-		if (in_bot_dev_level2)
-			ALERT(at_console, "Taking knife (prev weaponID=%d)\n", pBot->current_weapon.iId);
-#endif
-		return RETURN_TAKING;
-	}
-
 	if (pBot->weapon_action != W_READY)
 	{
 		return RETURN_NOTFIRED;
+	}
+
+	if (pBot->current_weapon.iId != fa_weapon_knife)
+	{
+		pBot->weapon_action = W_TAKEOTHER;
+
+		if (botdebugger.IsDebugActions())
+			HudNotify("UseKnife() -> going to change current weapon\n", pBot);
+
+		return RETURN_TAKING;
 	}
 
 #ifdef _DEBUG
@@ -3729,7 +3290,6 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 			pBot->current_weapon.iId, pSelect[pBot->current_weapon.iId].iId);
 #endif
 
-	//if (distance <= pSelect[select_index].max_effective_distance)
 	if (distance <= pSelect[pBot->current_weapon.iId].max_effective_distance)
 	{
 		int skill = pBot->bot_skill;
@@ -3738,7 +3298,7 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 		// 2/3 of the time use primary attack
 		if (RANDOM_LONG(1, 100) <= 66)
 		{
-			if (b_botdontshoot == FALSE)
+			if (botdebugger.IsDontShoot() == FALSE)
 				pEdict->v.button |= IN_ATTACK;  // press primary attack button
 
 			base_delay = pDelay[pBot->current_weapon.iId].primary_base_delay;
@@ -3754,10 +3314,10 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 		// otherwise use secondary attack
 		else
 		{
-			float min_d_array[BOT_SKILL_LEVELS] = {0.0, 0.1, 0.2, 0.4, 0.6};
+			float min_d_array[BOT_SKILL_LEVELS] = {0.0, 0.1, 0.2, 0.45, 0.65};
 			float max_d_array[BOT_SKILL_LEVELS] = {0.1, 0.2, 0.3, 0.7, 1.0};
 
-			if (b_botdontshoot == FALSE)
+			if (botdebugger.IsDontShoot() == FALSE)
 				pEdict->v.button |= IN_ATTACK2;  // press secondary attack button
 
 			base_delay = 0.5;
@@ -3776,7 +3336,6 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 		return RETURN_FIRED;
 	}
 
-	//else if (distance > pSelect[select_index].max_effective_distance)
 	else if (distance > pSelect[pBot->current_weapon.iId].max_effective_distance)
 	{
 #ifdef _DEBUG
@@ -3812,8 +3371,13 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 		in_bot_dev_level1 = TRUE;
 #endif
 
+	if (pBot->weapon_action != W_READY)
+	{
+		return RETURN_TAKING;
+	}
+
 	// if something went wrong
-	if (pBot->grenade_slot == -1)
+	if (pBot->grenade_slot == NO_VAL)
 	{
 		// set grenade action to correct flag,
 		// grenades weren't spawned so set this flag like it were used
@@ -3834,17 +3398,13 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 	if (pBot->grenade_action == ALTW_USED)
 	{
 #ifdef _DEBUG
-
-		UTIL_DebugInFile("<<BUG>>Invalid run - no grenades - already used before\n");
-
 		//@@@@@@@@@@@@@@@
-		ALERT(at_console, "<<BUG>>Invalid run - no grenades - already used before\n");
-
+		HudNotify("<<BUG>>Invalid run - no grenades - already used before\n", true, pBot);
 #endif
 		return RETURN_NOTFIRED;
 	}
 
-	if ((pBot->current_weapon.iId != pBot->grenade_slot) && (pBot->weapon_action == W_READY))
+	if (pBot->current_weapon.iId != pBot->grenade_slot)
 	{
 		if (pBot->bot_weapons & (1<<pBot->grenade_slot))
 		{
@@ -3855,6 +3415,8 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 				ALERT(at_console, "<<GRENADE>>Not in hands yet (currW is %d)\n", pBot->current_weapon.iId);
 #endif
 
+			if (botdebugger.IsDebugActions())
+				HudNotify("ThrowGrenade() -> going to change current weapon\n", pBot);
 
 			pBot->weapon_action = W_TAKEOTHER;
 			return RETURN_TAKING;
@@ -3871,7 +3433,7 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 #endif
 			char error_msg[256];
 
-			if (pBot->grenade_slot != -1)
+			if (pBot->grenade_slot != NO_VAL)
 				sprintf(error_msg, "<<BUG>>ThrowGrenade() called after using the last grenade. Try inceasing the primary_base_delay value in marine_bot\\weapons\\modversion file for weapon %s\n", STRING(weapon_defs[pBot->grenade_slot].szClassname));
 			else
 				sprintf(error_msg, "<<BUG>>ThrowGrenade() called after using the last grenade. Try inceasing the primary_base_delay value in marine_bot\\weapons\\modversion file for all grenades\n");
@@ -3880,11 +3442,6 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 			pBot->grenade_action = ALTW_USED;
 			return RETURN_NOTFIRED;
 		}
-	}
-
-	if (pBot->weapon_action != W_READY)
-	{
-		return RETURN_TAKING;
 	}
 
 #ifdef _DEBUG
@@ -3929,7 +3486,7 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 #endif
 
 			// this will throw the grenade
-			if (b_botdontshoot == FALSE)
+			if (botdebugger.IsDontShoot() == FALSE)
 			{
 				// when the grenade is ready then press fire button to remove the fuse
 				if (pBot->grenade_action == ALTW_TAKING)
@@ -3962,7 +3519,8 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 
 					// in Firearms 2.4 when you want to throw the standard fragmentation grenade you need to keep the 
 					// fire button pressed for a while else you drop the grenade right under your feet
-					if (g_mod_version == FA_24 && pBot->current_weapon.iId == fa_weapon_frag && RANDOM_LONG(1, 500) > 1)
+					if ((g_mod_version == FA_24) && (pBot->current_weapon.iId == fa_weapon_frag) &&
+						(RANDOM_LONG(1, 500) > 1))
 					{
 						// so this will assure the method to be called couple frames in row
 						// and the fire button will stay pressed
@@ -4001,7 +3559,7 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 				ALERT(at_console, "*****************     THROWING NOW >> ID=%d Array ID=%d (Reserves=%d Dist=%.2f gren_act=%d) | shootT=%.2f currT=%.3f (deltaT=%.2f)\n",
 					pBot->current_weapon.iId, pSelect[pBot->current_weapon.iId].iId,
 					pBot->current_weapon.iAmmo1, distance, pBot->grenade_action, pBot->f_shoot_time, gpGlobals->time,
-					pBot->f_shoot_time - gpGlobals->time);
+					(double)pBot->f_shoot_time - gpGlobals->time);
 #endif
 				
 				return RETURN_FIRED;
@@ -4015,6 +3573,9 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 			if (in_bot_dev_level1)
 				ALERT(at_console, "Too close to throw ID=%d Array ID=%d (Distance=%.2f | gren_act=%d)\n",
 					pBot->current_weapon.iId, pSelect[pBot->current_weapon.iId].iId, distance, pBot->grenade_action);
+
+			//@@@@@@@@@@@@@@@
+			HudNotify("ThrowGrenade() -> returning TOO CLOSE!\n", pBot);
 #endif
 			return RETURN_TOOCLOSE;
 		}
@@ -4042,7 +3603,7 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 				pSelect[pBot->current_weapon.iId].iId);
 
 			if (debug_engine)
-				UTIL_DebugInFile("BotCombat|BotThrowGrenade()|pSelect != pDelay\n");
+				UTIL_DebugInFile("BotCombat|ThrowGrenade()|pSelect != pDelay\n");
 
 			return RETURN_NOTFIRED;
 		}
@@ -4052,55 +3613,96 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 	return RETURN_NOTFIRED;
 }
 
-// NOTE: advance should check for some special weapons like knife and then set special
-//		 longer time to allow bot to get faster to enemy
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 /*
-* set correct advance time based on behaviour, botskill etc.
+* checks if the bot can switch to backup weapon instead of trying to reload in the middle of battle
+*/
+bool CanUseBackupInsteadofReload(bot_t *pBot, float enemy_distance)
+{
+	// see if the bot doesn't use bipod at the moment and if he has usable backup weapon
+	// and the enemy must be in range of backup weapon
+	if ((pBot->forced_usage == USE_MAIN) && !pBot->IsTask(TASK_BIPOD) &&
+		(UTIL_IsHandgun(pBot->backup_weapon) || UTIL_IsSMG(pBot->backup_weapon)) &&
+		(pBot->backup_no_ammo == FALSE) && (enemy_distance <= pBot->GetEffectiveRange(pBot->backup_weapon)))
+	{
+#ifdef DEBUG
+		// testing - switch to sidearm instead of releading main weapon
+		if (in_bot_dev_level2)
+		{
+			ALERT(at_console, "Going to switch to sidearm instead of reloading ID=%d (inClip=%d) (backupW=%d)\n",
+				pBot->current_weapon.iId, pBot->current_weapon.iClip, pBot->backup_weapon);
+		}
+#endif // DEBUG
+
+
+		// switch to backup weapon
+		pBot->UseWeapon(USE_BACKUP);
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+/*
+* set correct advance time based on behaviour, botskill and used weapon
 */
 inline void IsChanceToAdvance(bot_t *pBot)
 {
-	//NOTE: Move this array to be global (no need to set it for each bot)
-	// time delays based on bot_skill
-	// the lower bot skill level (better bots) the longer delays
-	// Reaction time delay? [APG]RoboCop[CL]
-	float delay[BOT_SKILL_LEVELS] = {3.0, 2.5, 2.0, 1.5, 1.0};
-	//float delay[BOT_SKILL_LEVELS] = {7.0, 5.5, 4.0, 2.5, 1.0};
-
-	// NOTE: these delays should be arrays based on bot_skill value
-	float min_delay, max_delay;
+	float since_last_advance, min_delay, max_delay;
 
 	// generate basic chance
 	int chance = RANDOM_LONG(1, 100);
+	int skill_modifier = 0;
+
 	// get bot skill level
 	int skill = pBot->bot_skill;
 
-	// is bot attacker AND did NOT advanced in last few seconds
-	if ((pBot->bot_behaviour & ATTACKER) && (chance < (45 + skill * 5)) && // best bot attacks in 50% and worst in 95% 
-		((gpGlobals->time - (1.0 * delay[skill])) > pBot->f_combat_advance_time))
+	if (pBot->current_weapon.iId == fa_weapon_knife)
 	{
+		// time delay since last advance is based on bot_skill where better bots don't move forward that much, but
+		// if the bot is using knife then the logic is inverted, which means better bots do advance often
+		since_last_advance = g_combat_advance_delay[BOT_SKILL_LEVELS - 1 - skill];
+
+		// the chance to advance follows the same logic as the time delay so if the bot is using knife
+		// then the best bots have highest chance to move towards the enemy
+		skill_modifier = (BOT_SKILL_LEVELS - skill) * 5;
+	}
+	else
+	{
+		since_last_advance = g_combat_advance_delay[skill];
+		skill_modifier = (skill + 1) * 5;
+	}
+
+	// is bot attacker AND did NOT advanced in last few seconds
+	if (pBot->IsBehaviour(ATTACKER) &&
+		(chance < (45 + skill_modifier)) &&	// best bot attacks in 50% of the time and worst in 70% of the time
+											// unless it's the knife case where it is vice versa
+		((gpGlobals->time - (1.0 * since_last_advance)) > pBot->f_combat_advance_time))
+	{
+		// NOTE: perhaps these delays could be arrays based on bot_skill value
 		min_delay = 4.0;
 		max_delay = 7.0;
 
-		// is bot using m79 do shorter advance runs
+		// is bot using m79 do shorter advance sprints
 		if (pBot->current_weapon.iId == fa_weapon_m79)
-			pBot->f_combat_advance_time = gpGlobals->time +
-					RANDOM_FLOAT(min_delay / 2, max_delay / 2);
+			pBot->f_combat_advance_time = gpGlobals->time + RANDOM_FLOAT(min_delay / 2, max_delay / 2);
 		else
 			pBot->f_combat_advance_time = gpGlobals->time + RANDOM_FLOAT(min_delay, max_delay);
 
-		// if bot not in proned position
-		if (!(pBot->pEdict->v.flags & FL_PRONED))
+		// if bot is NOT in proned position
+		if (pBot->IsBehaviour(BOT_PRONED) == FALSE)
 		{
+			// try to advance in crouched position
 			if (RANDOM_LONG(1, 100) < 10)
-				SetStanceByte(pBot, BOT_CROUCHED);	// advance in crouched position
+				SetStance(pBot, GOTO_CROUCH, TRUE, "ChanceToAdvance() -> forced GOTO crouch");
 			else
-				SetStanceByte(pBot, BOT_STANDING);
+				SetStance(pBot, GOTO_STANDING, TRUE, "ChanceToAdvance() -> forced GOTO standing");
 		}
 	}
 	// or is bot defender
-	else if ((pBot->bot_behaviour & DEFENDER) && (chance < (5 + skill * 5))	&& // best bot attacks in 10% and worst in 55% 
-		((gpGlobals->time - (2.0 * delay[skill])) > pBot->f_combat_advance_time))
+	else if (pBot->IsBehaviour(DEFENDER) &&
+		(chance < (5 + skill_modifier)) &&		// best bot attacks in 10% of the time and worst in 30% of the time
+		((gpGlobals->time - (2.0 * since_last_advance)) > pBot->f_combat_advance_time))
 	{
 		min_delay = 2.0;
 		max_delay = 5.0;
@@ -4108,17 +3710,18 @@ inline void IsChanceToAdvance(bot_t *pBot)
 		pBot->f_combat_advance_time = gpGlobals->time + RANDOM_FLOAT(min_delay, max_delay);
 
 		// if bot not in proned position
-		if (!(pBot->pEdict->v.flags & FL_PRONED))
+		if (pBot->IsBehaviour(BOT_PRONED) == FALSE)
 		{
 			if (RANDOM_LONG(1, 100) < 25)
-				SetStanceByte(pBot, BOT_CROUCHED);
+				SetStance(pBot, GOTO_CROUCH, TRUE, "ChanceToAdvance() -> forced GOTO crouch");
 			else
-				SetStanceByte(pBot, BOT_STANDING);
+				SetStance(pBot, GOTO_STANDING, TRUE, "ChanceToAdvance() -> forced GOTO standing");
 		}
 	}
 	// standard behaviour type
-	else if ((pBot->bot_behaviour & STANDARD) && (chance < (20 + skill * 5)) && // best bot attacks in 25% and worst in 70% 
-		((gpGlobals->time - (1.5 * delay[skill])) > pBot->f_combat_advance_time))
+	else if (pBot->IsBehaviour(STANDARD) &&
+		(chance < (20 + skill_modifier)) &&		// best bot attacks in 25% of the time and worst in 45% of the time
+		((gpGlobals->time - (1.5 * since_last_advance)) > pBot->f_combat_advance_time))
 	{
 		min_delay = 3.0;
 		max_delay = 6.0;
@@ -4126,12 +3729,12 @@ inline void IsChanceToAdvance(bot_t *pBot)
 		pBot->f_combat_advance_time = gpGlobals->time + RANDOM_FLOAT(min_delay, max_delay);
 
 		// if bot not in proned position
-		if (!(pBot->pEdict->v.flags & FL_PRONED))
+		if (pBot->IsBehaviour(BOT_PRONED) == FALSE)
 		{
 			if (RANDOM_LONG(1, 100) < 20)
-				SetStanceByte(pBot, BOT_CROUCHED);
+				SetStance(pBot, GOTO_CROUCH, TRUE, "ChanceToAdvance() -> forced GOTO crouch");
 			else
-				SetStanceByte(pBot, BOT_STANDING);
+				SetStance(pBot, GOTO_STANDING, TRUE, "ChanceToAdvance() -> forced GOTO standing");
 		}
 	}
 
@@ -4143,45 +3746,57 @@ inline void IsChanceToAdvance(bot_t *pBot)
 * do traceline in all three positions (proned, crouched & standing) to set the best one
 * so that the bot still see & can shoot at enemy while having the best possible cover
 */
-inline void CheckStance(bot_t *pBot)
+inline void CheckStance(bot_t *pBot, float enemy_distance)
 {
 	edict_t *pEdict = pBot->pEdict;
 	edict_t *pEnemy = pBot->pBotEnemy;
 	Vector v_botshead, v_enemy;
-	float enemy_dist;
 	TraceResult tr;
 
 	// look through bots eyes
 	v_botshead = pEdict->v.origin + pEdict->v.view_ofs;
 	// at enemy head
 	v_enemy = pEnemy->v.origin + pEnemy->v.view_ofs;
-	
-	enemy_dist = (pEdict->v.origin - pEnemy->v.origin).Length();
 
 	// don't try to go prone if enemy is close
-	if (enemy_dist < 800)		// was 500
+	if (enemy_distance < 800)		// was 500
 	{
 		// if using knife get up from prone
 		if ((pBot->forced_usage == USE_KNIFE) || (pBot->current_weapon.iId == fa_weapon_knife))
 		{
-			// prevents go prone
-			pBot->f_cant_prone = gpGlobals->time + 2.5;
+			// prevents going prone
+			//pBot->f_cant_prone = gpGlobals->time + 2.5;							NEW CODE 094 (bug fix - sure it prevents going prone, but also prevents standing up if bot is already proned)
 
-			if (enemy_dist < 200)
-				SetStanceByte(pBot, BOT_STANDING);
+			if (enemy_distance < 200)
+				SetStance(pBot, GOTO_STANDING, TRUE, "Check Stance()|UseKNIFE -> forced GOTO standing when foe < 200");
 			else
 			{
 				if (RANDOM_LONG(1, 100) <= 35)
-					SetStanceByte(pBot, BOT_CROUCHED);
+					SetStance(pBot, GOTO_CROUCH, "Check Stance()|UseKNIFE -> GOTO crouch when foe < 800");
 				else
-					SetStanceByte(pBot, BOT_STANDING);
+					SetStance(pBot, GOTO_STANDING, "Check Stance()|UseKNIFE -> GOTO standing when foe < 800");
 			}
 		}
 		else
 		{
 			// if not already proned don't go prone
-			if (!(pEdict->v.flags & FL_PRONED))
-				pBot->f_cant_prone = gpGlobals->time + 2.5;
+			if (pBot->IsBehaviour(BOT_PRONED) == FALSE)
+			{
+				//pBot->f_cant_prone = gpGlobals->time + 2.5;
+				pBot->SetBehaviour(BOT_DONTGOPRONE);
+
+
+
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@			NEW CODE 094 (remove it)
+#ifdef DEBUG
+				char dp[256];
+				sprintf(dp, "%s SET DONTGOPRONE behaviour @ Check Stance()|enemydistance < 800 && bot NOT proned\n", pBot->name);
+				HudNotify(dp, pBot);
+#endif // DEBUG
+
+
+
+			}
 		}
 			
 		return;
@@ -4189,7 +3804,7 @@ inline void CheckStance(bot_t *pBot)
 
 	// don't change Stance if enemy is still in the same distance
 	// do it only in 20% of the time
-	if ((pBot->f_prev_enemy_dist == enemy_dist) && (RANDOM_LONG(1, 100) < 80))
+	if ((pBot->f_prev_enemy_dist == enemy_distance) && (RANDOM_LONG(1, 100) < 80))
 		return;
 
 	/*
@@ -4211,7 +3826,7 @@ inline void CheckStance(bot_t *pBot)
 
 
 	// is bot proned
-	if (pEdict->v.flags & FL_PRONED)
+	if (pBot->IsBehaviour(BOT_PRONED))
 	{
 		// did it hit something?
 		if (FPlayerVisible(v_enemy, pEdict) == VIS_NO)
@@ -4222,8 +3837,7 @@ inline void CheckStance(bot_t *pBot)
 			// didn't hit anything so change to crouched position
 			if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 			{
-				SetStanceByte(pBot, BOT_CROUCHED);
-
+				SetStance(pBot, GOTO_CROUCH, "Check Stance()|PRONED -> foe visible in crouch");
 				return;
 			}
 			else
@@ -4234,8 +3848,7 @@ inline void CheckStance(bot_t *pBot)
 				// change to standing position
 				if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 				{
-					SetStanceByte(pBot, BOT_STANDING);
-
+					SetStance(pBot, GOTO_STANDING, "Check Stance()|PRONED -> foe visible in standing");
 					return;
 				}
 
@@ -4244,41 +3857,34 @@ inline void CheckStance(bot_t *pBot)
 			}
 		}
 
-		// keep proned position bot has clear view to enemy
-		if (!(pBot->bot_behaviour & BOT_PRONED))
-		{
-			SetStanceByte(pBot, BOT_PRONED);
-		}
-
 		return;
 	}
 
 	// is bot crouched
-	else if (pEdict->v.flags & FL_DUCKING)
+	else if (pBot->IsBehaviour(BOT_CROUCHED))
 	{
 		// try proned position from time to time
-		if ((RANDOM_LONG(1, 100) < 15) && (pBot->f_cant_prone < gpGlobals->time))
+		if (!pBot->IsSubTask(ST_CANTPRONE) && !pBot->IsBehaviour(BOT_DONTGOPRONE)
+			&& (RANDOM_LONG(1, 100) < 15))
 		{
 			v_botshead = pEdict->v.origin + pEdict->v.view_ofs - Vector(0, 0, 8);
 
 			// change to proned position
 			if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 			{
-				SetStanceByte(pBot, BOT_PRONED);
-				
+				SetStance(pBot, GOTO_PRONE, "Check Stance()|CROUCHED -> foe visible in prone");
 				return;
 			}
 		}
 		// or try standing position from time to time
-		else if (RANDOM_LONG(1, 100) < 25)
+		else if (RANDOM_LONG(1, 100) < 20)//									was 25
 		{
 			v_botshead = pEdict->v.origin + pEdict->v.view_ofs + Vector(0, 0, 34);
 
 			// change to standing position
 			if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 			{
-				SetStanceByte(pBot, BOT_STANDING);
-				
+				SetStance(pBot, GOTO_STANDING, "Check Stance()|CROUCHED -> foe visible in standing");
 				return;
 			}
 		}
@@ -4293,35 +3899,27 @@ inline void CheckStance(bot_t *pBot)
 			// change to standing position
 			if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 			{
-				SetStanceByte(pBot, BOT_STANDING);
-
+				SetStance(pBot, GOTO_STANDING, "Check Stance()|CROUCHED -> foe visible in standing");
 				return;
 			}
 
 
 			// NOTE: here should be some code that test strafe to side
 		}
-
-		// keep crouched position bot has clear view to enemy
-		if (!(pBot->bot_behaviour & BOT_CROUCHED))
-		{
-			SetStanceByte(pBot, BOT_CROUCHED);
-		}
-
 		return;
 	}
 
-	// or bot must stand still ie NOT going to crouch or prone
-	else if ((pEdict->v.bInDuck != 1) && (pEdict->v.flags & FL_ONGROUND) && (pBot->f_go_prone_time < gpGlobals->time))
+	// or bot must stand still AND NOT going to/resume from prone
+	else if (pBot->IsBehaviour(BOT_STANDING) && !pBot->IsGoingProne())
 	{
 		// try proned position
 		v_botshead = pEdict->v.origin + pEdict->v.view_ofs - Vector(0, 0, 42);
 
 		// change to proned position
-		if ((FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES) && (pBot->f_cant_prone < gpGlobals->time))
+		if ((FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES) &&
+			!pBot->IsSubTask(ST_CANTPRONE) && !pBot->IsBehaviour(BOT_DONTGOPRONE))
 		{
-			SetStanceByte(pBot, BOT_PRONED);
-
+			SetStance(pBot, GOTO_PRONE, "Check Stance()|STANDING -> foe visible in prone");
 			return;
 		}
 
@@ -4331,18 +3929,21 @@ inline void CheckStance(bot_t *pBot)
 		// change to crouched position
 		if (FPlayerVisible(v_enemy, v_botshead, pEdict) == VIS_YES)
 		{
-			SetStanceByte(pBot, BOT_CROUCHED);
-			
+			SetStance(pBot, GOTO_CROUCH, "Check Stance()|STANDING -> foe visible in crouch");
 			return;
 		}
-
-		// keep standing position bot has clear view to enemy
-		if (!(pBot->bot_behaviour & BOT_STANDING))
-		{
-			SetStanceByte(pBot, BOT_STANDING);
-		}
-
 		return;
+	}
+	else
+	{
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+		char dm[256];
+		sprintf(dm, "%s @ Check Stance() -> must be changing stance right now (go/resume prone) so skipping it\n",
+			pBot->name);
+		HudNotify(dm, true, pBot);
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
 	}
 }
 
@@ -4357,14 +3958,14 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 	if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
 	{
 		if (enemy_distance < 1000 ||
-			(pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange()))
+			(pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange())))
 			return TRUE;
 	}
 	// machineguns
 	else if (UTIL_IsMachinegun(pBot->current_weapon.iId))
 	{
 		if (enemy_distance < 600 ||
-			(pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange()))
+			(pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange())))
 			return TRUE;
 	}
 	// SMGs
@@ -4374,11 +3975,11 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 		{
 			// set full auto if not already set
 			if (pBot->current_weapon.iFireMode != FM_AUTO)
-				UTIL_ChangeFireMode(pBot, FM_AUTO, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_AUTO, FireMode_WTest::dont_test_weapons);
 
 			// if bot uses m11 allow akimbo fire when the bot is this close
 			if (pBot->current_weapon.iId == fa_weapon_m11)
-				UTIL_SetBit(WA_USEAKIMBO, pBot->weapon_status);
+				pBot->SetWeaponStatus(WS_USEAKIMBO);
 
 			return TRUE;
 		}
@@ -4386,27 +3987,27 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 		{
 			// set full auto if not already set
 			if (pBot->current_weapon.iFireMode != FM_AUTO)
-				UTIL_ChangeFireMode(pBot, FM_AUTO, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_AUTO, FireMode_WTest::dont_test_weapons);
 		}
 		// does bot uses mp5 and enemy isn't that far so change to burst
 		else if ((enemy_distance < 550) && (pBot->current_weapon.iId == fa_weapon_mp5a5))
 		{
 			// set full auto if not already set
 			if (pBot->current_weapon.iFireMode != FM_BURST)
-				UTIL_ChangeFireMode(pBot, FM_BURST, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_BURST, FireMode_WTest::dont_test_weapons);
 		}
 		// enemy is quite far use single shot
 		else
 		{
 			if (pBot->current_weapon.iFireMode != FM_SEMI)
-				UTIL_ChangeFireMode(pBot, FM_SEMI, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_SEMI, FireMode_WTest::dont_test_weapons);
 
-			if (UTIL_IsBitSet(WA_USEAKIMBO, pBot->weapon_status))
-				UTIL_ClearBit(WA_USEAKIMBO, pBot->weapon_status);
+			if (pBot->IsWeaponStatus(WS_USEAKIMBO))
+				pBot->RemoveWeaponStatus(WS_USEAKIMBO);
 		}
 
 		// will ensure that the bot won't move during combat in this case
-		if (pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange())
+		if (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange()))
 			return TRUE;
 	}
 	// handguns
@@ -4416,7 +4017,7 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 		{
 			// set 3r burst if not already set
 			if (pBot->current_weapon.iFireMode != FM_BURST)
-				UTIL_ChangeFireMode(pBot, FM_BURST, test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_BURST, FireMode_WTest::test_weapons);
 
 			return TRUE;
 		}
@@ -4425,16 +4026,16 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 		{
 			// set 3r burst if not already set
 			if (pBot->current_weapon.iFireMode != FM_BURST)
-				UTIL_ChangeFireMode(pBot, FM_BURST, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_BURST, FireMode_WTest::dont_test_weapons);
 		}
 		// enemy is quite far use single shot
 		else
 		{
 			if (pBot->current_weapon.iFireMode != FM_SEMI)
-				UTIL_ChangeFireMode(pBot, FM_SEMI, dont_test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_SEMI, FireMode_WTest::dont_test_weapons);
 		}
 
-		if (pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange())
+		if (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange()))
 			return TRUE;
 	}
 	// no firearm
@@ -4446,15 +4047,19 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 	// grenade launcher M79 in FA28
 	else if (pBot->current_weapon.iId == fa_weapon_m79)
 	{
-		if (enemy_distance < 550 ||
-			(pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange()))
+		if (enemy_distance < 550 || (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange())))
 			return TRUE;
 	}
 	// shotguns
 	else if (UTIL_IsShotgun(pBot->current_weapon.iId))
 	{
-		if (enemy_distance < 250 ||
-			(pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange()))
+		if (enemy_distance < 250 || (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange())))
+			return TRUE;
+	}
+	// grenades
+	else if (UTIL_IsGrenade(pBot->current_weapon.iId))
+	{
+		if (enemy_distance < 1400 || (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange())))
 			return TRUE;
 	}
 	// it must be one of ARs
@@ -4466,13 +4071,13 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 			if ((pBot->current_weapon.iId == fa_weapon_m16) && (UTIL_IsOldVersion() == FALSE))
 			{
 				if (pBot->current_weapon.iFireMode != FM_BURST)
-					UTIL_ChangeFireMode(pBot, FM_BURST, dont_test_weapons);
+					UTIL_ChangeFireMode(pBot, FM_BURST, FireMode_WTest::dont_test_weapons);
 			}
 			else
 			{
 				// set full auto if not already set
 				if (pBot->current_weapon.iFireMode != FM_AUTO)
-					UTIL_ChangeFireMode(pBot, FM_AUTO, test_weapons);
+					UTIL_ChangeFireMode(pBot, FM_AUTO, FireMode_WTest::test_weapons);
 			}
 
 			return TRUE;
@@ -4482,23 +4087,23 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 		{
 			// set full auto if not already set
 			if (pBot->current_weapon.iFireMode != FM_AUTO)
-				UTIL_ChangeFireMode(pBot, FM_AUTO, test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_AUTO, FireMode_WTest::test_weapons);
 		}
 		// enemy isn't that far so change to burst
 		else if (enemy_distance < 650)
 		{
 			// set 3r burst if not already set
 			if (pBot->current_weapon.iFireMode != FM_BURST)
-				UTIL_ChangeFireMode(pBot, FM_BURST, test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_BURST, FireMode_WTest::test_weapons);
 		}
 		// enemy is quite far use single shot
 		else
 		{
 			if (pBot->current_weapon.iFireMode != FM_SEMI)
-				UTIL_ChangeFireMode(pBot, FM_SEMI, test_weapons);
+				UTIL_ChangeFireMode(pBot, FM_SEMI, FireMode_WTest::test_weapons);
 		}
 
-		if (pBot->IsTask(TASK_AVOID_ENEMY) && enemy_distance <= pBot->GetEffectiveRange())
+		if (pBot->IsTask(TASK_AVOID_ENEMY) && (enemy_distance <= pBot->GetEffectiveRange()))
 			return TRUE;
 	}
 
@@ -4510,8 +4115,6 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 */
 void BotShootAtEnemy( bot_t *pBot )
 {
-	extern bool b_freeze_mode;
-
 	float foe_distance;
 	edict_t *pEdict = pBot->pEdict;
 	Vector v_enemy;
@@ -4526,32 +4129,51 @@ void BotShootAtEnemy( bot_t *pBot )
 
 		// don't move if can't see enemy
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 
 		// is chance to stand up to scan horizon
-		if (RANDOM_LONG(1, 100) < 2)
+		// don't do it if going/resume from prone or the weapon isn't ready for action
+		if ((pBot->IsGoingProne() == FALSE) && (pBot->weapon_action == W_READY) &&
+			(RANDOM_LONG(1, 100) < 2))
 		{
 			// standing up is based on behaviour and chance
-			if (((pBot->bot_behaviour & ATTACKER) && (RANDOM_LONG(1, 100) < 35)) ||
-				((pBot->bot_behaviour & DEFENDER) && (RANDOM_LONG(1, 100) < 5)) ||
-				((pBot->bot_behaviour & STANDARD) && (RANDOM_LONG(1, 100) < 20)))
+			if ((pBot->IsBehaviour(ATTACKER) && (RANDOM_LONG(1, 100) < 35)) ||
+				(pBot->IsBehaviour(DEFENDER) && (RANDOM_LONG(1, 100) < 5)) ||
+				(pBot->IsBehaviour(STANDARD) && (RANDOM_LONG(1, 100) < 20)))
 			{
-				if (pEdict->v.flags & FL_PRONED)
+				if (pBot->IsBehaviour(BOT_PRONED))
 				{
-					UTIL_GoProne(pBot);
-					SetStanceByte(pBot, BOT_STANDING);
+					UTIL_GoProne(pBot, "ShootAtEnemy()|WaitForEnemyTime -> StandUp to Scan Horizion");
+					SetStance(pBot, GOTO_STANDING, "ShootAtEnemy()|WaitForEnemyTime -> GOTO standing to Scan Horizon");
 				}
-
-				if (pBot->bot_behaviour & BOT_CROUCHED)
-					SetStanceByte(pBot, BOT_STANDING);
+				else if (pBot->IsBehaviour(BOT_CROUCHED))
+					SetStance(pBot, GOTO_STANDING, "ShootAtEnemy()|WaitForEnemyTime -> GOTO standing to Scan Horizon");
 			}
 		}
 
-		// keep crouched position
-		if (pBot->bot_behaviour & BOT_CROUCHED)
-			pEdict->v.button |= IN_DUCK;
-
 		// we can't shoot at the enemy because we can't see him
+		return;
+	}
+
+	// FA hides weapon when the player is bandaging so there's no point to continue
+	if (pBot->bandage_time >= gpGlobals->time)
+	{
+
+
+		//@@@@@@@@@@@@@22
+#ifdef _DEBUG
+		if (botdebugger.IsDebugActions() || botdebugger.IsDebugStuck())
+		{
+			char bmsg[128];
+			sprintf(bmsg, "ShootatEnemy -> bandage time >= globT -> Can't fight -> skipping battle (SHOULDN'T HAPPEN)\n");
+			HudNotify(bmsg, true, pBot);
+
+			if (pBot->bandage_time == gpGlobals->time)
+				HudNotify("ShootatEnemy -> Bandaging ends in this frame!\n", true, pBot);
+
+		}
+#endif
+
 		return;
 	}
 
@@ -4561,7 +4183,7 @@ void BotShootAtEnemy( bot_t *pBot )
 	// the bot is under water but hasn't switched to knife yet
 	if ((pEdict->v.waterlevel == 3) && (pBot->forced_usage != USE_KNIFE))
 	{
-		pBot->forced_usage = USE_KNIFE;
+		pBot->UseWeapon(USE_KNIFE);
 	}
 
 	// aim for the head and/or body
@@ -4585,12 +4207,16 @@ void BotShootAtEnemy( bot_t *pBot )
 		float bipod_limit = 45.0;
 
 		// is bot trying to turn more than bipod allows so limit his yaw
-		if (fabs(pEdict->v.vuser1.y - pEdict->v.v_angle.y) > bipod_limit)
+		if (fabs((double)pEdict->v.vuser1.y - pEdict->v.v_angle.y) > bipod_limit)
 		{
 			pEdict->v.v_angle.y = pEdict->v.vuser1.y;
 
 			// prevents shoot weapon
 			out_of_bipod_limit = TRUE;
+
+			//																				NEW CODE 094
+			// try to fold it in order to face the enemy
+			BotUseBipod(pBot, FALSE, "BotShootAtEnemy()|TaskBipod prevents facing enemy -> FOLD IT");
 		}
 	}
 
@@ -4613,7 +4239,7 @@ void BotShootAtEnemy( bot_t *pBot )
 
 	foe_distance = v_enemy.Length();  // how far away is the enemy scum?
 
-	// if current enemy is quite far AND is right time AND NOT using snipe check for closer one
+	// if current enemy is quite far AND is right time AND NOT using sniper rifle check for closer one
 	if ((foe_distance > 500) && (pBot->search_closest_time <= gpGlobals->time) &&
 		(UTIL_IsSniperRifle(pBot->current_weapon.iId) == FALSE))
 	{
@@ -4628,12 +4254,13 @@ void BotShootAtEnemy( bot_t *pBot )
 
 	// is time for decision to move toward the enemy
 	if ((pBot->f_combat_advance_time < gpGlobals->time) &&
-		IsEnemyTooClose(pBot, foe_distance) == FALSE &&		// enemy is still quite far (has to be first because it includes firemode change code and we need to run this code)
-		b_freeze_mode == FALSE &&							// bot is NOT freezed (mrfreeze)
+		(pBot->weapon_action == W_READY) &&						// weapon must be ready because the chance to advance is based on it
+		(pBot->IsGoingProne() == FALSE) &&						// NOT going to/resume from prone
+		(IsEnemyTooClose(pBot, foe_distance) == FALSE) &&		// enemy is still quite far (has to be first because it includes firemode change code and we need to run this code)
 		!pBot->IsTask(TASK_BIPOD) &&						// NOT using a bipod
 		(pBot->sniping_time < gpGlobals->time))				// is NOT sniping
 	{
-		if (!pBot->IsTask(TASK_DONTMOVE) &&						// can move in combat
+		if (!pBot->IsTask(TASK_DONTMOVEINCOMBAT) &&				// can move in combat
 			!pBot->IsTask(TASK_IGNORE_ENEMY) &&					// NOT ignoring enemy (the bot must already be close enough)
 			!pBot->IsTask(TASK_AVOID_ENEMY))					// NOT avoiding enemy (the bot must already be close enough)
 			IsChanceToAdvance(pBot);
@@ -4644,74 +4271,60 @@ void BotShootAtEnemy( bot_t *pBot )
 	}
 
 	// is time to trace enemy to set best position/stance
-	if ((pBot->f_check_stance_time < gpGlobals->time) &&
+	else if ((pBot->f_check_stance_time < gpGlobals->time) &&
+		(pBot->weapon_action == W_READY) &&						// weapon must be ready
 		(pBot->f_combat_advance_time < gpGlobals->time) &&		// NOT in advace
 		(pBot->hide_time + 5.0 < gpGlobals->time) &&			// NOT in hiding
 		!(pBot->IsTask(TASK_USETANK)) &&						// NOT using tank
+		!pBot->IsTask(TASK_BIPOD) &&							// NOT using a bipod
 		(pBot->f_reload_time < gpGlobals->time))				// NOT reloading
 	{
-		CheckStance(pBot);
+		CheckStance(pBot, foe_distance);
 
 		// NOTE: these delays should be based on bot_skill value
+		// FIX ME Fix me FIXME
 		float min_delay = 2.5;
 		float max_delay = 5.0;
 		pBot->f_check_stance_time = gpGlobals->time + RANDOM_FLOAT(min_delay, max_delay);
 	}
 
 	// is the bot paused OR doing medical treatment so just don't move and wait
-	if ((pBot->f_pause_time > gpGlobals->time) ||
-		(pBot->f_medic_treat_time > gpGlobals->time))
+	else if ((pBot->f_pause_time > gpGlobals->time) || (pBot->f_medic_treat_time > gpGlobals->time))
 	{
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 
 		// if NOT in cover position try to go prone or at least crouch
-		if (!(pEdict->v.flags & FL_PRONED) && !(pBot->bot_behaviour & BOT_CROUCHED) &&
+		if (!pBot->IsBehaviour(BOT_PRONED) && !pBot->IsBehaviour(BOT_CROUCHED) &&
 			(pBot->f_stance_changed_time < gpGlobals->time))
 		{
 			// go prone only if paused
 			if ((RANDOM_LONG(1, 100) > 50) && (pBot->f_medic_treat_time < gpGlobals->time))
-				SetStanceByte(pBot, BOT_PRONED);
+				SetStance(pBot, GOTO_PRONE, "ShootAtEnemy()|Paused -> GOTO prone");
 			else
-				SetStanceByte(pBot, BOT_CROUCHED);
+				SetStance(pBot, GOTO_CROUCH, "ShootAtEnemy()|PausedORHealingTeammate -> GOTO crouch");
 		}
-	}
-
-	// is the bot reloading the weapon?
-	else if (pBot->f_reload_time > gpGlobals->time)
-	{
-		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
-
-		// if NOT in proned position do crouch for cover
-		if (!(pEdict->v.flags & FL_PRONED) && (pBot->f_stance_changed_time < gpGlobals->time))
-			SetStanceByte(pBot, BOT_CROUCHED);
 	}
 
 	// or is still sniping time?
 	else if (pBot->sniping_time > gpGlobals->time)
 	{
-		// try bipod weapon if NOT already used AND bot is using one of these AND can handle it
-		if (!(pBot->IsTask(TASK_BIPOD)) && IsBipodWeapon(pBot->current_weapon.iId) &&
-			(pBot->f_bipod_try_time < gpGlobals->time) && (pBot->f_reload_time < gpGlobals->time))
-		{
-				FakeClientCommand(pEdict, "bipod", NULL, NULL);
-
-				// set some time for next try
-				pBot->f_bipod_try_time = gpGlobals->time + 3.0;
-		}
+		// if the enemy is far then try to deploy bipod if NOT already using it AND if is able to use it
+		if ((foe_distance > 1000) && !pBot->IsTask(TASK_BIPOD) &&
+			!pBot->IsWeaponStatus(WS_CANTBIPOD) && IsBipodWeapon(pBot->current_weapon.iId))
+			BotUseBipod(pBot, FALSE, "BotShootAtEnemy()|SnipingTime -> DeployIt");
 
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 	}
 
 	// or is still wait time AND NOT dontmove flag AND NOT behind mounted gun AND NOT avoid enemy?
-	else if ((pBot->wpt_wait_time >= gpGlobals->time) && !pBot->IsTask(TASK_DONTMOVE) &&
+	else if ((pBot->wpt_wait_time > gpGlobals->time) && !pBot->IsTask(TASK_DONTMOVEINCOMBAT) &&
 		!pBot->IsTask(TASK_USETANK) && !pBot->IsTask(TASK_AVOID_ENEMY))
 	{
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 
-		// is the bot sniping so hold position
+		// is the bot sniper so hold position
 		if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
 			pBot->move_speed = SPEED_NO;
 		// is the bot holding MG
@@ -4729,7 +4342,7 @@ void BotShootAtEnemy( bot_t *pBot )
 			pBot->wpt_wait_time = gpGlobals->time - 0.1;
 	}
 
-	else if (pBot->crowded_wpt_index != -1 || UTIL_IsSmallRange(pBot->curr_wpt_index))
+	else if ((pBot->crowded_wpt_index != -1) || UTIL_IsSmallRange(pBot->curr_wpt_index))
 	{
 		// will cause that the bot forgets about distant enemy and
 		// will continue in navigation
@@ -4737,14 +4350,14 @@ void BotShootAtEnemy( bot_t *pBot )
 	}
 
 	// or is bot forced to stay at one place (ie don't move)
-	else if (pBot->IsTask(TASK_DONTMOVE))
+	else if (pBot->IsTask(TASK_DONTMOVEINCOMBAT))
 	{
 		bot_weapon_select_t *pSelect = NULL;
 		
 		pSelect = &bot_weapon_select[0];
 
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 
 		// find the correct weapon in the array
 		int select_index = 0;
@@ -4757,15 +4370,13 @@ void BotShootAtEnemy( bot_t *pBot )
 		IsEnemyTooClose(pBot, foe_distance);
 
 		// check if enemy is too far AND bot wasn't in hiding in last 5 seconds
-		if ((foe_distance > pSelect[select_index].max_effective_distance) &&
-			(pBot->hide_time + 5.0 < gpGlobals->time))
+		if ((foe_distance > pSelect[select_index].max_effective_distance) && (pBot->hide_time + 5.0 < gpGlobals->time))
 		{
-			// if NOT in prone AND NOT fully crouched
-			if (!(pEdict->v.flags & FL_PRONED) && !(pBot->bot_behaviour & BOT_CROUCHED) &&
-				(pBot->f_stance_changed_time < gpGlobals->time))
+			// if NOT in prone AND NOT crouched AND NOT going to/resume prone
+			if (!pBot->IsBehaviour(BOT_PRONED) && !pBot->IsBehaviour(BOT_CROUCHED) && !pBot->IsGoingProne())
 			{
 				// change to crouched position
-				SetStanceByte(pBot, BOT_CROUCHED);
+				SetStance(pBot, GOTO_CROUCH, "ShootAtEnemy()|GonnaHide -> GOTO crouch");
 			}
 
 			// set some time to stay away
@@ -4780,13 +4391,16 @@ void BotShootAtEnemy( bot_t *pBot )
 			//@@@@@@@@@@@@@@@
 			//ALERT(at_console, "DontMove--Out of range (%.3f) (weap %d)\n",
 				//pBot->hide_time, pSelect[select_index].iId);
+
+
+
 		}
-		// is hide time over but is still some time to next hide scan horizon for enemies
+		// is hide time over but is still some time to next hiding then scan horizon for enemies
 		else if ((pBot->hide_time < gpGlobals->time) && (pBot->hide_time + 5.0 > gpGlobals->time))
 		{
 			// change to standing position
-			if ((!(pBot->bot_behaviour & BOT_STANDING)) && (RANDOM_LONG(1, 100) <= 50))
-				SetStanceByte(pBot, BOT_STANDING);
+			if (!pBot->IsBehaviour(BOT_STANDING) && (RANDOM_LONG(1, 100) <= 50))
+				SetStance(pBot, GOTO_STANDING, "ShootAtEnemy()|inHiding -> GOTO standing to scan horizon");
 		}
 	}
 
@@ -4794,22 +4408,21 @@ void BotShootAtEnemy( bot_t *pBot )
 	else if (pBot->IsTask(TASK_USETANK))
 	{
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 
 		// set & keep standing position
-		if (!(pBot->bot_behaviour & BOT_STANDING))
-			SetStanceByte(pBot, BOT_STANDING);
+		if (!pBot->IsBehaviour(BOT_STANDING))
+			SetStance(pBot, GOTO_STANDING);
 	}
 
 	// is it time to move towards the enemy (moves are based on carried weapon)
-	//else if (pBot->f_combat_advance_time > gpGlobals->time)		// was ie PREV CODE
 	if (pBot->f_combat_advance_time > gpGlobals->time)
 	{
 		// is the bot close enough to the enemy then don't move
 		if (IsEnemyTooClose(pBot, foe_distance))
 		{
 			pBot->move_speed = SPEED_NO;
-			pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+			pBot->SetDontCheckStuck();
 
 			// reset advance time
 			pBot->f_combat_advance_time = gpGlobals->time;
@@ -4822,7 +4435,7 @@ void BotShootAtEnemy( bot_t *pBot )
 	else
 	{
 		pBot->move_speed = SPEED_NO;
-		pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+		pBot->SetDontCheckStuck();
 	}
 
 	if (pBot->f_strafe_time < gpGlobals->time)
@@ -4830,7 +4443,8 @@ void BotShootAtEnemy( bot_t *pBot )
 
 	// is it time to shoot yet
 	if ((out_of_bipod_limit == FALSE) && (pBot->f_shoot_time <= gpGlobals->time) &&
-		(pBot->f_reload_time < gpGlobals->time) && (pBot->f_reaction_time < gpGlobals->time))
+		(pBot->f_reload_time < gpGlobals->time) && (pBot->f_reaction_time < gpGlobals->time) &&
+		(pBot->f_bipod_time < gpGlobals->time))
 	{
 		int result = -1;
 
@@ -4839,7 +4453,7 @@ void BotShootAtEnemy( bot_t *pBot )
 		{
 			if (pBot->grenade_time >= gpGlobals->time)
 			{
-				int result = BotThrowGrenade(v_enemy, pBot);
+				result = BotThrowGrenade(v_enemy, pBot);
 
 				// are we removing the fuse
 				if (result == RETURN_PRIMING)
@@ -4862,12 +4476,7 @@ void BotShootAtEnemy( bot_t *pBot )
 					//pBot->grenade_time = gpGlobals->time + 1.0;	// ORIGINAL CODE
 					pBot->grenade_time = gpGlobals->time;
 
-					if (pBot->main_no_ammo == FALSE)
-						pBot->forced_usage = USE_MAIN;
-					else if ((pBot->main_no_ammo == TRUE) && (pBot->backup_no_ammo == FALSE))
-						pBot->forced_usage = USE_BACKUP;
-					else
-						pBot->forced_usage = USE_KNIFE;
+					pBot->DecideNextWeapon("ShootAtEnemy() -> ThrowGrenade() returned failure");
 
 #ifdef _DEBUG
 					// testing
@@ -4884,12 +4493,7 @@ void BotShootAtEnemy( bot_t *pBot )
 				//pBot->grenade_time = gpGlobals->time + 1.0;		//ORIGINAL CODE
 				pBot->grenade_time = gpGlobals->time;
 
-				if (pBot->main_no_ammo == FALSE)
-					pBot->forced_usage = USE_MAIN;
-				else if ((pBot->main_no_ammo == TRUE) && (pBot->backup_no_ammo == FALSE))
-					pBot->forced_usage = USE_BACKUP;
-				else
-					pBot->forced_usage = USE_KNIFE;
+				pBot->DecideNextWeapon("ShootAtEnemy() -> ThrowGrenade() returned success");
 
 
 #ifdef _DEBUG
@@ -4900,12 +4504,13 @@ void BotShootAtEnemy( bot_t *pBot )
 #endif
 			}
 		}
-		// have grenades AND NOT used them both AND out of water AND time to use grenade AND
-		// bot is NOT behind mounted gun AND some time after reload
-		// in highest min_dist and lowest max_dist for grenades
-		else if ((pBot->grenade_slot != -1) && (pBot->grenade_action != ALTW_USED) &&
-			(pEdict->v.waterlevel != 3) &&
-			(pBot->grenade_time + (5.0 * (pBot->bot_skill + 1)) < gpGlobals->time) &&
+		// see if we can use a grenade...
+		// do we have grenades AND NOT used them both AND out of water AND NOT doing any weapon action AND
+		// NOT using bipod AND is time to use grenade AND bot is NOT behind mounted gun AND
+		// is some time after reload AND enemy is in highest min_dist and lowest max_dist for grenades
+		else if ((pBot->grenade_slot != NO_VAL) && (pBot->grenade_action != ALTW_USED) &&
+			(pEdict->v.waterlevel != 3) && (pBot->weapon_action == W_READY) && !pBot->IsTask(TASK_BIPOD) &&
+			(pBot->grenade_time + (5.0f * (pBot->bot_skill + 1)) < gpGlobals->time) &&
 			!pBot->IsTask(TASK_USETANK) && (pBot->f_reload_time + 2.0 < gpGlobals->time) &&
 			((foe_distance >= 800) && (foe_distance <= 1400)))
 		{
@@ -4921,12 +4526,12 @@ void BotShootAtEnemy( bot_t *pBot )
 					pBot->grenade_time = gpGlobals->time + 3.0;
 
 				// the bot must use some grenade now
-				pBot->forced_usage = USE_GRENADE;
+				pBot->UseWeapon(USE_GRENADE);
 
 #ifdef _DEBUG
 				// testing - it's time for grenades
-				if (g_debug_bot_on)
-					ALERT(at_console, "GRENADE when main weapon out of ammo\n");
+				if (in_bot_dev_level1)
+					HudNotify("GRENADE when main weapon out of ammo\n", pBot);
 #endif
 			}
 			// if have enough ammo for weapons use grenades only in 25% of the time
@@ -4937,13 +4542,13 @@ void BotShootAtEnemy( bot_t *pBot )
 				else
 					pBot->grenade_time = gpGlobals->time + 3.0;
 
-				pBot->forced_usage = USE_GRENADE;
+				pBot->UseWeapon(USE_GRENADE);
 
 #ifdef _DEBUG
 				//@@@@@@@@@@@@@@@
 				if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
 				{
-					ALERT(at_console, "Grenade use auto Scope off\n");
+					HudNotify("ShootatEnemy -> Grenade use auto Scope off\n", pBot);
 				}
 #endif
 
@@ -4961,7 +4566,7 @@ void BotShootAtEnemy( bot_t *pBot )
 		if ((pBot->f_fullauto_time < gpGlobals->time) &&
 			UTIL_IsMachinegun(pBot->current_weapon.iId) && (pBot->current_weapon.iClip != 0) &&
 			(pBot->forced_usage != USE_GRENADE) && (pBot->grenade_time < gpGlobals->time) &&
-			!pBot->IsTask(TASK_USETANK) && (pBot->current_weapon.iFireMode == 4))
+			!pBot->IsTask(TASK_USETANK) && (pBot->current_weapon.iFireMode == FM_AUTO))
 		{
 			// reset the full-auto time first
 			// we don't know if bot use it again (ie is allowed to use full auto fire)
@@ -4979,54 +4584,54 @@ void BotShootAtEnemy( bot_t *pBot )
 			{
 				case 0:
 					// if enemy is close use full auto often
-					if ((foe_distance < 500) && (RANDOM_LONG(1, 100) > 25))
+					if ((foe_distance < 450) && (RANDOM_LONG(1, 100) > 25))
 						can_use = TRUE;
 					// if enemy is farther, didn't use it in last seconds and is 50% chance
-					else if ((foe_distance < 1000) &&
+					else if ((foe_distance < 900) &&
 						(pBot->f_fullauto_time + 0.75 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 50))
 						can_use = TRUE;
 					// use full auto only seldom if enemy is far and some time after last usage
-					else if ((foe_distance > 1000) &&
+					else if ((foe_distance > 900) &&
 						(pBot->f_fullauto_time + 1.5 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 95))
 						can_use = TRUE;
 					break;
 
 				case 1:
-					if ((foe_distance < 500) && (RANDOM_LONG(1, 100) > 20))
+					if ((foe_distance < 450) && (RANDOM_LONG(1, 100) > 20))
 						can_use = TRUE;
-					else if ((foe_distance < 1000) &&
+					else if ((foe_distance < 900) &&
 						(pBot->f_fullauto_time + 0.65 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 45))
 						can_use = TRUE;
-					else if ((foe_distance > 1000) &&
+					else if ((foe_distance > 900) &&
 						(pBot->f_fullauto_time + 1.25 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 90))
 						can_use = TRUE;
 					break;
 
 				case 2:
-					if ((foe_distance < 500) && (RANDOM_LONG(1, 100) > 15))
+					if ((foe_distance < 450) && (RANDOM_LONG(1, 100) > 15))
 						can_use = TRUE;
-					else if ((foe_distance < 1000) &&
+					else if ((foe_distance < 900) &&
 						(pBot->f_fullauto_time + 0.5 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 40))
 						can_use = TRUE;
-					else if ((foe_distance > 1000) &&
+					else if ((foe_distance > 900) &&
 						(pBot->f_fullauto_time + 1.0 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 85))
 						can_use = TRUE;
 					break;
 
 				case 3:
-					if ((foe_distance < 500) && (RANDOM_LONG(1, 100) > 10))
+					if ((foe_distance < 450) && (RANDOM_LONG(1, 100) > 10))
 						can_use = TRUE;
-					else if ((foe_distance < 1000) &&
+					else if ((foe_distance < 900) &&
 						(pBot->f_fullauto_time + 0.4 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 35))
 						can_use = TRUE;
-					else if ((foe_distance > 1000) &&
+					else if ((foe_distance > 900) &&
 						(pBot->f_fullauto_time + 0.75 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 75))
 						can_use = TRUE;
@@ -5034,14 +4639,14 @@ void BotShootAtEnemy( bot_t *pBot )
 
 				case 4:
 					// if enemy is close use full auto very often
-					if ((foe_distance < 500) && (RANDOM_LONG(1, 100) > 5))
+					if ((foe_distance < 450) && (RANDOM_LONG(1, 100) > 5))
 						can_use = TRUE;
-					else if ((foe_distance < 1000) &&
+					else if ((foe_distance < 900) &&
 						(pBot->f_fullauto_time + 0.25 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 30))
 						can_use = TRUE;
 					// use full auto quite often if enemy is far
-					else if ((foe_distance > 1000) &&
+					else if ((foe_distance > 900) &&
 						(pBot->f_fullauto_time + 0.5 < gpGlobals->time) &&
 						(RANDOM_LONG(1, 100) > 65))
 						can_use = TRUE;
@@ -5050,8 +4655,7 @@ void BotShootAtEnemy( bot_t *pBot )
 
 			// if bot can use the full auto fire set its next use time
 			if (can_use)
-				pBot->f_fullauto_time = gpGlobals->time +
-						RANDOM_FLOAT(min_delay[skill], max_delay[skill]);
+				pBot->f_fullauto_time = gpGlobals->time + RANDOM_FLOAT(min_delay[skill], max_delay[skill]);
 		}
 
 		// is the bot behing mounted gun
@@ -5064,8 +4668,8 @@ void BotShootAtEnemy( bot_t *pBot )
 		// is bot forced to use main weapon and have any main weapon OR
 		// is forced to use backup weapon and have any backup weapon
 		else if ((pBot->grenade_time < gpGlobals->time) && (pEdict->v.waterlevel != 3) &&
-			(((pBot->forced_usage == USE_MAIN) && (pBot->main_weapon != -1)) ||
-			((pBot->forced_usage == USE_BACKUP) && (pBot->backup_weapon != -1))))
+			(((pBot->forced_usage == USE_MAIN) && (pBot->main_weapon != NO_VAL)) ||
+			((pBot->forced_usage == USE_BACKUP) && (pBot->backup_weapon != NO_VAL))))
 		{
 			result = BotFireWeapon(v_enemy, pBot);
 
@@ -5075,23 +4679,11 @@ void BotShootAtEnemy( bot_t *pBot )
 			}
 			else if (result == RETURN_NOAMMO)
 			{
-				// try take main weapon if enough ammo
-				if ((pBot->main_weapon != -1) && (pBot->main_no_ammo == FALSE))
-					pBot->forced_usage = USE_MAIN;
-				// try take backup weapon if enough ammo
-				else if ((pBot->backup_weapon != -1) && (pBot->backup_no_ammo == FALSE))
-					pBot->forced_usage = USE_BACKUP;
-				else
-					pBot->forced_usage = USE_KNIFE;
+				pBot->DecideNextWeapon("ShootAtEnemy() -> FireWeapon() returned NO AMMO");
 
-				// stop using bipod weapon if was used AND is time for handling it
-				if (pBot->IsTask(TASK_BIPOD) && (pBot->f_bipod_try_time < gpGlobals->time))
-				{
-					FakeClientCommand(pEdict, "bipod", NULL, NULL);
-
-					// set some time for next try
-					pBot->f_bipod_try_time = gpGlobals->time + 3.0;
-				}
+				// stop using bipod
+				if (pBot->IsTask(TASK_BIPOD))
+					BotUseBipod(pBot, TRUE, "ShootAtEnemy() -> FireWeapon() returned NO AMMO");
 
 				pBot->sniping_time = gpGlobals->time; // clear sniping time
 				pBot->f_fullauto_time = -1.0;
@@ -5101,56 +4693,48 @@ void BotShootAtEnemy( bot_t *pBot )
 				if (pBot->forced_usage == USE_BACKUP)
 				{
 					// if main weapon exists AND have ammo for it AND NOT one of these
-					if ((pBot->main_weapon != -1) &&
-						(pBot->main_no_ammo == FALSE) &&
-						((UTIL_IsSniperRifle(pBot->main_weapon) == FALSE) ||
-						(pBot->main_weapon != fa_weapon_m79)))
+					if ((pBot->main_weapon != NO_VAL) && (pBot->main_no_ammo == FALSE) &&
+						((UTIL_IsSniperRifle(pBot->main_weapon) == FALSE) || (pBot->main_weapon != fa_weapon_m79)))
 					{
-						pBot->forced_usage = USE_MAIN;
+						pBot->UseWeapon(USE_MAIN);
 					}
 					else
-						pBot->forced_usage = USE_KNIFE;
+						pBot->UseWeapon(USE_KNIFE);
 				}
 				else if (UTIL_IsSniperRifle(pBot->current_weapon.iId))
 				{
 					// have backup weapon AND have enough ammo AND NOT m79
-					if ((pBot->backup_weapon != -1) && (pBot->backup_no_ammo == FALSE) &&
+					if ((pBot->backup_weapon != NO_VAL) && (pBot->backup_no_ammo == FALSE) &&
 						(pBot->backup_weapon != fa_weapon_m79))
 					{
-						pBot->forced_usage = USE_BACKUP;
+						pBot->UseWeapon(USE_BACKUP);
 					}
 					else
-						pBot->forced_usage = USE_KNIFE;
+						pBot->UseWeapon(USE_KNIFE);
 				}
 				// if using m79 as a main weapon force the bot to use backup if there's some
 				else if (pBot->main_weapon == fa_weapon_m79)
 				{
-					if ((pBot->backup_weapon != -1) && (pBot->backup_no_ammo == FALSE))
+					if ((pBot->backup_weapon != NO_VAL) && (pBot->backup_no_ammo == FALSE))
 					{
-						pBot->forced_usage = USE_BACKUP;
+						pBot->UseWeapon(USE_BACKUP);
 					}
 					else
-						pBot->forced_usage = USE_KNIFE;
+						pBot->UseWeapon(USE_KNIFE);
 				}
 				else
-					pBot->forced_usage = USE_KNIFE;
+					pBot->UseWeapon(USE_KNIFE);
 
-				// stop using bipod weapon if was used AND is time for handling it
-				if ((pBot->IsTask(TASK_BIPOD)) && (pBot->f_bipod_try_time < gpGlobals->time))
-				{
-					FakeClientCommand(pEdict, "bipod", NULL, NULL);
-
-					// set some time for next try
-					pBot->f_bipod_try_time = gpGlobals->time + 3.0;
-				}
+				// stop using bipod
+				if (pBot->IsTask(TASK_BIPOD))
+					BotUseBipod(pBot, TRUE, "ShootAtEnemy()->FireWeapon returned TOO CLOSE");
 
 				pBot->sniping_time = gpGlobals->time;
 			}
 			else if (result == RETURN_TOOFAR)
 			{
 				// is it the time to override advance and allow the bot to move towards enemy?
-				if ((pBot->forced_usage == USE_MAIN) &&
-					(pBot->f_combat_advance_time < gpGlobals->time) &&
+				if ((pBot->forced_usage == USE_MAIN) && (pBot->f_combat_advance_time < gpGlobals->time) &&
 					(RANDOM_LONG(1, 100) <= 25))
 				{
 					// can we reset the advance time yet?
@@ -5164,7 +4748,7 @@ void BotShootAtEnemy( bot_t *pBot )
 
 						//@@@@@@@@@@@@@@@@
 						#ifdef _DEBUG
-						ALERT(at_console, "***HEY Advance overriden (MAIN)\n");
+						//HudNotify("***HEY Advance overriden (MAIN)\n");
 						#endif
 
 
@@ -5174,12 +4758,21 @@ void BotShootAtEnemy( bot_t *pBot )
 
 				else if (pBot->forced_usage == USE_BACKUP)
 				{
-					if ((pBot->main_weapon != -1) && (pBot->main_no_ammo == FALSE))
-						pBot->forced_usage = USE_MAIN;
+					if ((pBot->main_weapon != NO_VAL) && (pBot->main_no_ammo == FALSE))
+					{
+						pBot->UseWeapon(USE_MAIN);
+
+
+						//@@@@@@@@@@@@@@@@
+						#ifdef _DEBUG
+						HudNotify("FireWeapon()->returned TOOFAR ***Going to switch back to main weapon\n");
+						#endif
+
+
+					}
 					else
 					{
-						if ((pBot->f_combat_advance_time < gpGlobals->time) &&
-							(RANDOM_LONG(1, 100) <= 45))
+						if ((pBot->f_combat_advance_time < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 45))
 						{
 							if (pBot->f_overide_advance_time <= gpGlobals->time)
 							{
@@ -5192,7 +4785,7 @@ void BotShootAtEnemy( bot_t *pBot )
 
 								//@@@@@@@@@@@@@@@@
 								#ifdef _DEBUG
-								ALERT(at_console, "***HEY Advance overriden (BACKUP)\n");
+								//HudNotify("***HEY Advance overriden (BACKUP)\n");
 								#endif
 
 
@@ -5215,18 +4808,17 @@ void BotShootAtEnemy( bot_t *pBot )
 				if (pBot->main_no_ammo == FALSE)
 				{
 					// using snipe or GL so take it back only if out of minimal range
-					if (UTIL_IsSniperRifle(pBot->main_weapon) ||
-						(pBot->main_weapon == fa_weapon_m79))
+					if (UTIL_IsSniperRifle(pBot->main_weapon) || (pBot->main_weapon == fa_weapon_m79))
 					{
-						if (foe_distance > 500)
+						if (foe_distance > 450)
 						{
-							pBot->forced_usage = USE_MAIN;
+							pBot->UseWeapon(USE_MAIN);
 						}
 					}
 					// otherwise take back main weapon
 					else
 					{
-						pBot->forced_usage = USE_MAIN;
+						pBot->UseWeapon(USE_MAIN);
 					}
 				}
 				// or try take back backup weapon if enough ammo
@@ -5237,19 +4829,18 @@ void BotShootAtEnemy( bot_t *pBot )
 					{
 						if (foe_distance > 350)
 						{
-							pBot->forced_usage = USE_BACKUP;
+							pBot->UseWeapon(USE_BACKUP);
 						}
 					}
 					// otherwise take back backup weapon
 					else
 					{
-						pBot->forced_usage = USE_BACKUP;
+						pBot->UseWeapon(USE_BACKUP);
 					}
 				}
 				else
 				{
-					if ((pBot->f_combat_advance_time < gpGlobals->time) &&
-						(RANDOM_LONG(1, 100) > 35))
+					if ((pBot->f_combat_advance_time < gpGlobals->time) && (RANDOM_LONG(1, 100) > 35))
 					{
 						if (pBot->f_overide_advance_time <= gpGlobals->time)
 						{
@@ -5257,9 +4848,8 @@ void BotShootAtEnemy( bot_t *pBot )
 							
 							// if the bot is on "limited movement" path then
 							// we have to scan the forward direction for danger
-							if ((pBot->IsTask(TASK_AVOID_ENEMY) ||
-								pBot->IsTask(TASK_IGNORE_ENEMY)) &&
-								foe_distance < RANGE_MELEE)
+							if ((pBot->IsTask(TASK_AVOID_ENEMY) || pBot->IsTask(TASK_IGNORE_ENEMY)) &&
+								(foe_distance < RANGE_MELEE))
 								pBot->SetTask(TASK_DEATHFALL);
 
 							pBot->f_overide_advance_time = gpGlobals->time + RANDOM_FLOAT(1.0, 3.0);
@@ -5267,7 +4857,9 @@ void BotShootAtEnemy( bot_t *pBot )
 
 							//@@@@@@@@@@@@@@@@
 							#ifdef _DEBUG
-							ALERT(at_console, "***HEY Advance overriden (KNIFE)\n");
+							char msg[256];
+							sprintf(msg, "*** %s Advance overriden using KNIFE! ***\n", pBot->name);
+							HudNotify(msg);
 							#endif
 
 
@@ -5278,64 +4870,49 @@ void BotShootAtEnemy( bot_t *pBot )
 			}
 			// selecting it
 			else if (result == RETURN_TAKING)
-				pBot->forced_usage = USE_KNIFE;
+				pBot->UseWeapon(USE_KNIFE);
 		}
 
 #ifdef _DEBUG
 		if (in_bot_dev_level2)
 		{
-			char msg[80];
-			sprintf(msg, "bot skill level=%d (1 best)\n", pBot->bot_skill + 1);
-			//ALERT(at_console, msg);
+			//char msg[80];
+			//sprintf(msg, "bot skill level=%d (1 best)\n", pBot->bot_skill + 1);
+			//HudNotify(msg);
 		}
 #endif
 	}
 
+	//																									NEW CODE 094 (prev code)
+	/*/
+																these changes should be done only in botthink()
 	// is it time to change Stance yet
-	if ((pBot->f_stance_changed_time < gpGlobals->time) &&
-		(pBot->f_go_prone_time < gpGlobals->time))
+	if ((pBot->f_stance_changed_time < gpGlobals->time))// && (pBot->f_go_prone_time < gpGlobals->time))<< This is a BUG due to crouching statement below
 	{
 		bool is_proned = FALSE;
 
 		// should the bot go prone
-		if (!(pEdict->v.flags & FL_PRONED) && (pBot->bot_behaviour & BOT_PRONED))
+		if (!(pEdict->v.flags & FL_PRONED) && pBot->IsBehaviour(BOT_PRONED))
 		{
 			is_proned = TRUE;
 
-			if (UTIL_GoProne(pBot))
-			{		
-#ifdef _DEBUG
-				//@@@@@
-				//ALERT(at_console, "GO Prone\n");
-#endif
-
-			}
+			UTIL_GoProne(pBot, "ShootAtEnemy()|Time to change stance -> Bot should go prone");
 		}
-		// should bot be in crouched position
-		else if (pBot->bot_behaviour & BOT_CROUCHED)
-		{
-			pEdict->v.button |= IN_DUCK;
-		}
+		
 		// get bot to standing position from previous proned position
-		else if ((pEdict->v.flags & FL_PRONED) && (pBot->bot_behaviour & BOT_STANDING))
+		else if ((pEdict->v.flags & FL_PRONED) && pBot->IsBehaviour(BOT_STANDING))
 		{
 			is_proned = TRUE;
 
-			if (UTIL_GoProne(pBot))
-			{		
-#ifdef _DEBUG
-				//@@@@@
-				//ALERT(at_console, "Stand UP from Prone\n");
-#endif
-
-			}
-
+			UTIL_GoProne(pBot,"ShootAtEnemy()|Time to change stance -> Bot should stand up");
 		}
 
 		// if bot was proned or going prone set some time for next change
 		if (is_proned)
-			pBot->f_stance_changed_time = gpGlobals->time + RANDOM_FLOAT(4.0, 7.0);
-	}
+			pBot->f_stance_changed_time = gpGlobals->time + RANDOM_FLOAT(4.0, 7.0);		@@@@@@@<<<<<  NEEDS TESTS if going
+	}																							to implement it in new
+																								stance management or not
+	/**/
 
 	// backup the enemy distance value
 	pBot->f_prev_enemy_dist = (pBot->pBotEnemy->v.origin - pEdict->v.origin).Length();
@@ -5346,17 +4923,17 @@ void BotShootAtEnemy( bot_t *pBot )
 */
 void BotPlantClaymore(bot_t *pBot)
 {
-	// has the bot a claymore
-	if ((pBot->claymore_slot == -1) || ((pBot->bot_weapons & (1<<fa_weapon_claymore)) == FALSE))
+	// if the bot doesn't have claymore mine then reset the whole action
+	if ((pBot->claymore_slot == NO_VAL) || ((pBot->bot_weapons & (1 << fa_weapon_claymore)) == FALSE))
+	{
+		pBot->SetSubTask(ST_RESETCLAYMORE);
 		return;
+	}
 
 	// take claymore if NOT currently in hands
 	if ((pBot->f_use_clay_time < gpGlobals->time) && (pBot->clay_action == ALTW_NOTUSED) &&
 		(pBot->current_weapon.iId != fa_weapon_claymore))
 	{
-		// get info about current weapon "handling" time
-		float prev_weapon_delay = 1.0;
-
 		// change weapon to claymore mine
 		FakeClientCommand(pBot->pEdict, "weapon_claymore", NULL, NULL);
 
@@ -5364,10 +4941,13 @@ void BotPlantClaymore(bot_t *pBot)
 		pBot->clay_action = ALTW_TAKING;
 
 		// set time to finish this process
-		pBot->f_use_clay_time = gpGlobals->time + 1.0 + prev_weapon_delay;
+		pBot->f_use_clay_time = gpGlobals->time + 2.0;
 
-		// update wait time with prev weapon handling delay
+		// update wait time
 		pBot->wpt_wait_time = pBot->f_use_clay_time + 1.0;
+
+		if (botdebugger.IsDebugActions())
+			HudNotify("Switching weapons to the claymore mine\n", pBot);
 	}
 
 	// has the bot already the mine in hands
@@ -5379,7 +4959,200 @@ void BotPlantClaymore(bot_t *pBot)
 
 		// update the action flag
 		pBot->clay_action = ALTW_PREPARED;
+
+		if (botdebugger.IsDebugActions())
+			HudNotify("Claymore mine is ready to be placed\n", pBot);
 	}
 
 	return;
+}
+
+/*
+* handles merging magazines
+*/
+void BotMergeClips(bot_t *pBot, const char* loc)
+{
+	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
+
+	// check for available magazines first, because if the bot didn't have time to merge magazines and
+	// got into some firefights where he has done standard empty magazine reloading
+	// then he may not have any partly used magazines anymore
+	// so if there's less than 2 magazines left then there's no merging possible
+	if (pBot->curr_rgAmmo[weapon_defs[pBot->current_weapon.iId].iAmmo1] < 2)
+	{
+		// and we have to reset the "counters" to prevent getting the bot
+		// be stuck in endless try for merging
+		pBot->RemoveWeaponStatus(WS_MERGEMAGS1);
+		pBot->RemoveWeaponStatus(WS_MERGEMAGS2);
+
+
+#ifdef DEBUG
+
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+		if (loc != NULL)
+		{
+			char dm[256];
+			sprintf(dm, " resetting MERGECLIPS @ %s (MAGS < 2)\n", loc);
+			HudNotify(dm, true, pBot);
+		}
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+		return;
+	}
+
+
+
+#ifdef DEBUG
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+	if (loc != NULL)
+	{
+		char dm[256];
+		sprintf(dm, " called MERGECLIPS command @ %s (iclip=%d | availableMags=%d | botclass=%d)\n",
+			loc, pBot->current_weapon.iClip, pBot->curr_rgAmmo[weapon_defs[pBot->current_weapon.iId].iAmmo1],
+			pBot->bot_class);
+		HudNotify(dm, true, pBot);
+	}
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+
+
+
+
+	
+	pBot->f_dont_look_for_waypoint_time = gpGlobals->time;
+	//pBot->f_cant_prone = gpGlobals->time;
+	pBot->SetBehaviour(BOT_DONTGOPRONE);
+
+
+
+
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@			NEW CODE 094 (remove it)
+#ifdef DEBUG
+	char dp[256];
+	sprintf(dp, "%s SET DONTGOPRONE behaviour @ BotMergeClips()\n", pBot->name);
+	UTIL_DebugInFile(dp);
+#endif // DEBUG
+
+
+
+
+	// stop the bot for a while
+	pBot->SetPauseTime(1.5);
+	// to see the result of merge clips command
+	FakeClientCommand(pBot->pEdict, "mergeclips", NULL, NULL);
+
+	return;
+}
+
+
+/*
+* handles using weapon bipod, forced_call == false means the bot will call bipod command at random chance
+*/
+void BotUseBipod(bot_t *pBot, bool forced_call, const char* loc)
+{
+	// first check if the bot can start the action ...
+	if ((pBot->weapon_action == W_READY) && !pBot->IsGoingProne() &&
+		(pBot->f_reload_time < gpGlobals->time) && (pBot->bandage_time < gpGlobals->time))
+	{
+		// see if NOT already handling the bipod AND is either forced to use it or is chance to use it
+		if ((pBot->f_bipod_time < gpGlobals->time) && (forced_call || (RANDOM_LONG(1, 100) < 33)))
+		{
+			// now the bot is free to use the bipod so call the command ...
+			FakeClientCommand(pBot->pEdict, "bipod", NULL, NULL);
+
+			// and set correct time to finish this action
+			pBot->f_bipod_time = gpGlobals->time + SetBipodHandlingTime(pBot->current_weapon.iId, pBot->IsTask(TASK_BIPOD));
+
+			// we must also clear this bit to allow the test for failure
+			pBot->RemoveWeaponStatus(WS_CANTBIPOD);
+
+
+
+
+#ifdef DEBUG
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+			if (loc != NULL)
+			{
+				char dm[256];
+				sprintf(dm, "%s called BIPOD command @ %s\n", pBot->name, loc);
+				HudNotify(dm, true, pBot);
+			}
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+
+
+
+			return;
+		}
+
+		// this is point where we handle bipod command call failure
+		// seeing we didn't pass through previous if statement we know that the bot:
+		// 1) decided not to deploy or fold bipod
+		//    (deploying - bot decided not to use bipod on current enemy so we must lock it)
+		//	  (folding - this next statement won't pass either and bot will try again in next game frame)
+		// 2) that the engine didn't allow deploying bipod there and
+		//    the method is now being called again in next game frame so...
+		if (!pBot->IsTask(TASK_BIPOD))
+		{
+			// set this bit to prevent trying to deploy bipod over and over again
+			pBot->SetWeaponStatus(WS_CANTBIPOD);
+
+			// and reset bipod time that is preventing the bot to open fire at his enemy
+			pBot->f_bipod_time = gpGlobals->time;
+
+
+
+#ifdef DEBUG
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+			if (loc != NULL)
+			{
+				char dm[256];
+				sprintf(dm, "%s tried BIPOD command @ %s, but FAILED !!!\n", pBot->name, loc);
+				HudNotify(dm, true, pBot);
+			}
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+		}
+
+	}
+
+	return;
+}
+
+
+/*
+* returns correct time value based on given weapon to either deploying its bipod or folding it
+*/
+float SetBipodHandlingTime(int weapon, bool folding)
+{
+	// for most of the weapons there is no difference between deploying or folding the bipod
+	// so we can return just one value per weapon type...
+	if (weapon == fa_weapon_m249)
+		return (float) 2.7;
+
+	else if (weapon == fa_weapon_m60)
+		return (float) 2.2;
+
+	else if (weapon == fa_weapon_m82)
+	{
+		// only m82 has folding time a little faster
+		if (folding)
+			return (float) 2.2;
+		else
+			return (float) 2.8;
+	}
+
+	else if (weapon == fa_weapon_pkm)
+		return (float) 3.3;
+
+	else
+	{
+		char dm[256];
+		sprintf(dm, "BUG - SetBipodHandlingTime() was called for weaponID=%d (FAver=%d)\n", weapon, g_mod_version);
+		UTIL_DebugInFile(dm);
+	}
+
+	return (float) 0.0;
 }

@@ -51,16 +51,16 @@ typedef int BOOL;
 #include <stdarg.h>
 //Fix for GCC 6 - [APG]RoboCop[CL]
 #include <algorithm>
-#ifndef min
+/*#ifndef min
 #define min(a,b)  (((a) < (b)) ? (a) : (b))
 #endif
 #ifndef max
-#define max(a,b)  (((a) > (b)) ? (a) : (b))
+#define max(a,b)  (((a) > (b)) ? (a) : (b))*/
 #define _vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
-#endif
+/*#endif
 #undef max
 #undef min
-using namespace std;
+using namespace std;*/
 #define itoa(a, b, c) sprintf(b, "%d", a)
 #endif //_WIN32
 

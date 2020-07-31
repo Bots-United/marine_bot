@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // linkfunc.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
 
 #include "defines.h"
 
@@ -321,8 +325,8 @@ LINK_ENTITY_TO_FUNC(xen_spore_small);
 LINK_ENTITY_TO_FUNC(xen_tree);
 LINK_ENTITY_TO_FUNC(xen_ttrigger);
 
-// entities for Team Fortress 1.5 // Not required for FA [APG]RoboCop[CL]
-/*LINK_ENTITY_TO_FUNC(building_dispenser);
+// entities for Team Fortress 1.5
+LINK_ENTITY_TO_FUNC(building_dispenser);
 LINK_ENTITY_TO_FUNC(building_sentrygun);
 LINK_ENTITY_TO_FUNC(building_sentrygun_base);
 LINK_ENTITY_TO_FUNC(detpack);
@@ -390,10 +394,10 @@ LINK_ENTITY_TO_FUNC(tf_weapon_spanner);
 LINK_ENTITY_TO_FUNC(tf_weapon_superng);
 LINK_ENTITY_TO_FUNC(tf_weapon_supershotgun);
 LINK_ENTITY_TO_FUNC(tf_weapon_tranq);
-LINK_ENTITY_TO_FUNC(timer);*/
+LINK_ENTITY_TO_FUNC(timer);
 
-// entities for Opposing Force					NOT SURE IF THESE ARE NEEDED! // Not required for FA [APG]RoboCop[CL]
-/*LINK_ENTITY_TO_FUNC(ammo_556);
+// entities for Opposing Force					NOT SURE IF THESE ARE NEEDED!
+LINK_ENTITY_TO_FUNC(ammo_556);
 LINK_ENTITY_TO_FUNC(ammo_762);
 LINK_ENTITY_TO_FUNC(ammo_eagleclip);
 LINK_ENTITY_TO_FUNC(ammo_spore);
@@ -498,7 +502,7 @@ LINK_ENTITY_TO_FUNC(weapon_pipewrench);
 LINK_ENTITY_TO_FUNC(weapon_shockrifle);
 LINK_ENTITY_TO_FUNC(weapon_shockroach);
 LINK_ENTITY_TO_FUNC(weapon_sniperrifle);
-LINK_ENTITY_TO_FUNC(weapon_sporelauncher);*/
+LINK_ENTITY_TO_FUNC(weapon_sporelauncher);
 
 // entities for FireArms 2.6
 

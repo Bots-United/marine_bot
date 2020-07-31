@@ -11,12 +11,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // waypoint.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
 
 #ifndef __linux__
 #include <io.h>
@@ -38,6 +42,7 @@
 
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "waypoint.h"
 
 #define RANGE_20_WPT (W_FL_AMMOBOX | W_FL_DOOR | W_FL_DOORUSE | W_FL_JUMP | W_FL_DUCKJUMP | \
@@ -48,10 +53,6 @@ extern int m_spriteTexturePath1;
 extern int m_spriteTexturePath2;
 extern int m_spriteTexturePath3;
 
-extern bool debug_waypoints;
-extern bool check_aims;
-extern bool check_cross;
-extern bool check_ranges;
 
 // waypoints with information bits (flags)
 WAYPOINT waypoints[MAX_WAYPOINTS];
@@ -69,65 +70,89 @@ int num_w_paths;
 TRIGGER_EVENT trigger_events[MAX_TRIGGERS];
 trigger_event_gamestate_t trigger_gamestate[MAX_TRIGGERS];
 
+waypointsbrowser_t wptser;
 
-bool g_waypoint_on = FALSE;		// to show wpts
-float g_draw_distance = 800;	// default draw distance (i.e. wpt that is this far from the player will show on screen)
-float wp_display_time[MAX_WAYPOINTS];	// time that this waypoint was displayed (while editing)
-float f_ranges_display_time[MAX_WAYPOINTS];	// time that this range was displayed (while editing)
-float f_conn_time[MAX_WAYPOINTS][MAX_WAYPOINTS];	// time the connection (cross&aim) was displayed while editing
+// set all waypoints browser variables to defaults
+waypointsbrowser_t::waypointsbrowser_t()
+{
+	ResetShowWaypoints();
+	ResetShowPaths();
+	ResetCheckAims();
+	ResetCheckCross();
+	ResetCheckRanges();
+	ResetAutoWaypointing();
+	ResetAutoAddToPath();
+	ResetWaypointsDrawDistance();
+	ResetAutoWaypointingDistance();
+	ResetCompassIndex();
+	ResetPathToHighlight();
+};
 
-bool g_auto_waypoint = FALSE;
-float g_auto_wpt_distance = 200;	// default distance between wpts when autowpting
+// reset all waypoints browser variables to default values on map change
+// to prevent overloading game engine
+void waypointsbrowser_t::ResetOnMapChange(void)
+{
+	ResetShowWaypoints();
+	ResetShowPaths();
+	ResetCheckAims();
+	ResetCheckCross();
+	ResetCheckRanges();
+	ResetAutoWaypointing();
+	ResetAutoAddToPath();
+	ResetWaypointsDrawDistance();
+	ResetAutoWaypointingDistance();
+	ResetCompassIndex();
+	ResetPathToHighlight();
+};
 
-bool g_path_waypoint_on = FALSE;	// to show paths
-bool g_waypoint_paths = FALSE;		// have any paths been allocated?
-bool g_auto_path = FALSE;			// auto add "touched" waypoint in actual path
-int g_path_to_continue = -1;		// index of path that is currently in edit
-int g_path_last_wpt = -1;			// index of last wpt added to current path (for g_auto_path) NOTE: might be useful for tests if the path do not lead through obstacle
-float f_path_time[MAX_W_PATHS];		// time this path was diplayed (while editing)
 
-Vector last_waypoint;				// for autowaypointing
-
-bool b_custom_wpts = FALSE;			// allow custom waypoints (read from different folder)
 char wpt_author[32];
 char wpt_modified[32];
 
-bool debug_cross = FALSE;		// for cross behaviour
-bool debug_paths = FALSE;		// for path debug
-extern int highlight_this_path;	// to show only chosen paths
-
+// variables used only in this file
 static FILE *fp;
+Vector last_waypoint;								// for autowaypointing
+bool g_waypoint_paths = FALSE;						// have any paths been allocated?
+float wp_display_time[MAX_WAYPOINTS];				// time that this waypoint was displayed (while editing)
+float f_path_time[MAX_W_PATHS];						// time that this path was diplayed (while editing)
+float f_conn_time[MAX_WAYPOINTS][MAX_WAYPOINTS];	// time that the connections (cross&aim) were displayed while editing
+float f_ranges_display_time[MAX_WAYPOINTS];			// time that this waypoint range was displayed (while editing)
+float f_compass_time;								// time that the compass was displayed
 
-
-// few functions prototypes used in this file
+// functions prototypes used in this file
 void WaypointDebug(void);
 void FreeAllPaths(void);
 void FreeAllTriggers(void);
 void WaypointInit(int wpt_index);
+float GetWaypointDistance(int wpt1_index = -1, int wpt2_index = -1);
 bool IsMessageValid(char *msg);
 int WaypointReturnTriggerWaypointPriority(int wpt_index, int team);
 int TriggerNameToIndex(const char *trigger_name);
-TRIGGER_NAME TriggerNameToId(const char *trigger_name);
-TRIGGER_NAME TriggerIndexToId(int i);
+TriggerId TriggerNameToId(const char *trigger_name);
+TriggerId TriggerIndexToId(int i);
 void TriggerIntToName(int id, char *trigger_name);
-int WaypointIsPathOkay(int path_index);
+TriggerId IntToTriggerId(int i);
+int TriggerIdToInt(TriggerId triggerId);
+int IsPathOkay(int path_index);
+int MergePaths(int path1_index = -1, int path2_index = -1, bool reverse_order = false);
+int MergePathsInverted(int path1_index = -1, int path2_index = -1, bool reverse_order = false);
 int WaypointFixInvalidFlags(int wpt_index);
 void UpdatePathStatus(int path_index);
 void UpdateGoalPathStatus(int wpt_index, int path_index);
-int FindPath(int current_wpt_index);
 int GetPathStart(int path_index);
 int GetPathEnd(int path_index);
 int GetPathPreviousWaypoint(int wpt_index, int path_index);
-bool IsPath(int path_index, PATH_TYPES path_type);
-bool PathMatchingFlag(int path_index1, int path_index2, PATH_TYPES path_type);
+bool IsPath(int path_index, PathT path_type);
+bool PathMatchingFlag(int path_index1, int path_index2, PathT path_type);
 bool PathCompareTeamDownwards(int checked_path, int standard_path);
 bool PathCompareClassDownwards(int checked_path, int standard_path);
-int ContinueCurrPath(int current_wpt_index);
+int ContinueCurrPath(int current_wpt_index, bool check_presence = true);
 int ExcludeFromPath(int current_wpt_index, int path_index);
+int ExcludeFromPath(W_PATH *p = NULL, int path_index = -1);
 bool DeleteWholePath(int path_index);
 W_PATH *GetWaypointPointer(int wpt_index, int path_index);
-W_PATH *GetWaypointTypePointer(WPT_TYPES flag_type, int path_index);
-bool WaypointTypeIsInPath(WPT_TYPES flag_type, int path_index);
+W_PATH *GetWaypointTypePointer(WptT flag_type, int path_index);
+bool WaypointTypeIsInPath(WptT flag_type, int path_index);
 void WaypointSetValue(bot_t *pBot, int wpt_index, WAYPOINT_VALUE *wpt_value);
 bool IsWaypointPossible(bot_t *pBot, int wpt_index);
 int WaypointFindNearestType(edict_t *pEntity, float range, int type);
@@ -136,15 +161,15 @@ int WaypointFindNearestCross(const Vector &source_origin, bool see_through_doors
 int WaypointFindNearestStandard(int end_waypoint, int path_index);
 int WaypointFindAimingAround(int source_waypoint);
 int Wpt_CountFlags(int wpt_index);
-WPT_TYPES WaypointAdd(const Vector position, WPT_TYPES wpt_type);
+WptT WaypointAdd(const Vector position, WptT wpt_type);
 int PathClassFlagCount(int path_index);
 void GetPathClass(int path_index, char *the_class);
 bool WaypointReachable(Vector v_srv, Vector v_dest, edict_t *pEntity);
 void WptGetType(int wpt_index, char *the_type);
-void Wpt_SetSize(int wpt_index, Vector &start, Vector &end);
-Vector Wpt_SetColor(int wpt_index);
-int Wpt_SetPathTexture(int path_index);
-Vector Wpt_SetPathColor(int path_index);
+void SetWaypointSize(int wpt_index, Vector &start, Vector &end);
+Vector SetWaypointColor(int wpt_index);
+int SetPathTexture(int path_index);
+Vector SetPathColor(int path_index);
 
 
 /*
@@ -157,10 +182,10 @@ bool bot_t::IsIgnorePath(int path_index)
 
 	// this will handle passing through a cross waypoint the bot won't remove the ignore enemy flag in this case,
 	// but will wait for next path to decide if the flag should or should not be removed
-	if (IsWaypoint(curr_wpt_index, wpt_cross) || IsWaypoint(prev_wpt_index.get(0), wpt_cross))
+	if (IsWaypoint(curr_wpt_index, WptT::wpt_cross) || IsWaypoint(prev_wpt_index.get(0), WptT::wpt_cross))
 		return TRUE;
 
-	if (IsPath(path_index, path_ignore))
+	if (IsPath(path_index, PathT::path_ignore))
 		return TRUE;
 
 	return FALSE;
@@ -199,7 +224,7 @@ int bot_t::GetNextWaypoint(void)
 
 void trigger_event_gamestate_t::Init(void)
 {
-	SetName(trigger_none);
+	SetName(TriggerId::trigger_none);
 	SetUsed(false);
 	SetTriggered(false);
 	SetTime(0.0);
@@ -209,7 +234,7 @@ void trigger_event_gamestate_t::Init(void)
 void trigger_event_gamestate_t::Reset(int i)
 {
 	if (i == -1)
-		SetName(trigger_none);
+		SetName(TriggerId::trigger_none);
 	else
 		SetName(TriggerIndexToId(i));
 	SetTriggered(false);
@@ -284,7 +309,7 @@ void FreeAllTriggers(void)
 * add wpts author signature or sig of guy who modify them into file depending on bool author
 * authors sig can't be changed
 */
-bool WaypointSubscribe(char *signature, bool author)
+bool WaypointSubscribe(char *signature, bool author, bool enforced)
 {
 	char mapname[64];
 	char filename[256];
@@ -293,7 +318,7 @@ bool WaypointSubscribe(char *signature, bool author)
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -307,8 +332,8 @@ bool WaypointSubscribe(char *signature, bool author)
 		// is it authors sig
 		if (author)
 		{
-			// is wpt file NOT subcribed so access granted to change wpt_author (no file writing)
-			if ((strcmp(header.author, "") == 0) || (strcmp(header.author, "unknown") == 0))
+			// is wpt file NOT subcribed OR do we force it so access granted to change wpt_author (no file writing)
+			if ((strcmp(header.author, "") == 0) || (strcmp(header.author, "unknown") == 0) || enforced)
 			{
 				strcpy(wpt_author, signature);
 				wpt_author[31] = 0;		// must be ended properly
@@ -348,10 +373,9 @@ bool WaypointSubscribe(char *signature, bool author)
 
 
 /*
-* if "author" is TRUE return waypoints author
-* if "author" is FALSE return signature of the one who modified them
+* read waypoints author signature as well as waypoint modifier signature from waypoint file header
 */
-char *WaypointAuthors(bool author)
+void WaypointAuthors(char *author, char *modified_by)
 {
 	char mapname[64];
 	char filename[256];
@@ -360,55 +384,35 @@ char *WaypointAuthors(bool author)
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
 
-	FILE *bfp = fopen(filename, "rb");
+	FILE* bfp = fopen(filename, "rb");
 
 	if (bfp != NULL)
 	{
 		fread(&header, sizeof(header), 1, bfp);
 
-		// return authors signature if exists
-		if (author)
-		{
-			// is wpt file NOT subscribed
-			if ((strcmp(header.author, "") == 0) ||
-				(strcmp(header.author, "unknown") == 0))
-			{
-				fclose(bfp);
-				return "noauthor";
-			}
-			// otherwise return the signature
-			else
-			{
-				fclose(bfp);
-				return header.author;
-			}
-		}
-		// return signature of guy who modified them if exists
+		// get the author signature if there's any written in the file header
+		if ((strcmp(header.author, "") == 0) || (strcmp(header.author, "unknown") == 0))
+			strcpy(author, "noauthor");		// there's NO author tag in this waypoint file
 		else
-		{
-			// is wpt file NOT subscribed
-			if ((strcmp(header.modified_by, "") == 0) ||
-				(strcmp(header.modified_by, "unknown") == 0))
-			{
-				fclose(bfp);
-				return "nosig";
-			}
-			// otherwise return the signature
-			else
-			{
-				fclose(bfp);
-				return header.modified_by;
-			}
-		}
+			strcpy(author, header.author);
+		// get the signature of guy who modified them if exists
+		if ((strcmp(header.modified_by, "") == 0) || (strcmp(header.modified_by, "unknown") == 0))
+			strcpy(modified_by, "nosig");	// waypoint file is NOT subscribed
+		else
+			strcpy(modified_by, header.modified_by);
+
+		fclose(bfp);
 	}
+	// waypoint file doesn't exist
 	else
 	{
-		return "nofile";
+		strcpy(author, "nofile");
+		strcpy(modified_by, "nofile");
 	}
 }
 
@@ -419,16 +423,16 @@ char *WaypointAuthors(bool author)
 void WaypointInit(int wpt_index)
 {
 	waypoints[wpt_index].flags = W_FL_DELETED;
-	waypoints[wpt_index].red_priority = MAX_WPT_PRIOR;		// lowest priority
-	waypoints[wpt_index].red_time = 0.0;					// no "stay here" time
+	waypoints[wpt_index].red_priority = MAX_WPT_PRIOR;									// lowest priority
+	waypoints[wpt_index].red_time = 0.0;												// no "stay here" time
 	waypoints[wpt_index].blue_priority = MAX_WPT_PRIOR;
 	waypoints[wpt_index].blue_time = 0.0;
 	waypoints[wpt_index].trigger_red_priority = MAX_WPT_PRIOR;
 	waypoints[wpt_index].trigger_blue_priority = MAX_WPT_PRIOR;
-	waypoints[wpt_index].trigger_event_on = trigger_none;	// no trigger event
-	waypoints[wpt_index].trigger_event_off = trigger_none;
-	waypoints[wpt_index].range = WPT_RANGE;					// default range
-	waypoints[wpt_index].origin = Vector(0,0,0);			// located at map origin
+	waypoints[wpt_index].trigger_event_on = TriggerIdToInt(TriggerId::trigger_none);	// no trigger event
+	waypoints[wpt_index].trigger_event_off = TriggerIdToInt(TriggerId::trigger_none);
+	waypoints[wpt_index].range = WPT_RANGE;												// default range
+	waypoints[wpt_index].origin = g_vecZero;//Vector(0, 0, 0);										// located at map origin
 }
 
 
@@ -470,7 +474,20 @@ void WaypointInit(void)
 	num_waypoints = 0;
 	num_w_paths = 0;
 
-	last_waypoint = Vector(0,0,0);
+	last_waypoint = g_vecZero;//Vector(0,0,0);
+}
+
+
+/*
+* returns distance between two waypoints passed by their indexes
+* if either of the indexes isn't valid it will return 9999.0
+*/
+float GetWaypointDistance(int wpt1_index, int wpt2_index)
+{
+	if ((wpt1_index == -1) || (wpt2_index == -1))
+		return 9999.0;
+
+	return (waypoints[wpt1_index].origin - waypoints[wpt2_index].origin).Length();
 }
 
 
@@ -497,7 +514,7 @@ void WaypointDestroy(void)
 	strcat(mapname, ".wpt");
 
 	// build the filename/filepath for this file
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -508,7 +525,7 @@ void WaypointDestroy(void)
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".pth");
 	
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -547,8 +564,8 @@ bool IsMessageValid(char *msg)
 */
 void WaypointResetTriggers(void)
 {
-	if (debug_waypoints)
-		ALERT(at_console, "All triggers have been set back to \"not triggered\"\n");
+	if (botdebugger.IsDebugWaypoints())
+		HudNotify("All triggers have been set back to \"not triggered\"\n");
 
 	for (int i = 0; i < MAX_TRIGGERS; i++)
 	{
@@ -570,7 +587,7 @@ bool WaypointMatchingTriggerMessage(char *the_text)
 	//@@@@@@@@@@@@@@@
 	/*
 	#ifdef _DEBUG
-	//if (debug_waypoints)
+	//if (botdebugger.IsDebugWaypoints())
 	//	ALERT(at_console, "WptMatchingTriggerMSG() -> the msg before while statement is: (%s)\n", the_text);
 	//UTIL_DebugDev(the_text, -100, -100);
 	#endif
@@ -600,7 +617,7 @@ bool WaypointMatchingTriggerMessage(char *the_text)
 	//@@@@@@@@@@@@@@@
 	/*
 	#ifdef _DEBUG
-	//if (debug_waypoints)
+	//if (botdebugger.IsDebugWaypoints())
 	//	ALERT(at_console, "WptMatchingTriggerMSG() -> the final msg is: (%s)\n", the_text);
 	//UTIL_DebugDev(the_text, -100, -100);
 	#endif
@@ -614,7 +631,7 @@ bool WaypointMatchingTriggerMessage(char *the_text)
 			trigger_gamestate[i].GetUsed() &&
 			(strstr(the_text, trigger_events[i].message) != NULL))
 		{
-			if (debug_waypoints)
+			if (botdebugger.IsDebugWaypoints())
 				ALERT(at_console, "Trigger%d has been triggered\n", i+1);
 
 			// then mark it as event happened
@@ -640,21 +657,24 @@ int WaypointReturnTriggerWaypointPriority(int wpt_index, int team)
 	if (wpt_index == -1)
 		return return_no_priority;				// like no priority
 
-	if (IsWaypoint(wpt_index, wpt_trigger))
+	if (IsWaypoint(wpt_index, WptT::wpt_trigger))
 	{
 		// this is ugly conversion
-		char name[32];
+		//char name[32];
 
-		TriggerIntToName(waypoints[wpt_index].trigger_event_on, name);
-		TRIGGER_NAME trigger_on = TriggerNameToId(name);
+		//TriggerIntToName(waypoints[wpt_index].trigger_event_on, name);						NEW CODE 094 (prev code)
+		//TriggerN trigger_on = TriggerNameToId(name);
 
-		TriggerIntToName(waypoints[wpt_index].trigger_event_off, name);
-		TRIGGER_NAME trigger_off = TriggerNameToId(name);
+		//TriggerIntToName(waypoints[wpt_index].trigger_event_off, name);
+		//TriggerN trigger_off = TriggerNameToId(name);
+
+		TriggerId trigger_on = IntToTriggerId(waypoints[wpt_index].trigger_event_on);//						NEW CODE 094
+		TriggerId trigger_off = IntToTriggerId(waypoints[wpt_index].trigger_event_off);
 
 		float trigger_on_time, trigger_off_time;
 		trigger_on_time = trigger_off_time = 0.0;
 
-		if (trigger_on != trigger_none)
+		if (trigger_on != TriggerId::trigger_none)
 		{
 			for (int i = 0; i < MAX_TRIGGERS; i++)
 			{
@@ -668,7 +688,7 @@ int WaypointReturnTriggerWaypointPriority(int wpt_index, int team)
 						trigger_on_time = trigger_gamestate[i].GetTime();
 					
 					// get the time of the trigger_off event (if it is used on the waypoint)
-					if (trigger_off != trigger_none &&		// is there any trigger_off event set for this waypoint
+					if (trigger_off != TriggerId::trigger_none &&		// is there any trigger_off event set for this waypoint
 						(trigger_off == trigger_gamestate[i].GetName()))
 						trigger_off_time = trigger_gamestate[i].GetTime();
 				}
@@ -732,52 +752,52 @@ int TriggerNameToIndex(const char *trigger_name)
 /*
 * convert trigger name (string) to trigger ID
 */
-TRIGGER_NAME TriggerNameToId(const char *trigger_name)
+TriggerId TriggerNameToId(const char *trigger_name)
 {
 	if (FStrEq(trigger_name, "trigger1"))
-		return trigger1;
+		return TriggerId::trigger1;
 	else if (FStrEq(trigger_name, "trigger2"))
-		return trigger2;
+		return TriggerId::trigger2;
 	else if (FStrEq(trigger_name, "trigger3"))
-		return trigger3;
+		return TriggerId::trigger3;
 	else if (FStrEq(trigger_name, "trigger4"))
-		return trigger4;
+		return TriggerId::trigger4;
 	else if (FStrEq(trigger_name, "trigger5"))
-		return trigger5;
+		return TriggerId::trigger5;
 	else if (FStrEq(trigger_name, "trigger6"))
-		return trigger6;
+		return TriggerId::trigger6;
 	else if (FStrEq(trigger_name, "trigger7"))
-		return trigger7;
+		return TriggerId::trigger7;
 	else if (FStrEq(trigger_name, "trigger8"))
-		return trigger8;
+		return TriggerId::trigger8;
 
-	return trigger_none;
+	return TriggerId::trigger_none;
 }
 
 
 /*
 * convert trigger array index to trigger ID
 */
-TRIGGER_NAME TriggerIndexToId(int i)
+TriggerId TriggerIndexToId(int i)
 {
 	if (i == 0)
-		return trigger1;
+		return TriggerId::trigger1;
 	else if (i == 1)
-		return trigger2;
+		return TriggerId::trigger2;
 	else if (i == 2)
-		return trigger3;
+		return TriggerId::trigger3;
 	else if (i == 3)
-		return trigger4;
+		return TriggerId::trigger4;
 	else if (i == 4)
-		return trigger5;
+		return TriggerId::trigger5;
 	else if (i == 5)
-		return trigger6;
+		return TriggerId::trigger6;
 	else if (i == 6)
-		return trigger7;
+		return TriggerId::trigger7;
 	else if (i == 7)
-		return trigger8;
+		return TriggerId::trigger8;
 	
-	return trigger_none;
+	return TriggerId::trigger_none;
 }
 
 
@@ -786,40 +806,69 @@ TRIGGER_NAME TriggerIndexToId(int i)
 */
 void TriggerIntToName(int i, char *trigger_name)
 {
-	if (i == trigger_none)
+	if (i == 0)
 		strcpy(trigger_name, "no event");
-	else if ((i >= trigger1) && (i <= trigger8))
+	else if ((i >= 1) && (i <= MAX_TRIGGERS))
 	{
 		sprintf(trigger_name, "trigger%d", i);
 	}
 	else
 		strcpy(trigger_name, "UKNOWN");
 }
+
+
 /*
-void TriggerIntToName(int i, char *trigger_name)
-{
-	if (i == trigger_none)
-		strcpy(trigger_name, "no event");
-	else if (i == trigger1)
-		strcpy(trigger_name, "trigger1");
-	else if (i == trigger2)
-		strcpy(trigger_name, "trigger2");
-	else if (i == trigger3)
-		strcpy(trigger_name, "trigger3");
-	else if (i == trigger4)
-		strcpy(trigger_name, "trigger4");
-	else if (i == trigger5)
-		strcpy(trigger_name, "trigger5");
-	else if (i == trigger6)
-		strcpy(trigger_name, "trigger6");
-	else if (i == trigger7)
-		strcpy(trigger_name, "trigger7");
-	else if (i == trigger8)
-		strcpy(trigger_name, "trigger8");
-	else
-		strcpy(trigger_name, "UKNOWN");
-}
+* convert integer to trigger ID
+* this is needed because waypoint structure works with integer value at the moment
+* next update to waypoint stuct should change it so we can use trigger ID right away
 */
+TriggerId IntToTriggerId(int i)
+{
+	if (i == 1)
+		return TriggerId::trigger1;
+	else if (i == 2)
+		return TriggerId::trigger2;
+	else if (i == 3)
+		return TriggerId::trigger3;
+	else if (i == 4)
+		return TriggerId::trigger4;
+	else if (i == 5)
+		return TriggerId::trigger5;
+	else if (i == 6)
+		return TriggerId::trigger6;
+	else if (i == 7)
+		return TriggerId::trigger7;
+	else if (i == 8)
+		return TriggerId::trigger8;
+	else
+		return TriggerId::trigger_none;
+}
+
+
+/*
+* convert trigger ID to integer
+*/
+int TriggerIdToInt(TriggerId triggerId)
+{
+	if (triggerId == TriggerId::trigger1)
+		return 1;
+	else if (triggerId == TriggerId::trigger2)
+		return 2;
+	else if (triggerId == TriggerId::trigger3)
+		return 3;
+	else if (triggerId == TriggerId::trigger4)
+		return 4;
+	else if (triggerId == TriggerId::trigger5)
+		return 5;
+	else if (triggerId == TriggerId::trigger6)
+		return 6;
+	else if (triggerId == TriggerId::trigger7)
+		return 7;
+	else if (triggerId == TriggerId::trigger8)
+		return 8;
+	else
+		return 0;
+}
 
 
 /*
@@ -921,9 +970,9 @@ int WaypointConnectTriggerEvent(edict_t *pEntity, const char *trigger_name, cons
 
 	// connect the trigger message to this waypoint
 	if (trigger_on)
-		waypoints[index].trigger_event_on = TriggerNameToId(trigger_name);
+		waypoints[index].trigger_event_on = TriggerIdToInt(TriggerNameToId(trigger_name));
 	else
-		waypoints[index].trigger_event_off = TriggerNameToId(trigger_name);
+		waypoints[index].trigger_event_off = TriggerIdToInt(TriggerNameToId(trigger_name));
 
 	return 1;
 }
@@ -955,9 +1004,9 @@ int WaypointRemoveTriggerEvent(edict_t *pEntity, const char *state)
 
 	// reset appropriate trigger event for this waypoint
 	if (trigger_on)
-		waypoints[index].trigger_event_on = trigger_none;
+		waypoints[index].trigger_event_on = TriggerIdToInt(TriggerId::trigger_none);
 	else
-		waypoints[index].trigger_event_off = trigger_none;
+		waypoints[index].trigger_event_off = TriggerIdToInt(TriggerId::trigger_none);
 
 	return 1;
 }
@@ -965,61 +1014,171 @@ int WaypointRemoveTriggerEvent(edict_t *pEntity, const char *state)
 
 /*
 * check path for various problems and fix them if possible
+* returns -1 if there is error that cannot be fixed
+* returns 0 if the path was okay (or doesn't even exist)
+* returns 1 if there was error that has been fixed
+* returns 2 if it needs to be called again after successful path repair
 */
-int WaypointIsPathOkay(int path_index)
+int IsPathOkay(int path_index)
 {
 	W_PATH *p;
-	int prev_path_wpt = -1;
 	int safety_stop = 0;
-	bool there_was_error = FALSE;
+	static bool there_was_error = FALSE;			// needed to remember we did some repairs in previous call
+	bool error_in_path = FALSE;						// used to track unfixable problem
+
+	// stop it if the index isn't valid
+	if (path_index == -1)
+		return 0;
 
 	p = w_paths[path_index];
 
 	while (p)
 	{
 #ifdef _DEBUG
+		char msg[128];
+		safety_stop++;
 		if (safety_stop > 1000)
 		{
-			ALERT(at_error, "WaypointIsPathOkay() | LLERROR\n***Path no. %d\n", path_index + 1);
+			sprintf(msg, "IsPathOkay() | LLERROR\n***Path no. %d\n", path_index + 1);
+
+			ALERT(at_error, msg);
+			UTIL_DebugInFile(msg);
 
 			WaypointDebug();
 		}
 #endif
 
-		// the same waypoint added twice in a row problem
-		if (p->wpt_index == prev_path_wpt)
-		{
-			// return error if we can't fix it
-			if (ExcludeFromPath(p->wpt_index, path_index) != 1)
-				return -1;
-
-			there_was_error = TRUE;
-		}
-
-		// cross or aim waypoint cannot be part of path
-		// (this shouldn't happen, because it's handled in other methods, but just in case)
+		// cross or aim waypoint cannot be part of any path
+		// (this shouldn't happen, because it's handled in other methods,
+		// but if the waypointer manually changed waypoint type to one of these then
+		// they are present in a path)
 		if (waypoints[p->wpt_index].flags & (W_FL_CROSS | W_FL_AIMING))
 		{
-			if (ExcludeFromPath(p->wpt_index, path_index) != 1)
-				return -1;
+			// we must do this first so that we know there is some error in this path
+			there_was_error = error_in_path = TRUE;
 
-			there_was_error = TRUE;
+			if (ExcludeFromPath(p, path_index) == 1)
+				return 2;
 		}
-		
-		safety_stop++;
 
-		// update prev waypoint record
-		prev_path_wpt = p->wpt_index;
+		// check if current waypoint has been added more than once to this path
+		W_PATH *rp = p->next;				// start on the next path waypoint ...
+		int stop = 0;
+
+		while (rp)
+		{
+			// and go through the rest of the path looking for a match
+			if (rp->wpt_index == p->wpt_index)
+			{
+				there_was_error = error_in_path = TRUE;
+
+				// if we found any other addition of this waypoint and successfully removed it
+				// then call this method again in order to catch all problems, because this waypoint
+				// may have been added several times to this path, not just twice				
+				if (ExcludeFromPath(rp, path_index) == 1)
+					return 2;
+			}
+
+			rp = rp->next;
+
+#ifdef _DEBUG
+			stop++;
+			if (stop > 1000)
+			{
+				char msg[128];
+
+				sprintf(msg, "IsPathOkay() | LLERROR in sub-search\n***Path no. %d\n", path_index + 1);
+
+				ALERT(at_error, msg);
+				UTIL_DebugInFile(msg);
+
+				WaypointDebug();
+			}
+#endif
+		}
 		
 		// go to/check the next node
 		p = p->next;
 	}
 
-	// there was some error that had been fixed so we have to return "warning"
+	// there is error in path that cannot be fixed so we have to return 'bug'
+	if (error_in_path)
+	{
+		// reset the static error tracker before leaving
+		there_was_error = FALSE;
+
+		return -1;
+	}
+
+	// there was some error that had been fixed so we have to return 'warning'
 	if (there_was_error)
+	{
+		there_was_error = FALSE;
+
 		return 1;
+	}
 
 	return 0;
+}
+
+
+/*
+* run path repair routine multiple times if needed to make the path valid
+* ie. there aren't any aim or cross waypoints in it and every path waypoint was added just once to the path
+* returns -1 if there is such error and it cannot be fixed
+* returns 0 if the path is okay (or doesn't exist)
+* returns 1 if there was error that has been fixed
+*/
+int WaypointValidatePath(int path_index)
+{
+	int path_validity = 2;
+	int safety_stop = 0;
+
+	// keep repairing the path until it's valid
+	while (path_validity == 2)
+	{
+		path_validity = IsPathOkay(path_index);
+
+		// if things go really wrong then break the loop
+		if (safety_stop > 1000)
+			path_validity = -1;
+
+		safety_stop++;
+	}
+
+	return path_validity;
+}
+
+
+/*
+* go through all paths and try to validate them
+*/
+void WaypointValidatePath(void)
+{
+	int result;
+	char msg[64];
+
+	for (int path_index = 0; path_index < num_w_paths; path_index++)
+	{
+		result = WaypointValidatePath(path_index);
+
+		if (result == 1)
+		{
+			sprintf(msg, "path #%d was repaired\n", path_index + 1);
+
+			ALERT(at_console, msg);
+			UTIL_DebugInFile(msg);		// send this event in error log
+		}
+		else if (result == -1)
+		{
+			sprintf(msg, "unable to repair path #%d\n", path_index + 1);
+
+			ALERT(at_console, msg);
+			UTIL_DebugInFile(msg);
+		}
+	}
+
+	return;
 }
 
 
@@ -1027,7 +1186,7 @@ int WaypointIsPathOkay(int path_index)
 * look for specific waypoint type in given path type (eg. goback waypoint in one-way path)
 * return true if such problem combination was found
 */
-bool WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES waypoint_type)
+bool WaypointScanPathForBadCombinationOfFlags(int path_index, PathT path_type, WptT waypoint_type)
 {
 	// does this path match the one we look for
 	if (IsPath(path_index, path_type))
@@ -1040,8 +1199,8 @@ bool WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES 
 		{
 			// now we just need to ignore team limited case, because the bot will also ignore such waypoint there
 			// (goback waypoint with red team priority == 0 in red team only path is valid waypoint placement)
-			if ((IsPath(path_index, path_red) && (waypoints[p->wpt_index].red_priority == 0)) ||
-				(IsPath(path_index, path_blue) && (waypoints[p->wpt_index].blue_priority == 0)))
+			if ((IsPath(path_index, PathT::path_red) && (waypoints[p->wpt_index].red_priority == 0)) ||
+				(IsPath(path_index, PathT::path_blue) && (waypoints[p->wpt_index].blue_priority == 0)))
 				return FALSE;
 			
 			return TRUE;
@@ -1061,13 +1220,13 @@ bool WaypointScanPathForProblem(int path_index, PATH_TYPES path_type, WPT_TYPES 
 int WaypointRepairInvalidPathEnd(int path_index)
 {
 	// first check the validity
-	if (path_index == -1 || w_paths[path_index] == NULL)
+	if ((path_index == -1) || (w_paths[path_index] == NULL))
 		return -1;
 
 	int end_waypoint = -1;
 
 	// if it is a one way path then we will check just the path end
-	if (IsPath(path_index, path_one))
+	if (IsPath(path_index, PathT::path_one))
 	{
 		end_waypoint = GetPathEnd(path_index);
 
@@ -1076,7 +1235,7 @@ int WaypointRepairInvalidPathEnd(int path_index)
 			return -1;
 
 		// check for cases when a one-way path ends with a goback waypoint
-		if (IsWaypoint(end_waypoint, wpt_goback))
+		if (IsWaypoint(end_waypoint, WptT::wpt_goback))
 		{
 			// remove one-way direction bit
 			w_paths[path_index]->flags &= ~P_FL_WAY_ONE;
@@ -1100,14 +1259,14 @@ int WaypointRepairInvalidPathEnd(int path_index)
 		}
 
 		// if neither of these waypoints is in the path then turn the path into a two-way path ...
-		if (!WaypointTypeIsInPath(wpt_chute, path_index) && !WaypointTypeIsInPath(wpt_duckjump, path_index) &&
-			!WaypointTypeIsInPath(wpt_jump, path_index))
+		if (!WaypointTypeIsInPath(WptT::wpt_chute, path_index) && !WaypointTypeIsInPath(WptT::wpt_duckjump, path_index) &&
+			!WaypointTypeIsInPath(WptT::wpt_jump, path_index))
 		{
 			w_paths[path_index]->flags &= ~P_FL_WAY_ONE;
 			w_paths[path_index]->flags |= P_FL_WAY_TWO;
 
 			// and make the end waypoint a goback one unless there already is a turn back marker set
-			if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+			if (waypoints[end_waypoint].flags & PATH_TURNBACK)
 				;
 			else
 				waypoints[end_waypoint].flags |= W_FL_GOBACK;
@@ -1127,7 +1286,7 @@ int WaypointRepairInvalidPathEnd(int path_index)
 	bool repair_done = false;
 
 	// if this path is ended in a right way we will just continue because we still need to check the other end as well
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+	if (waypoints[end_waypoint].flags & PATH_TURNBACK)
 		;
 	else
 	{
@@ -1148,10 +1307,10 @@ int WaypointRepairInvalidPathEnd(int path_index)
 	end_waypoint = GetPathEnd(path_index);
 
 	if (end_waypoint == -1)
-			return -1;
+		return -1;
 
 	// we can't stop it here because there's a chance we would return false result if the start was repaired
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+	if (waypoints[end_waypoint].flags & PATH_TURNBACK)
 		;
 	else
 	{
@@ -1229,14 +1388,14 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 	int end_waypoint = -1;
 	char msg[256];
 
-	if (IsPath(path_index, path_one))
+	if (IsPath(path_index, PathT::path_one))
 	{
 		end_waypoint = GetPathEnd(path_index);
 
 		if (end_waypoint == -1)
 			return -1;
 
-		if (IsWaypoint(end_waypoint, wpt_goback))
+		if (IsWaypoint(end_waypoint, WptT::wpt_goback))
 		{
 			sprintf(msg, "BUG: One-way path no. %d ends with a goback waypoint!\n", path_index + 1);
 			HudNotify(msg, log_in_file);
@@ -1278,7 +1437,7 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 
 	bool problem_found = false;
 
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+	if (waypoints[end_waypoint].flags & PATH_TURNBACK)
 		;
 	else
 	{
@@ -1291,6 +1450,8 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 
 				// print the additional message just into console, don't log it in file
 				sprintf(msg, "        It could be missing goback waypoint or small cross waypoint range.\n");
+				HudNotify(msg);
+				sprintf(msg, "        Or there are doors or breakable object between cross waypoint and paths' 1st waypoint.\n");
 				HudNotify(msg);
 
 				problem_found = true;
@@ -1311,7 +1472,7 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 	if (end_waypoint == -1)
 		return -1;
 
-	if (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+	if (waypoints[end_waypoint].flags & PATH_TURNBACK)
 		;
 	else
 	{
@@ -1323,6 +1484,8 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 				HudNotify(msg, log_in_file);
 
 				sprintf(msg, "        It could be missing goback waypoint or small cross waypoint range.\n");
+				HudNotify(msg);
+				sprintf(msg, "        Or there is breakable object or doors between cross and last path waypoint.\n");
 				HudNotify(msg);
 				
 				problem_found = true;
@@ -1346,17 +1509,329 @@ int WaypointCheckInvalidPathEnd(int path_index, bool log_in_file)
 
 
 /*
-* check path end whether there doesn't start or end another path without cross waypoint connection
-* (ie. the end waypoint isn't connected to a cross waypoint yet there starts or ends another path)
-* we are also checking for either of the turn back markers (goback, ammobox or use)
-* return -1 if some error occured, 0 if the path was okay
-* return 1 if there was anything repaired, 2 if there was detected suspicious connection
-* return 3 if there was anything repaired as well as detected suspicious connection
+* merges two paths into one where path2_index path will be appended to the end of path1_index path
+* reverse_order == false means path1 (start->end) + path2 (start->end)
+* reverse_order == true means path1(start->end) + path2 (end->start)
+* path2_index flags are discarded and the path basically gets deleted after the merge
+* returns path1_index if everything is okay otherwise it returns -1 as error
 */
+int MergePaths(int path1_index, int path2_index, bool path2_in_reverse_order)
+{
+	if ((path1_index == -1) || (path2_index == -1))
+		return -1;
+	
+	int path2_waypoint = -1;
+
+	// first we must set this otherwise the Continue Current Path method would return error 
+	internals.SetPathToContinue(path1_index);
+	
+	// path2_index path is added to the end of path1_index path in order from its start to its end
+	if (path2_in_reverse_order == false)
+	{
+		// get the 1st waypoint from the other path
+		path2_waypoint = GetPathStart(path2_index);
+
+		// now keep removing the start waypoint from the path2_index path and add it to the end of path1_index path
+		// untill there's nothing left in path2_index path
+		while (path2_waypoint != -1)
+		{
+			// remove the waypoint from the path2_index path
+			ExcludeFromPath(path2_waypoint, path2_index);
+
+			// add it to path1_index path
+			ContinueCurrPath(path2_waypoint);
+
+			// get the new start waypoint ...
+			path2_waypoint = GetPathStart(path2_index);
+		}
+	}
+	// path2_index path is added to the end of path1_index path in reversed order (ie. from its end to its start)
+	else
+	{
+		// get the last waypoint from the other path
+		path2_waypoint = GetPathEnd(path2_index);
+
+		while (path2_waypoint != -1)
+		{
+			ExcludeFromPath(path2_waypoint, path2_index);
+			ContinueCurrPath(path2_waypoint);
+			path2_waypoint = GetPathEnd(path2_index);
+		}
+	}
+
+	// we're done here so we must reset it
+	internals.ResetPathToContinue();
+
+	// we should also check our path for errors
+	if (WaypointValidatePath(path1_index) != -1)
+	{
+		// and let it update its status seeing we just added some new waypoints in it
+		UpdatePathStatus(path1_index);
+
+		return path1_index;
+	}
+
+	return -1;
+}
+
+
+/*
+* merges two paths into one where path2_index path will be inserted to the beginning of path1_index path
+* reverse_order == false means path2 (start->end) + path1 (start->end)
+* reverse_order == true means path2 (end->start) + path1 (start->end)
+* path2_index flags are discarded and the path basically gets deleted after the merge
+* returns path1_index if everything is okay otherwise it returns -1 as error
+*/
+int MergePathsInverted(int path1_index, int path2_index, bool path2_in_reverse_order)
+{
+	if ((path1_index == -1) || (path2_index == -1))
+		return -1;
+
+	int path2_waypoint = -1;
+	// the method for inserting waypoint into path works with string arguments
+	// we must convert them first
+	char path_index1_as_char[6];
+	char path2_waypoint_as_char[6];
+
+	sprintf(path_index1_as_char, "%d", path1_index + 1);
+	
+	// the order of the final path will be (path2 start -> path2 end -> path1 start -> path1 end)
+	if (path2_in_reverse_order == false)
+	{
+		// to keep the desired order of paths we have to go from the end of the 2nd path
+		// because we are inserting them one after another to the start of path1_index path
+		path2_waypoint = GetPathEnd(path2_index);
+
+		while (path2_waypoint != -1)
+		{
+			ExcludeFromPath(path2_waypoint, path2_index);
+			
+			sprintf(path2_waypoint_as_char, "%d", path2_waypoint + 1);
+			WaypointInsertIntoPath(path2_waypoint_as_char, path_index1_as_char, "start", NULL);
+
+			path2_waypoint = GetPathEnd(path2_index);
+		}
+	}
+	// the order of the final path will be (path2 end -> path2 start -> path1 start -> path1 end)
+	else
+	{
+		path2_waypoint = GetPathStart(path2_index);
+
+		while (path2_waypoint != -1)
+		{
+			ExcludeFromPath(path2_waypoint, path2_index);
+
+			sprintf(path2_waypoint_as_char, "%d", path2_waypoint + 1);
+			WaypointInsertIntoPath(path2_waypoint_as_char, path_index1_as_char, "start", NULL);
+
+			path2_waypoint = GetPathStart(path2_index);
+		}
+	}
+
+	if (WaypointValidatePath(path1_index) != -1)
+	{
+		UpdatePathStatus(path1_index);
+
+		return path1_index;
+	}
+
+	return -1;
+}
+
+
+/*
+* checks both ends of path whether there is a start or end of another path there without connection to cross waypoint
+* (ie. the path start/end waypoint isn't connected to a cross waypoint yet there starts or ends another path)
+* we are also checking for either of the turn back markers (goback, ammobox or use)
+* it can be used in purely checking mode where there is no repairing done
+* return -1 if some error occured, 0 if the path was okay
+* return 1 if there was anything repaired
+* NOT USED --- return 2 if there was detected suspicious connection
+* NOT USED --- return 3 if there was anything repaired as well as detected suspicious connection
+* return 4 if there was detected unfixable connection
+*/
+int WaypointRepairInvalidPathMerge(int path_index, bool repair_it, bool log_in_file)
+{
+	if ((path_index == -1) || (w_paths[path_index] == NULL))
+		return -1;
+
+	int end_waypoint = -1;
+	int start_waypoint = -1;
+	int other_end_waypoint = -1;
+	int other_start_waypoint = -1;
+	bool starts_at_cross = false;
+	bool ends_at_cross = false;
+	bool invalid_merge_at_start = false;
+	bool invalid_merge_at_end = false;
+	char msg[256];
+
+	start_waypoint = GetPathStart(path_index);
+	end_waypoint = GetPathEnd(path_index);
+
+	if ((start_waypoint == -1) || (end_waypoint == -1))
+		return -1;
+
+	if (WaypointFindNearestCross(waypoints[start_waypoint].origin, true) != -1)
+		starts_at_cross = true;
+
+	if (WaypointFindNearestCross(waypoints[end_waypoint].origin, true) != -1)
+		ends_at_cross = true;
+
+	// if both path ends are connected to a cross waypoint then all is fine and we can stop right away
+	if (starts_at_cross && ends_at_cross)
+	{
+		return 0;
+	}
+
+	// if it starts at cross waypoint AND ends with a valid turn-back marker then all is fine
+	if (starts_at_cross && (waypoints[end_waypoint].flags & PATH_TURNBACK))
+	{
+		return 0;
+	}
+
+	// if it ends at cross waypoint AND starts with a valid turn-back marker then all is fine again
+	if (ends_at_cross && (waypoints[start_waypoint].flags & PATH_TURNBACK))
+	{
+		return 0;
+	}
+
+	for (int other_path = 0; other_path < num_w_paths; other_path++)
+	{
+		if (other_path == path_index)
+			continue;
+
+		other_start_waypoint = GetPathStart(other_path);
+		other_end_waypoint = GetPathEnd(other_path);
+
+		// path does NOT start at cross waypoint but it starts on the same waypoint as
+		// the other path starts OR ends so this must be invalid merge of paths
+		if (!starts_at_cross && ((start_waypoint == other_start_waypoint) || (start_waypoint == other_end_waypoint)))
+		{
+			// fix false positive
+			// because one-way paths can start on one waypoint even outside any cross waypoint
+			if ((start_waypoint == other_start_waypoint) &&
+				IsPath(path_index, PathT::path_one) && IsPath(other_path, PathT::path_one))
+				;
+			else
+				invalid_merge_at_start = true;
+		}
+
+		// path does NOT end at cross waypoint but it ends on the same waypoint as
+		// the other path starts OR ends so this must be invalid merge of paths
+		if (!ends_at_cross && ((end_waypoint == other_start_waypoint) || (end_waypoint == other_end_waypoint)))
+			invalid_merge_at_end = true;
+
+		// if there is invalid merge at one or the other path end then report it
+		if (invalid_merge_at_start || invalid_merge_at_end)
+		{
+			// are we going to repair it?
+			if (repair_it)
+			{
+				// now we must decide how will the paths be merged and seeing we always want to keep this path
+				// and discard the other path then there are these 4 cases ...
+
+				// first case is typical invalid merge where the waypointer started a new path instead of
+				// continuing in the current one so it's a simple append to the end of path_index path
+				// the final path will be path_index (start->end) + other path (start->end)
+				if (invalid_merge_at_end && (end_waypoint == other_start_waypoint))
+				{
+					if (MergePaths(path_index, other_path, false) != path_index)
+						return -1;
+				}
+				// second case is that both paths have the ending waypoint same so
+				// the final path will be path_index (start->end) + other path (end->start)
+				else if (invalid_merge_at_end && (end_waypoint == other_end_waypoint))
+				{
+					if (MergePaths(path_index, other_path, true) != path_index)
+						return -1;
+				}
+				// 3rd case is that the other path ends on the starting waypoint of this path so
+				// the final path will be other path (start->end) + path_index (start->end)
+				// basically this is the same as case no. 1, but from the 'other path' point of view
+				// but we want to keep this path - it has lower index so it was probably created first
+				// and is probably more important
+				else if (invalid_merge_at_start && (start_waypoint == other_end_waypoint))
+				{
+					if (MergePathsInverted(path_index, other_path, false) != path_index)
+						return -1;
+				}
+				// the final case is when both paths have the starting waypoint same so
+				// the final path will be other path (end->start) + path_index (start->end)
+				// same as above we want to keep the path with lower index
+				// so we will use inverted merging again
+				else// like -> else if (invalid_merge_at_start && (start_waypoint == other_start_waypoint))
+				{
+					if (MergePathsInverted(path_index, other_path, true) != path_index)
+						return -1;
+				}
+
+				if (log_in_file)
+				{
+					// send this event in error log
+					char msg[64];
+					sprintf(msg, "Invalid merge on paths #%d and #%d has been REPAIRED!\n", path_index + 1, other_path + 1);
+					UTIL_DebugInFile(msg);
+				}
+			}
+			// or we will just report it
+			else
+			{
+				sprintf(msg, "BUG: Invalid merge on paths no. %d and no. %d has been detected!\n", path_index + 1, other_path + 1);
+				HudNotify(msg, log_in_file);
+			}
+
+			return 1;
+		}
+
+		// we also need to check for cases when this path starts inside another path
+		// (not just the end or start waypoint of the other path
+		//  but any waypoint from the other path == our path start waypoint)
+		if (!starts_at_cross && WaypointIsInPath(start_waypoint, other_path))
+		{
+			if (repair_it == false)
+			{
+				sprintf(msg, "BUG: Invalid merge of paths detected! Path no. %d starts inside path no. %d\n", path_index + 1, other_path + 1);
+				HudNotify(msg, log_in_file);
+			}
+			// not enough data to figure out how such path should have looked like
+			// so we just report it
+			else
+			{
+				sprintf(msg, "BUG: Invalid merge of paths detected! Path no. %d starts inside path no. %d\n     Unable to automatically fix such merge!\n",
+					path_index + 1, other_path + 1);
+				HudNotify(msg, log_in_file);
+			}
+
+			return 4;
+		}
+
+		// and when this path ends inside another path (any waypoint from the other path == our path end waypoint)
+		if (!ends_at_cross && WaypointIsInPath(end_waypoint, other_path))
+		{
+			if (repair_it == false)
+			{
+				sprintf(msg, "BUG: Invalid merge of paths detected! Path no. %d ends inside path no. %d\n", path_index + 1, other_path + 1);
+				HudNotify(msg, log_in_file);
+			}
+			else
+			{
+				sprintf(msg, "BUG: Invalid merge of paths detected! Path no. %d ends inside path no. %d\n     Unable to automatically fix such merge!\n",
+					path_index + 1, other_path + 1);
+				HudNotify(msg, log_in_file);
+			}
+
+			return 4;
+		}
+	}
+
+	return 0;
+}
+
+/*/																													ORIGINAL CODE
 int WaypointRepairInvalidPathMerge(int path_index)
 {
 	// first check the validity
-	if (path_index == -1 || w_paths[path_index] == NULL)
+	if ((path_index == -1) || (w_paths[path_index] == NULL))
 		return -1;
 
 	int end_waypoint = -1;
@@ -1426,11 +1901,13 @@ int WaypointRepairInvalidPathMerge(int path_index)
 			}
 
 			// we're done here so we must reset these
-			g_path_to_continue = -1;
+			g_path_to_continue = NO_VAL;
 			g_path_last_wpt = -1;
 
 			// we should also check our path for errors
-			WaypointIsPathOkay(path_index);
+			WaypointValidatePath(path_index);//											NEW CODE 094
+			//WaypointIsPathOkay(path_index);											// NEW CODE 094 (prev code)
+
 			// and let it update its status seeing we just added some new waypoints in it
 			UpdatePathStatus(path_index);
 
@@ -1464,10 +1941,11 @@ int WaypointRepairInvalidPathMerge(int path_index)
 	// everything was okay
 	return 0;
 }
+/**/
 
 
 /*
-* go through all paths and check them for invalid path merge
+* go through all paths and check them for invalid merge of paths
 * (ie. the end waypoint isn't connected to a cross waypoint yet there starts another path)
 * 
 */
@@ -1477,7 +1955,8 @@ void WaypointRepairInvalidPathMerge(void)
 
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
-		result = WaypointRepairInvalidPathMerge(path_index);
+		//result = WaypointRepairInvalidPathMerge(path_index);																	NEW CODE 094 (prev code)
+		result = WaypointRepairInvalidPathMerge(path_index, true, true);//														NEW CODE 094
 
 		switch (result)
 		{
@@ -1497,34 +1976,48 @@ void WaypointRepairInvalidPathMerge(void)
 }
 
 
-/*
-* check for invalid path merge
-* basically the same as WaypointRepairInvalidPathMerge() but we don't repair anything we just check things here
-* and report them
-* return -1 if some error occured, 0 if the path was okay
-* return 1 if there is invalid merge, 2 if there is suspicious path connection
-*/
+/*/			REPLACED BY THE NON FIXING VERSION OF REPAIR INVALID PATH MERGE METHOD
 int WaypointCheckInvalidPathMerge(int path_index, bool log_in_file)
 {
-	if (path_index == -1 || w_paths[path_index] == NULL)
+	if ((path_index == -1) || (w_paths[path_index] == NULL))
 		return -1;
 
 	int end_waypoint = -1;
+	int start_waypoint = -1;
 	int other_end_waypoint = -1;
 	int other_start_waypoint = -1;
+	bool starts_at_cross = false;
+	bool ends_at_cross = false;
+	bool invalid_merge_at_start = false;
+	bool invalid_merge_at_end = false;
 	char msg[128];
 
+	start_waypoint = GetPathStart(path_index);
 	end_waypoint = GetPathEnd(path_index);
 
-	if (end_waypoint == -1)
+	if ((start_waypoint == -1) || (end_waypoint == -1))
 		return -1;
 
+	if (WaypointFindNearestCross(waypoints[start_waypoint].origin, true) != -1)
+		starts_at_cross = true;
+
 	if (WaypointFindNearestCross(waypoints[end_waypoint].origin, true) != -1)
+		ends_at_cross = true;
+
+	// if both path ends are connected to a cross waypoint then all is fine and we can stop right away
+	if (starts_at_cross && ends_at_cross)
 	{
 		return 0;
 	}
 
-	if (!IsPath(path_index, path_one) && waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE))
+	// if it starts at cross waypoint AND ends with a valid turn-back marker then all is fine
+	if (starts_at_cross && (waypoints[end_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE)))
+	{
+		return 0;
+	}
+
+	// if it ends at cross waypoint AND starts with a valid turn-back marker then all is fine again
+	if (ends_at_cross && (waypoints[start_waypoint].flags & (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE)))
 	{
 		return 0;
 	}
@@ -1537,38 +2030,51 @@ int WaypointCheckInvalidPathMerge(int path_index, bool log_in_file)
 		other_start_waypoint = GetPathStart(other_path);
 		other_end_waypoint = GetPathEnd(other_path);
 
-		if (end_waypoint == other_start_waypoint)
+		// path does NOT start at cross waypoint but it starts on the same waypoint as
+		// the other path starts OR ends so this must be invalid merge of paths
+		if (!starts_at_cross &&
+			((start_waypoint == other_start_waypoint) || (start_waypoint == other_end_waypoint)))
+		{
+			// fix false positive
+			// because one-way paths can start on one waypoint even outside any cross waypoint
+			if ((start_waypoint == other_start_waypoint) &&
+				IsPath(path_index, path_one) && IsPath(other_path, path_one))
+				;
+			else
+				invalid_merge_at_start = true;
+		}
+
+		// path does NOT end at cross waypoint but it ends on the same waypoint as
+		// the other path starts OR ends so this must be invalid merge of paths
+		if (!ends_at_cross &&
+			((end_waypoint == other_start_waypoint) || (end_waypoint == other_end_waypoint)))
+			invalid_merge_at_end = true;
+
+		// if there is invalid merge at one or the other path end then report it
+		if (invalid_merge_at_start || invalid_merge_at_end)
 		{
 			sprintf(msg, "BUG: Invalid merge on paths no. %d and no. %d has been detected!\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
-
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
+			HudNotify(msg, log_in_file);
 
 			return 1;
 		}
 
-		if (end_waypoint == other_end_waypoint)
-		{
-			sprintf(msg, "WARNING: Detected suspicious path connection! Check paths no. %d and no. %d\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
+		// this statement is not used now
+		//if ()
+		//{
+		//	sprintf(msg, "WARNING: Detected suspicious path connection! Check paths no. %d and no. %d\n", path_index + 1, other_path + 1);
+		//	HudNotify(msg, log_in_file);
 
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
-
-			return 2;
-		}
+		//	return 2;
+		//}
 
 		// we also need to check for cases when this path ends inside another path
 		// (not just the end or start waypoint of the other path
 		//  but any waypoint from the other path == our path end waypoint)
-		if (WaypointIsInPath(end_waypoint, other_path))
+		if (!ends_at_cross && WaypointIsInPath(end_waypoint, other_path))
 		{
-			sprintf(msg, "BUG: Invalid path merge detected! Path no. %d ends inside path no. %d\n", path_index + 1, other_path + 1);
-			HudNotify(msg);
-
-			if (log_in_file)
-				UTIL_DebugInFile(msg);
+			sprintf(msg, "BUG: Invalid merge of paths detected! Path no. %d ends inside path no. %d\n", path_index + 1, other_path + 1);
+			HudNotify(msg, log_in_file);
 
 			return 1;
 		}
@@ -1576,6 +2082,7 @@ int WaypointCheckInvalidPathMerge(int path_index, bool log_in_file)
 
 	return 0;
 }
+/**/
 
 
 /*
@@ -1613,7 +2120,7 @@ int WaypointRepairSniperSpot(int path_index)
 	if (waypoints[end_waypoint].red_time > 0 || waypoints[end_waypoint].blue_time > 0)
 	{
 		// if this waypoint misses sniper flag then set it
-		if (!IsWaypoint(end_waypoint, wpt_sniper))
+		if (!IsWaypoint(end_waypoint, WptT::wpt_sniper))
 			waypoints[end_waypoint].flags |= W_FL_SNIPER;
 
 		// also if there is any aiming waypoint nearby then everything is fine
@@ -1629,13 +2136,13 @@ int WaypointRepairSniperSpot(int path_index)
 	// now we know this path doesn't end at a cross waypoint and it also doesn't go to an ammobox or usable entity so ...
 
 	// if this path is a sniper or machinegunner path then it most probably misses the sniper spot
-	if (!missing_aim_waypoint && (IsPath(path_index, path_sniper) || IsPath(path_index, path_mgunner)))
+	if (!missing_aim_waypoint && (IsPath(path_index, PathT::path_sniper) || IsPath(path_index, PathT::path_mgunner)))
 	{
 		// set wait time on this waypoint
 		waypoints[end_waypoint].red_time = 60.0;
 		waypoints[end_waypoint].blue_time = 60.0;
 
-		if (!IsWaypoint(end_waypoint, wpt_sniper))
+		if (!IsWaypoint(end_waypoint, WptT::wpt_sniper))
 			waypoints[end_waypoint].flags |= W_FL_SNIPER;
 
 		// also check for aiming waypoint nearby and if none found try to fix it
@@ -1679,7 +2186,7 @@ int WaypointRepairSniperSpot(int path_index)
 			}
 			
 			// finally add the aiming waypoint and set 'repair done'
-			if (WaypointAdd(aim_origin, wpt_aim) == wpt_aim)
+			if (WaypointAdd(aim_origin, WptT::wpt_aim) == WptT::wpt_aim)
 				repair_done = true;
 		}
 	}
@@ -1709,6 +2216,92 @@ void WaypointRepairSniperSpot(void)
 	}
 
 	return;
+}
+
+
+/*
+* checks cross waypoint surroundings whether there's a free path end there
+* if so the range on cross waypoint will be increased to connect with the path end
+* returns -1.0 if the waypoint isn't valid
+* otherwise it returns waypoint range
+*/
+float WaypointRepairCrossRange(int wpt_index)
+{
+	int path_end_wpt = -1;
+	float distance = MAX_WPT_DIST;
+
+	if ((wpt_index == -1) || !IsWaypoint(wpt_index, WptT::wpt_cross))
+		return -1.0;
+
+	// go through all paths
+	for (int path_index = 0; path_index < num_w_paths; path_index++)
+	{
+		// skip deleted paths
+		if (w_paths[path_index] == NULL)
+			continue;
+
+		// get this path last waypoint
+		path_end_wpt = GetPathEnd(path_index);
+
+		// this end of the path isn't connected to cross waypoint and
+		// it isn't ended with one of turn back markers so it needs to be checked
+		if ((path_end_wpt != -1) && (WaypointFindNearestCross(waypoints[path_end_wpt].origin) == -1) &&
+			!IsWaypoint(path_end_wpt, WptT::wpt_goback) && !IsWaypoint(path_end_wpt, WptT::wpt_ammobox) &&
+			!IsWaypoint(path_end_wpt, WptT::wpt_use))
+		{
+			distance = GetWaypointDistance(path_end_wpt, wpt_index);
+
+			// path end waypoint is past the range of this cross waypoint
+			// but close enough to be reachable for this cross waypoint
+			if ((distance < MAX_WPT_DIST) && (distance > waypoints[wpt_index].range))
+			{
+				// so let's increase cross waypoint range to connect it to this path end waypoint
+				waypoints[wpt_index].range = truncf(distance + 1.0);
+			}
+		}
+
+		// check also path first waypoint
+		path_end_wpt = GetPathStart(path_index);
+
+		if ((path_end_wpt != -1) && (WaypointFindNearestCross(waypoints[path_end_wpt].origin) == -1) &&
+			!IsWaypoint(path_end_wpt, WptT::wpt_goback) && !IsWaypoint(path_end_wpt, WptT::wpt_ammobox) &&
+			!IsWaypoint(path_end_wpt, WptT::wpt_use))
+		{
+			distance = GetWaypointDistance(path_end_wpt, wpt_index);
+
+			if ((distance < MAX_WPT_DIST) && (distance > waypoints[wpt_index].range))
+			{
+				waypoints[wpt_index].range = truncf(distance + 1.0);
+			}
+		}
+	}
+
+	return waypoints[wpt_index].range;
+}
+
+
+/*
+* goes through all cross waypoints in order to connect them
+* with free path ends in their surrounding
+*/
+void WaypointRepairCrossRange(void)
+{
+	float original_range = 0.0;
+	float new_range = 0.0;
+
+	for (int wpt_index = 0; wpt_index < num_waypoints; wpt_index++)
+	{
+		if (IsWaypoint(wpt_index, WptT::wpt_cross))
+		{
+			// backup current range
+			original_range = waypoints[wpt_index].range;
+
+			new_range = WaypointRepairCrossRange(wpt_index);
+
+			if (new_range != original_range)
+				ALERT(at_console, "The range on cross waypoint no. %d was repaired!\n", wpt_index + 1);
+		}
+	}
 }
 
 
@@ -1887,12 +2480,14 @@ void UpdatePathStatus(int path_index)
 
 	W_PATH *p;
 	int safety_stop = 0;
+	bool is_ammo_wpt_present = FALSE;//															NEW CODE 094
 
 	p = w_paths[path_index];
 
 	while (p)
 	{
 #ifdef _DEBUG
+		safety_stop++;
 		if (safety_stop > 1000)
 		{
 			ALERT(at_error, "UpdatePathStatus() | LLERROR\n***Path no. %d\n", path_index + 1);
@@ -1900,15 +2495,32 @@ void UpdatePathStatus(int path_index)
 			WaypointDebug();
 		}
 #endif
-		if (IsWaypoint(p->wpt_index, wpt_ammobox))
+		if (IsWaypoint(p->wpt_index, WptT::wpt_ammobox))
+			//UTIL_SetBit(P_FL_MISC_AMMO, w_paths[path_index]->flags);//						NEW CODE 094 (prev code)
+		//																						NEW CODE 094
+		{
 			UTIL_SetBit(P_FL_MISC_AMMO, w_paths[path_index]->flags);
+			is_ammo_wpt_present = TRUE;
+		}
+		//********************************************************************************		NEW CODE 094 END
 
-		if (IsWaypoint(p->wpt_index, wpt_flag))
+		if (IsWaypoint(p->wpt_index, WptT::wpt_pushpoint))
 			UpdateGoalPathStatus(p->wpt_index, path_index);
 
-		safety_stop++;
 		p = p->next;
 	}
+
+	//																						NEW CODE 094
+
+	// if the path is marked as 'use me if you are low on ammo'
+	// but there was no ammobox waypoint in it then...
+	if ((w_paths[path_index] != NULL) && UTIL_IsBitSet(P_FL_MISC_AMMO, w_paths[path_index]->flags) &&
+		!is_ammo_wpt_present)
+	{
+		// fix it
+		UTIL_ClearBit(P_FL_MISC_AMMO, w_paths[path_index]->flags);
+	}
+	//********************************************************************************		NEW CODE 094 END
 }
 
 
@@ -1918,7 +2530,7 @@ void UpdatePathStatus(int path_index)
 */
 void UpdateGoalPathStatus(int wpt_index, int path_index)
 {
-	if ((!IsWaypoint(wpt_index, wpt_flag)) || (path_index == -1))
+	if ((!IsWaypoint(wpt_index, WptT::wpt_pushpoint)) || (path_index == -1))
 		return;
 	
 	// get an origin of the flag waypoint
@@ -1963,7 +2575,7 @@ void UpdateGoalPathStatus(int wpt_index, int path_index)
 
 /*
 * goes through all paths and searches one that contains current waypoint
-* all return values: index of a path that match, -1 = wpt isn't in any path
+* all return values: index of a path that match, -1 means wpt isn't in any path
 */
 int FindPath(int current_wpt_index)
 {
@@ -1986,6 +2598,7 @@ int FindPath(int current_wpt_index)
 		while (p)
 		{
 #ifdef _DEBUG
+			safety_stop++;
 			if (safety_stop > 1000)
 			{
 				char msg[128];
@@ -2002,8 +2615,6 @@ int FindPath(int current_wpt_index)
 
 			if (p->wpt_index == current_wpt_index)
 				return path_index;
-
-			safety_stop++;
 
 			p = p->next;	// check next node
 		}
@@ -2142,9 +2753,9 @@ int WaypointGetPathLength(int path_index)
 /*
 * returns TRUE if the flag is set on this path
 */
-bool IsPath(int path_index, PATH_TYPES path_type)
+bool IsPath(int path_index, PathT path_type)
 {
-	if ((path_index == -1) || (path_type == default_flagtype))
+	if ((path_index == -1) || (path_type <= PathT::scrapped_flagtype))
 		return FALSE;
 
 	if (w_paths[path_index] == NULL)
@@ -2152,35 +2763,35 @@ bool IsPath(int path_index, PATH_TYPES path_type)
 
 	int flag = 0;
 
-	if (path_type == path_both)
+	if (path_type == PathT::path_both)
 		flag = P_FL_TEAM_NO;
-	else if (path_type == path_red)
+	else if (path_type == PathT::path_red)
 		flag = P_FL_TEAM_RED;
-	else if (path_type == path_blue)
+	else if (path_type == PathT::path_blue)
 		flag = P_FL_TEAM_BLUE;
-	else if (path_type == path_one)
+	else if (path_type == PathT::path_one)
 		flag = P_FL_WAY_ONE;
-	else if (path_type == path_two)
+	else if (path_type == PathT::path_two)
 		flag = P_FL_WAY_TWO;
-	else if (path_type == path_patrol)
+	else if (path_type == PathT::path_patrol)
 		flag = P_FL_WAY_PATROL;
-	else if (path_type == path_all)
+	else if (path_type == PathT::path_all)
 		flag = P_FL_CLASS_ALL;
-	else if (path_type == path_sniper)
+	else if (path_type == PathT::path_sniper)
 		flag = P_FL_CLASS_SNIPER;
-	else if (path_type == path_mgunner)
+	else if (path_type == PathT::path_mgunner)
 		flag = P_FL_CLASS_MGUNNER;
-	else if (path_type == path_ammo)
+	else if (path_type == PathT::path_ammo)
 		flag = P_FL_MISC_AMMO;
-	else if (path_type == path_goal_red)
+	else if (path_type == PathT::path_goal_red)
 		flag = P_FL_MISC_GOAL_RED;
-	else if (path_type == path_goal_blue)
+	else if (path_type == PathT::path_goal_blue)
 		flag = P_FL_MISC_GOAL_BLUE;
-	else if (path_type == path_avoid)
+	else if (path_type == PathT::path_avoid)
 		flag = P_FL_MISC_AVOID;
-	else if (path_type == path_ignore)
+	else if (path_type == PathT::path_ignore)
 		flag = P_FL_MISC_IGNORE;
-	else if (path_type == path_gitem)
+	else if (path_type == PathT::path_gitem)
 		flag = P_FL_MISC_GITEM;
 	
 	// is the flag set on this path?
@@ -2195,9 +2806,9 @@ bool IsPath(int path_index, PATH_TYPES path_type)
 * used to compare two paths
 * returns TRUE if both path1 and path2 have given path type
 */
-bool PathMatchingFlag(int path_index1, int path_index2, PATH_TYPES path_type)
+bool PathMatchingFlag(int path_index1, int path_index2, PathT path_type)
 {
-	if ((path_index1 == -1) || (path_type == default_flagtype))
+	if ((path_index1 == -1) || (path_index2 == -1) || (path_type <= PathT::scrapped_flagtype))
 		return FALSE;
 
 	if (IsPath(path_index1, path_type) && IsPath(path_index2, path_type))
@@ -2214,24 +2825,24 @@ bool PathMatchingFlag(int path_index1, int path_index2, PATH_TYPES path_type)
 bool PathCompareTeamDownwards(int restrictive_path, int checked_path)
 {
 	// from red team only path ...
-	if (IsPath(restrictive_path, path_red))
+	if (IsPath(restrictive_path, PathT::path_red))
 	{
 		// we can always access any red team only path or any both team path
-		if (PathMatchingFlag(restrictive_path, checked_path, path_red) || IsPath(checked_path, path_both))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_red) || IsPath(checked_path, PathT::path_both))
 			return TRUE;
 	}
 
-	if (IsPath(restrictive_path, path_blue))
+	if (IsPath(restrictive_path, PathT::path_blue))
 	{
-		if (PathMatchingFlag(restrictive_path, checked_path, path_blue) || IsPath(checked_path, path_both))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_blue) || IsPath(checked_path, PathT::path_both))
 			return TRUE;
 	}
 
 	// from both team path ...
-	if (IsPath(restrictive_path, path_both))
+	if (IsPath(restrictive_path, PathT::path_both))
 	{
 		// we can always access only another both team path
-		if (PathMatchingFlag(restrictive_path, checked_path, path_both))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_both))
 			return TRUE;
 	}
 
@@ -2246,22 +2857,22 @@ bool PathCompareTeamDownwards(int restrictive_path, int checked_path)
 bool PathCompareClassDownwards(int restrictive_path, int checked_path)
 {
 	// from sniper only path we can always ...
-	if (IsPath(restrictive_path, path_sniper))
+	if (IsPath(restrictive_path, PathT::path_sniper))
 	{
 		// access another sniper path or path for all classes
-		if (PathMatchingFlag(restrictive_path, checked_path, path_sniper) || IsPath(checked_path, path_all))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_sniper) || IsPath(checked_path, PathT::path_all))
 			return TRUE;
 	}
 
-	if (IsPath(restrictive_path, path_mgunner))
+	if (IsPath(restrictive_path, PathT::path_mgunner))
 	{
-		if (PathMatchingFlag(restrictive_path, checked_path, path_mgunner) || IsPath(checked_path, path_all))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_mgunner) || IsPath(checked_path, PathT::path_all))
 			return TRUE;
 	}
 
-	if (IsPath(restrictive_path, path_all))
+	if (IsPath(restrictive_path, PathT::path_all))
 	{
-		if (PathMatchingFlag(restrictive_path, checked_path, path_all))
+		if (PathMatchingFlag(restrictive_path, checked_path, PathT::path_all))
 			return TRUE;
 	}
 	
@@ -2302,7 +2913,7 @@ bool StartNewPath(int current_wpt_index)
 		free_path_index++;
 	}
 
-	p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new head node
+	p = (W_PATH *)malloc(sizeof(W_PATH));	// create new head node
 
 	if (p == NULL)
 	{
@@ -2313,7 +2924,7 @@ bool StartNewPath(int current_wpt_index)
 
 	p->wpt_index = current_wpt_index;	// save the wpt index to first/head node
 
-	p->prev = NULL;		// no previous not yet (this one it the first - the head node)
+	p->prev = NULL;		// no previous node yet (this one it the first - the head node)
 	p->next = NULL;		// no next node yet
 
 	w_paths[free_path_index] = p;	// store the pointer to new path
@@ -2324,12 +2935,13 @@ bool StartNewPath(int current_wpt_index)
 	// set all flags to default
 	w_paths[free_path_index]->flags |= P_FL_TEAM_NO | P_FL_CLASS_ALL | P_FL_WAY_TWO;
 
-	g_path_to_continue = free_path_index;	// save path index to continue in
-	g_path_last_wpt = current_wpt_index;	// save wpt index to obstacle test
+	internals.SetPathToContinue(free_path_index);	// save path index to continue in
 
 	// increase total number of paths if adding at the end of the array
 	if (free_path_index == num_w_paths)
 		num_w_paths++;
+
+	ALERT(at_console, "starting new path ...\n");
 
 	return TRUE;
 }
@@ -2338,34 +2950,48 @@ bool StartNewPath(int current_wpt_index)
 /*
 * continue in current path
 * returns -3 if invalid wpt (ie this wpt type can't be in path)
-* returns -2 if no path (ie g_path_to_continue is -1)
+* returns -2 if no path to continue (ie internals::path to continue is NO_VAL)
 * returns -1 if not enough memory
 * returns 0 if path doesn't exist (not sure if this can happen)
 * returns 1 if everything is OK
+* returns 2 if the wpt is already present in our path							--- NEW CODE 094
 */
-int ContinueCurrPath(int current_wpt_index)
+int ContinueCurrPath(int current_wpt_index, bool check_presence)
 {
 	int path_index;
 
 	// don't add these wpt types into paths
-	if ((current_wpt_index == -1) ||
-		(waypoints[current_wpt_index].flags & (W_FL_DELETED | W_FL_AIMING | W_FL_CROSS)))
+	if ((current_wpt_index == -1) || (waypoints[current_wpt_index].flags & (W_FL_DELETED | W_FL_AIMING | W_FL_CROSS)))
 		return -3;
 
-	path_index = g_path_to_continue;
+	path_index = internals.GetPathToContinue();
 
 	if (path_index == -1)
-		return -2;			// no path to continue
+	{
+		ALERT(at_console, "there's no path to continue on waypoint no. %d\n", current_wpt_index + 1);
 
-	// if the path is valid add current_wpt_index at the end of that path
+		return -2;			// no path to continue
+	}
+
+	// if the path is valid add current_wpt_index to the end of that path
 	if (w_paths[path_index])
 	{
 		W_PATH *p = w_paths[path_index];	// set the pointer to the head node
-		W_PATH *prev_node = NULL;		// temp pointer to previous node
+		W_PATH *prev_node = NULL;			// temp pointer to previous node
 		int safety_stop = 0;
 
 		while (p)
 		{
+			//																						NEW CODE 094 END
+			// by default check if the new waypoint isn't already in this path
+			// (ie. the same waypoint would have been added twice in one path), because
+			// the bot would then enter infinite loop on such path
+			// so all we do here is that we simply skip adding it into the path
+			// this check is disabled on map load
+			if ((p->wpt_index == current_wpt_index) && check_presence)
+				return 2;
+			//************************************************************************************	NEW CODE 094 END
+
 			prev_node = p;	// save the previous node in linked list
 
 			p = p->next;	// go to next node in linked list
@@ -2377,7 +3003,7 @@ int ContinueCurrPath(int current_wpt_index)
 #endif
 		}
 
-		p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new node
+		p = (W_PATH *)malloc(sizeof(W_PATH));	// create new node
 
 		if (p == NULL)
 		{
@@ -2389,8 +3015,6 @@ int ContinueCurrPath(int current_wpt_index)
 		p->wpt_index = current_wpt_index;	// store new wpt index
 		
 		p->next = NULL;			// NULL next node
-
-		g_path_last_wpt = current_wpt_index;	// save wpt index to obstacle test and g_auto_path
 
 		if (prev_node != NULL)
 		{
@@ -2409,7 +3033,252 @@ int ContinueCurrPath(int current_wpt_index)
 
 /*
 * insert a waypoint specified in arg2 into path in arg3 between its two waypoints in arg4 and arg5
+* allows also insertion to the beginning or end of the path through keyword passed in arg4 or arg5
 */
+int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4, const char *arg5)
+{
+	int wpt_index, path_index, path_wpt1, path_wpt2;
+	W_PATH *p;
+	int special_case;		// holds 1 when we are inserting waypoint right to the start of the path
+							// holds 2 when we are inserting waypoint to the end of the path
+							// holds 0 when the waypoint is inserted 'into' path (between its two waypoints)
+
+	// init all values
+	wpt_index = path_index = path_wpt1 = path_wpt2 = -1;
+	special_case = 0;										// we assume the insertion is 'into' the path by default
+
+	// get the index of waypoint we want to insert if exist
+	if ((arg2 != NULL) && (*arg2 != 0))
+	{
+		wpt_index = atoi(arg2);
+		// due to the array based style
+		wpt_index--;
+	}
+
+	// get the index of path which we want to insert into if exist
+	if ((arg3 != NULL) && (*arg3 != 0))
+	{
+		path_index = atoi(arg3);
+		path_index--;
+	}
+
+	// get the index of waypoint we want to insert behind if exist
+	if ((arg4 != NULL) && (*arg4 != 0))
+	{
+		if (FStrEq(arg4, "start") || FStrEq(arg4, "beginning") || FStrEq(arg4, "tostart") || FStrEq(arg4, "to_start") ||
+			FStrEq(arg4, "tobeginning") || FStrEq(arg4, "to_beginning"))
+			special_case = 1;
+		else if (FStrEq(arg4, "end") || FStrEq(arg4, "toend") || FStrEq(arg4, "to_end"))
+			special_case = 2;
+		else
+		{
+			path_wpt1 = atoi(arg4);
+			path_wpt1--;
+		}
+	}
+
+	// get the index of waypoint we want to insert before if exist
+	if ((special_case == 0) && (arg5 != NULL) && (*arg5 != 0))
+	{
+		if (FStrEq(arg5, "start") || FStrEq(arg5, "beginning") || FStrEq(arg5, "tostart") || FStrEq(arg5, "to_start") ||
+			FStrEq(arg5, "tobeginning") || FStrEq(arg5, "to_beginning"))
+			special_case = 1;
+		else if (FStrEq(arg5, "end") || FStrEq(arg5, "toend") || FStrEq(arg5, "to_end"))
+			special_case = 2;
+		else
+		{
+			path_wpt2 = atoi(arg5);
+			path_wpt2--;
+		}
+	}
+
+	char msg[128];
+
+	if (special_case == 1)
+		sprintf(msg, "Trying to insert waypoint #%d to the beginning of path #%d ...\n", wpt_index + 1, path_index + 1);
+	else if (special_case == 2)
+		sprintf(msg, "Trying to insert waypoint #%d to the end of path #%d ...\n", wpt_index + 1, path_index + 1);
+	else
+		sprintf(msg, "Trying to insert waypoint #%d into path #%d between wpts #%d and #%d ...\n",
+			wpt_index + 1, path_index + 1, path_wpt1 + 1, path_wpt2 + 1);
+
+	PrintOutput(NULL, msg);
+
+	// is one of path waypoints same to the waypoint for insertion
+	if ((wpt_index == path_wpt1) || (wpt_index == path_wpt2))
+		return -6;
+
+	// are both path waypoints same and NOT special insertion
+	if ((path_wpt1 == path_wpt2) && (special_case == 0))
+		return -5;
+
+	// is the waypoint for insertion valid
+	if ((wpt_index == -1) || (waypoints[wpt_index].flags == 0) ||
+		(waypoints[wpt_index].flags & (W_FL_DELETED | W_FL_AIMING | W_FL_CROSS)))
+		return -4;
+
+	// does the path exist or has the path less then two waypoints in case of common insertion
+	if ((path_index == -1) || ((WaypointGetPathLength(path_index) < 2) && (special_case == 0)))
+		return -3;
+
+	// waypoint already is in this path
+	if (WaypointIsInPath(wpt_index, path_index))
+		return -6;
+
+	// if we are inserting 'into' path (ie. between its two waypoints) then we must check their validity
+	if ((special_case == 0) && ((path_wpt1 == -1) || (WaypointIsInPath(path_wpt1, path_index) == FALSE)))
+		return -2;
+
+	// if we are inserting 'into' path (ie. between its two waypoints) then we must check their validity
+	if ((special_case == 0) && ((path_wpt2 == -1) || (WaypointIsInPath(path_wpt2, path_index) == FALSE)))
+		return -1;
+
+	// if we are inserting the waypoint at the beginning or end of the path
+	// then just point at the path in the array of all paths
+	if (special_case != 0)
+		p = w_paths[path_index];
+	// otherwise we must find one of the two path waypoints to get a pointer on it
+	else
+		p = GetWaypointPointer(path_wpt1, path_index);
+
+	// check if the pointer exists
+	if (p)
+	{
+		W_PATH *next;
+		W_PATH *new_node = NULL;	// a node for the waypoint we need to insert
+
+		// first we will handle the case when we are inserting new waypoint at the beginning of the path
+		if (special_case == 1)
+		{
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));	// create new node
+
+			if (new_node == NULL)
+			{
+				ALERT(at_error, "MarineBot - Error allocating memory for path!\n");
+				return 0;		// no memory for path
+			}
+
+			p->prev = new_node;		// put the new node in front of the first path waypoint
+			new_node->next = p;		// and connect the rest of the path behind this new start point
+			new_node->prev = NULL;	// NULL this pointer, cause this node is the head node so there's nothing before it
+
+			new_node->wpt_index = wpt_index;	// next step is to store the waypoint index into the new node
+
+			// this path has a new start point now so let's update the array of all paths
+			w_paths[path_index] = new_node;
+
+			// finally we must also update the path data
+			w_paths[path_index]->flags = p->flags;
+
+			return 1;
+		}
+		// then we will handle the second special insertion ... at the end of the path
+		else if (special_case == 2)
+		{
+			W_PATH *prev_node = NULL;		// temp pointer to previous node (ie. the end of our path)
+			int safety_stop = 0;
+			
+			// first we must go through the path in order to reach its end point ...
+			while (p)
+			{
+				prev_node = p;				// save the previous node in linked list
+				p = p->next;				// go to next node in linked list (ie. go through the path)
+
+#ifdef _DEBUG
+				safety_stop++;
+				if (safety_stop > 1000)
+					WaypointDebug();
+#endif
+			}
+			
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));		// create new node
+			
+			if (new_node == NULL)
+			{
+				ALERT(at_error, "MarineBot - Error allocating memory for path!\n");
+				return 0;
+			}
+			
+			new_node->wpt_index = wpt_index;		// store new waypoint
+			new_node->next = NULL;					// NULL next node pointer, cause we are at the end of the path
+			
+			if (prev_node != NULL)
+			{
+				// and finally connect the new node to the end of the path
+				new_node->prev = prev_node;
+				prev_node->next = new_node;
+
+				return 1;
+			}
+
+			// seeing the pointer to prev node is NULL we weren't able to go through the path to reach its end point so
+			// we must end it here with unknown error
+			return 0;
+		}
+
+		// this is the default case where we are inserting new waypoint 'into' the path (between its two waypoints)
+		// so first go to next waypoint in the path ...
+		next = p->next;
+
+		// does the next waypoint exist AND
+		// are first and second path waypoints really neighbours (ie. is this waypoint index the one we are looking for)
+		if (next && (next->wpt_index == path_wpt2))
+		{
+			// so insert the new waypoint behind path_wpt1...
+
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));
+
+			if (new_node == NULL)
+			{
+				ALERT(at_error, "MarineBot - Error allocating memory for path!\n");
+				return 0;
+			}
+
+			p->next = new_node;		// connect the new node behind path waypoint1
+			new_node->prev = p;		// set also the opposite connection
+
+			new_node->wpt_index = wpt_index;
+
+			new_node->next = next;	// connect the other end of the path to this new node
+			next->prev = new_node;	// set also the opposite connection
+
+			return 1;
+		}
+
+		// next waypoint wasn't the second path waypoint we're looking for so try the previous waypoint
+		// doing it this way gives the end-user freedom ... the order of the last two arguments doesn't matter now,
+		// because command 'pathwpt insert 7 20 5 6' is the same as 'pathwpt insert 7 20 6 5'
+		next = p->prev;
+
+		// does the previous waypoint exist AND is it the one we are looking for
+		if (next && (next->wpt_index == path_wpt2))
+		{
+			// so insert the new waypoint before path_wpt1...
+
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));
+
+			if (new_node == NULL)
+			{
+				ALERT(at_error, "MarineBot - Error allocating memory for path!\n");
+				return 0;
+			}
+
+			p->prev = new_node;
+			new_node->next = p;
+
+			new_node->wpt_index = wpt_index;
+
+			new_node->prev = next;
+			next->next = new_node;
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*/																								NEW CODE 094 (prev code)
 int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4, const char *arg5)
 {
 	int wpt_index, path_index, path_wpt1, path_wpt2;
@@ -2470,7 +3339,7 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 	if ((path_index == -1) || (WaypointGetPathLength(path_index) < 2))
 		return -3;
 
-	// waypoint already in in this path
+	// waypoint already is in this path
 	if (WaypointIsInPath(wpt_index, path_index))
 		return -6;
 
@@ -2500,7 +3369,7 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 		{
 			// so insert the new one behind path_wpt1...
 
-			new_node = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new node
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));	// create new node
 
 			p->next = new_node;		// connect the new node behind path waypoint1
 			new_node->prev = p;		// set also the opposite connection
@@ -2522,7 +3391,7 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 		{
 			// so insert the new one before path_wpt1...
 
-			new_node = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
+			new_node = (W_PATH *)malloc(sizeof(W_PATH));
 
 			p->prev = new_node;
 			new_node->next = p;
@@ -2538,11 +3407,108 @@ int WaypointInsertIntoPath(const char *arg2, const char *arg3, const char *arg4,
 
 	return 0;
 }
+/**/
 
 
 /*
-* remove current_wpt_index waypoint from specified (path_index) path
+* remove waypoint (passed by index - current_wpt_index) from specified (path_index) path
 */
+int ExcludeFromPath(int current_wpt_index, int path_index)
+{
+	int path_wpt_index = -1;
+	int safety_stop = 0;
+
+	// check if waypoint and path_index are valid
+	if ((current_wpt_index == -1) || (path_index == -1))
+		return -2;
+
+	// set the pointer to the head node
+	W_PATH *p = w_paths[path_index];
+
+	// does the path exist
+	if (w_paths[path_index] == NULL)
+		return -2;
+
+	// get index from head node
+	path_wpt_index = p->wpt_index;
+
+	// search for current_wpt_index in path
+	while ((p) && (current_wpt_index != path_wpt_index))
+	{
+		// get wpt index from this node
+		path_wpt_index = p->wpt_index;
+
+		// are both same so the node is found
+		if (current_wpt_index == path_wpt_index)
+			break;
+
+		// go to next node in linked list
+		p = p->next;
+
+#ifdef _DEBUG
+		safety_stop++;
+		if (safety_stop > 1000)
+		{
+			ALERT(at_error, "ExcludeFromPath() | LLError\n");
+			WaypointDebug();
+		}
+#endif
+	}
+
+	return ExcludeFromPath(p, path_index);
+}
+
+
+/*
+* remove waypoint (passed by pointer) from specified (path_index) path
+*/
+int ExcludeFromPath(W_PATH *p, int path_index)
+{
+	// check validity first
+	if ((p == NULL) || (path_index == -1))
+		return -1;
+
+	// exist prev node as well as next node
+	if ((p->prev) && (p->next))
+	{
+		p->prev->next = p->next;	// link previous node (its next pointer) to next node
+	}
+	// if exist only prev node (removing last wpt from ll)
+	else if (p->prev)
+		p->prev->next = NULL;	// NULL prev pointer for next node
+
+	// exist prev node as well as next node
+	if ((p->next) && (p->prev))
+	{
+		p->next->prev = p->prev;	// link next node (its prev pointer) to previous node
+	}
+	// if exist only next node (removing first wpt from ll)
+	else if (p->next)
+	{
+		p->next->prev = NULL;	// NULL prev pointer for next node
+
+		// temp store path flags for transfer
+		int path_flags = w_paths[path_index]->flags;
+
+		w_paths[path_index] = p->next;	// update paths array
+
+		// write them back to path
+		w_paths[path_index]->flags = path_flags;
+	}
+	// if exist only head node ie only one wpt in whole path
+	else if ((p->next == NULL) && (p->prev == NULL))
+	{
+		// free this path slot
+		w_paths[path_index] = NULL;
+	}
+
+	// free/destroy this node
+	free(p);
+
+	return 1;	// everything is OK
+}
+
+/*																							NEW CODE 094 (prev code)
 int ExcludeFromPath(int current_wpt_index, int path_index)
 {
 	int path_wpt_index = -1;
@@ -2634,6 +3600,7 @@ int ExcludeFromPath(int current_wpt_index, int path_index)
 
 	return 0;	// something went wrong
 }
+*/
 
 
 /*
@@ -2686,6 +3653,9 @@ bool DeleteWholePath(int path_index)
 */
 W_PATH *GetWaypointPointer(int wpt_index, int path_index)
 {
+	if ((path_index < 0) || (path_index >= MAX_W_PATHS))//																NEW CODE 094
+		return NULL;
+
 	W_PATH *p = w_paths[path_index];
 	int safety_stop = 0;
 
@@ -2722,7 +3692,8 @@ W_PATH *GetWaypointPointer(int wpt_index, int path_index)
 */
 bool WaypointIsInPath(int wpt_index, int path_index)
 {
-	if ((wpt_index == -1) || (path_index == -1))
+	//if ((wpt_index == -1) || (path_index == -1))
+	if ((wpt_index == -1) || (path_index < 0))
 		return FALSE;
 
 	if (GetWaypointPointer(wpt_index, path_index) != NULL)
@@ -2735,7 +3706,7 @@ bool WaypointIsInPath(int wpt_index, int path_index)
 /*
 * return a pointer on a waypoint of given type if it is in the path otherwise return NULL
 */
-W_PATH *GetWaypointTypePointer(WPT_TYPES flag_type, int path_index)
+W_PATH *GetWaypointTypePointer(WptT flag_type, int path_index)
 {
 	W_PATH *p = w_paths[path_index];
 	int safety_stop = 0;
@@ -2767,7 +3738,7 @@ W_PATH *GetWaypointTypePointer(WPT_TYPES flag_type, int path_index)
 * returns TRUE if there is given waypoint type in path (path_index)
 * returns FALSE if waypoint is NOT in path or waypoint/path is invalid
 */
-bool WaypointTypeIsInPath(WPT_TYPES flag_type, int path_index)
+bool WaypointTypeIsInPath(WptT flag_type, int path_index)
 {
 	if (path_index == -1)
 		return FALSE;
@@ -2905,7 +3876,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 	//@@@@@@@@@
 	/*
 		#ifdef _DEBUG
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 		{
 			UTIL_DebugDev("waypoint.cpp | CheckPossiblePAth() begins\n", pBot->curr_wpt_index, pBot->curr_path_index);
 			ALERT(at_console, "waypoint.cpp | CheckPossiblePAth() begins\n");
@@ -2972,7 +3943,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 
 				int chance = RANDOM_LONG(1, 100);
 
-				if (IsPath(path_index, path_gitem) && pBot->IsTask(TASK_GOALITEM) && (chance < 95))
+				if (IsPath(path_index, PathT::path_gitem) && pBot->IsTask(TASK_GOALITEM) && (chance < 95))
 				{
 					// store it if we still have a free slot
 					for (int i = 0; i < max_best; i++)
@@ -2988,7 +3959,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					continue;
 				}
 
-				if (IsPath(path_index, path_ammo) && pBot->IsNeed(NEED_AMMO) && (chance < 95))
+				if (IsPath(path_index, PathT::path_ammo) && pBot->IsNeed(NEED_AMMO) && (chance < 95))
 				{
 					for (int i = 0; i < max_best; i++)
 					{
@@ -3002,8 +3973,8 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					continue;
 				}
 				
-				if (((IsPath(path_index, path_goal_red) && (pBot->bot_team == TEAM_RED)) ||
-					(IsPath(path_index, path_goal_blue) && (pBot->bot_team == TEAM_BLUE))) &&
+				if (((IsPath(path_index, PathT::path_goal_red) && (pBot->bot_team == TEAM_RED)) ||
+					(IsPath(path_index, PathT::path_goal_blue) && (pBot->bot_team == TEAM_BLUE))) &&
 					pBot->IsNeed(NEED_GOAL) && (chance < 90))
 				{
 					for (int i = 0; i < max_best; i++)
@@ -3018,7 +3989,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					continue;
 				}
 				
-				if (IsPath(path_index, path_sniper) && pBot->IsBehaviour(SNIPER) && (chance < 65))
+				if (IsPath(path_index, PathT::path_sniper) && pBot->IsBehaviour(SNIPER) && (chance < 65))
 				{
 					for (int i = 0; i < max_best; i++)
 					{
@@ -3032,7 +4003,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					continue;
 				}
 				
-				if (IsPath(path_index, path_mgunner) && pBot->IsBehaviour(MGUNNER) && (chance < 65))
+				if (IsPath(path_index, PathT::path_mgunner) && pBot->IsBehaviour(MGUNNER) && (chance < 65))
 				{
 					for (int i = 0; i < max_best; i++)
 					{
@@ -3046,7 +4017,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					continue;
 				}
 				
-				if (IsPath(path_index, path_patrol) && pBot->IsBehaviour(DEFENDER) && (chance < 50))
+				if (IsPath(path_index, PathT::path_patrol) && pBot->IsBehaviour(DEFENDER) && (chance < 50))
 				{
 					for (int i = 0; i < max_best; i++)
 					{
@@ -3095,44 +4066,44 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 					// first we need to handle the cases when we already have the most valuable paths ...
 
 					// do we already have a carry goal item path
-					if (IsPath(path_index, path_gitem))
+					if (IsPath(path_index, PathT::path_gitem))
 					{
 						// then decide its replacing only with another carry goal item path
-						if (IsPath(best_path[i], path_gitem) && (chance < 50))
+						if (IsPath(best_path[i], PathT::path_gitem) && (chance < 50))
 							path_index = best_path[i];
 					}
 					// do we have a path that runs through pushpoint
-					else if (IsPath(path_index, path_goal_red) || IsPath(path_index, path_goal_blue))
+					else if (IsPath(path_index, PathT::path_goal_red) || IsPath(path_index, PathT::path_goal_blue))
 					{
 						// carry goal item has higher value so always pick that one
-						if (IsPath(best_path[i], path_gitem))
+						if (IsPath(best_path[i], PathT::path_gitem))
 							path_index = best_path[i];
 
 						// decide whether to pick the other pushpoint path or not
-						if (IsPath(best_path[i], path_goal_red) || IsPath(best_path[i], path_goal_blue))
+						if (IsPath(best_path[i], PathT::path_goal_red) || IsPath(best_path[i], PathT::path_goal_blue))
 						{
 							if (chance < 50)
 								path_index = best_path[i];
 						}
 					}
 					// do we have a path with an ammobox already
-					else if (IsPath(path_index, path_ammo))
+					else if (IsPath(path_index, PathT::path_ammo))
 					{
 						// carry item or pushpoint are more important
-						if (IsPath(best_path[i], path_gitem) ||
-							IsPath(best_path[i], path_goal_red) || IsPath(best_path[i], path_goal_blue))
+						if (IsPath(best_path[i], PathT::path_gitem) ||
+							IsPath(best_path[i], PathT::path_goal_red) || IsPath(best_path[i], PathT::path_goal_blue))
 							path_index = best_path[i];
 
 						// if it is another ammobox path then decide
-						if (IsPath(best_path[i], path_ammo) && (chance < 50))
+						if (IsPath(best_path[i], PathT::path_ammo) && (chance < 50))
 							path_index = best_path[i];
 					}
 					// ... then there are all the other cases (pretty simple though)
 					else
 					{
 						// these are the most important so always pick them
-						if (IsPath(best_path[i], path_gitem) ||
-							IsPath(best_path[i], path_goal_red) || IsPath(best_path[i], path_goal_blue))
+						if (IsPath(best_path[i], PathT::path_gitem) ||
+							IsPath(best_path[i], PathT::path_goal_red) || IsPath(best_path[i], PathT::path_goal_blue))
 							path_index = best_path[i];
 						// otherwise decide yes or no
 						else
@@ -3144,7 +4115,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 				}
 			}
 
-			if (debug_cross)
+			if (botdebugger.IsDebugCross())
 			{
 				char msg[126];
 				
@@ -3177,7 +4148,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 			{
 				path_index = usable_path[0];
 
-				if (debug_cross)
+				if (botdebugger.IsDebugCross())
 				{
 					char msg[64];
 					
@@ -3191,7 +4162,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 				// we are working with array indexes so we have to decrease it by 1
 				path_index = usable_path[RANDOM_LONG(0, found_paths-1)];
 
-				if (debug_cross)
+				if (botdebugger.IsDebugCross())
 				{
 					char msg[126];
 					
@@ -3226,7 +4197,7 @@ bool CheckPossiblePath(bot_t *pBot, int wpt_index)
 			pBot->opposite_path_dir = TRUE;
 
 		// for debugging
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 		{
 			ALERT(at_console, "<<PATHS>> ***Got new path! (index=%d)\n", pBot->curr_path_index + 1);
 		}
@@ -3351,7 +4322,8 @@ void WaypointSetValue(bot_t *pBot, int wpt_index, WAYPOINT_VALUE *wpt_value)
 bool IsWaypointPossible(bot_t *pBot, int wpt_index)
 {
 	// aim waypoints are always restricted to head toward them
-	if (waypoints[wpt_index].flags & W_FL_AIMING)
+	// just like any deleted waypoint
+	if (waypoints[wpt_index].flags & (W_FL_AIMING | W_FL_DELETED))
 		return FALSE;
 
 	// cross waypoints are always possible
@@ -3427,103 +4399,6 @@ W_PATH * FindPointInPath (int wpt_index, int path_index)
 	return NULL;
 }
 
-
-/*														//		THIS ONE ISN'T USED ANYWHERE IN THE CODE
-//Fill point_list from current path pointer to the end of path.
-//forward -is direction of move trough the path, true-forward
-//false - backward. 
-
-int fillPointList(int *pl, int pl_size, W_PATH *w_path_ptr, bool forward)
-{
-	int i=0;
-	if (forward) {
-		do { //fill point list with new route in FORWARD way.
-			*(pl+i) = w_path_ptr->wpt_index;
-			++i;
-			//if we see GOBACK wpt, we stop fill path_list.
-			//next time when this created path will be ended
-			//we will change direction in BotOnPath1 function
-			if (waypoints[w_path_ptr->wpt_index].flags & W_FL_GOBACK
-				&& i>1)
-			{
-				break;
-			}
-		} while ((w_path_ptr = w_path_ptr->next) != NULL && i<ROUTE_LENGTH-1 && i<pl_size);
-	}
-	else {
-		do { //fill point list with new route in REVERSE way.
-			*(pl+i) = w_path_ptr->wpt_index;
-			++i;
-			if (waypoints[w_path_ptr->wpt_index].flags & W_FL_GOBACK
-				&& i>1)
-			{
-				break;
-			}
-		} while ((w_path_ptr = w_path_ptr->prev) != NULL && i<ROUTE_LENGTH-1 && i<pl_size);
-	}
-	*(pl+i) = -1; //close new current path.
-
-	// by Frank: I've enclosed this part into debugging because common users don't need this
-#ifdef _DEBUG
-	FILE *f = fopen("\\debug.txt","a");
-	if(f!=NULL) {
-		for (int j=0; j<ROUTE_LENGTH-1; ++j) {
-			fprintf(f,"_%d", *(pl+j));
-			if (*(pl+j)==-1) break;
-		}
-		fprintf(f,"\n");
-		fclose(f);
-	}
-#endif
-	return i;
-}
-
-/*										//		THIS ONE ISN'T USED ANYWHERE IN THE CODE
-//Set new path to the bot if this path is possible.
-//If success return TRUE.
-bool SetPossiblePath(bot_t *pBot, int wpt_index)
-{
-	// is wpt valid and are there any paths
-	if ((wpt_index == -1) || (num_w_paths < 1))
-		return FALSE;
-
-	//clear current path
-	pBot->clear_path();
-	// go through all paths
-	// first skip paths that doesn't match with bot team and/or class
-	// and then check the rest for the wpt (wpt index)
-	for (int path_index = 0; path_index < num_w_paths; path_index++)
-	{
-		// skip free slots
-		if (w_paths[path_index] == NULL)
-			continue;
-
-		// is this path possible for bot (ie do teams and class restriction match)
-		if (IsPathPossible(pBot, path_index))
-		{
-			W_PATH *w_path_ptr = FindPointInPath(wpt_index, path_index);
-			if (w_path_ptr == NULL)
-			{
-				return FALSE; //cant find wpt in path.
-			}
-			// if wpt is closer to the path end AND NOT on one-way path
-			// use opposite direction path moves
-			if ((WaypointIsPathEndCloser(wpt_index, path_index)) &&
-				!(w_paths[path_index]->flags & P_FL_WAY_ONE))
-			{
-				fillPointList(pBot->point_list, ROUTE_LENGTH, w_path_ptr, false);
-			}
-			else 
-			{
-				fillPointList(pBot->point_list, ROUTE_LENGTH, w_path_ptr, true);
-			}
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-/**/
 //SECTION BY kota@ END
 
 
@@ -3537,13 +4412,13 @@ bool IsFlagSet(int flag, int wpt_index, int team)
 		switch (team) 
 		{
 		case TEAM_RED:
-			if(WaypointReturnPriority(wpt_index, TEAM_RED) != 0) 
+			if(WaypointGetPriority(wpt_index, TEAM_RED) != 0) 
 			{
 				return true;
 			}
 			break;
 		case TEAM_BLUE:
-			if (WaypointReturnPriority(wpt_index, TEAM_BLUE) != 0) 
+			if (WaypointGetPriority(wpt_index, TEAM_BLUE) != 0) 
 			{
 				return true;
 			}
@@ -3559,12 +4434,12 @@ bool IsFlagSet(int flag, int wpt_index, int team)
 /*
 * returns the correct waypoints priority based on team
 */
-int WaypointReturnPriority(int wpt_index, int team)
+int WaypointGetPriority(int wpt_index, int team)
 {	
 	if (wpt_index == -1)
 		return 0;			// like no priority
 
-	if (IsWaypoint(wpt_index, wpt_trigger))
+	if (IsWaypoint(wpt_index, WptT::wpt_trigger))
 		return WaypointReturnTriggerWaypointPriority(wpt_index, team);
 
 	if (team == TEAM_RED)
@@ -3574,6 +4449,23 @@ int WaypointReturnPriority(int wpt_index, int team)
 		return waypoints[wpt_index].blue_priority;
 
 	return 0;
+}
+
+/*
+* returns the correct waypoints wait time based on team
+*/
+float WaypointGetWaitTime(int wpt_index, int team, const char* loc)
+{
+	if (wpt_index == -1)
+		return 0.0;			// like no wait time
+
+	if (team == TEAM_RED)
+		return waypoints[wpt_index].red_time;
+
+	if (team == TEAM_BLUE)
+		return waypoints[wpt_index].blue_time;
+
+	return 0.0;
 }
 
 /*
@@ -3601,7 +4493,7 @@ int WaypointFindAvailable(bot_t *pBot)
 	{
 		// take the previous waypoint as the waypoint to continue to (ie turn back)
 		// only if team priority isn't set to no priority
-		if (WaypointReturnPriority(the_source, pBot->bot_team) != 0)
+		if (WaypointGetPriority(the_source, pBot->bot_team) != 0)
 		{
 			// get last visited waypoint
 			int wpt_index = pBot->prev_wpt_index.get();
@@ -3664,14 +4556,15 @@ int WaypointFindAvailable(bot_t *pBot)
 			}
 
 			// get distance to this waypoint
-			distance = (waypoints[i].origin - waypoints[the_source].origin).Length();
+			//distance = (waypoints[i].origin - waypoints[the_source].origin).Length();									NEW CODE 094 (prev code)
+			distance = GetWaypointDistance(i, the_source);//															NEW CODE 094
 
 			// waypoint must be far enough, but not too far
 			// ie. must be in the range of this cross waypoint
 			if ((distance > 10) && (distance <= waypoints[the_source].range))
 			{
 				// get the priority of this waypoint
-				priority = WaypointReturnPriority(i, pBot->bot_team);
+				priority = WaypointGetPriority(i, pBot->bot_team);
 
 				// skip all waypoints with no priority
 				if (priority == 0)
@@ -3711,7 +4604,7 @@ int WaypointFindAvailable(bot_t *pBot)
 		if (num_found_wpt > max_at_cross)
 			num_found_wpt = max_at_cross;
 
-		if (debug_cross)
+		if (botdebugger.IsDebugCross())
 		{
 			char msg[256];
 			
@@ -3725,7 +4618,8 @@ int WaypointFindAvailable(bot_t *pBot)
 		// make sure the bot won't take a waypoint that would get him back to a place he just was
 		// (example: a path starting and ending at the same cross waypoint) therefore
 		// we have to reduce the priority of the path starting waypoint even below the default (lowest) value
-		if ((pBot->prev_path_index != -1) && (RANDOM_LONG(1, 100) < 90))
+		//if ((pBot->prev_path_index != -1) && (RANDOM_LONG(1, 100) < 90))												NEW CODE 094 (prev code) - no need to make this random, the randomization is later on in decision if he should act predictable or not
+		if (pBot->prev_path_index != -1)//																				NEW CODE 094
 		{
 			for (i = 0; i < num_found_wpt; i++)
 			{
@@ -3735,13 +4629,13 @@ int WaypointFindAvailable(bot_t *pBot)
 					// if so then set super low priority so this waypoint can barely be taken
 					w_prior[i] = MAX_WPT_PRIOR + 1;
 
-					if (debug_cross)
+					if (botdebugger.IsDebugCross())
 					{
 						char msg[256];
 						char wpt_flags[128];
 						WptGetType(w_index[i], wpt_flags);
 
-						sprintf(msg, "<<CROSS>>Lowering a chance to pick wpt (#%d<%s>) - it has just been used! (Path #%d)\n",
+						sprintf(msg, "<<CROSS>>Lowering the chance to pick wpt #%d<%s> -> it has been used on current path #%d\n",
 							w_index[i] + 1, wpt_flags, pBot->prev_path_index + 1);
 						PrintOutput(NULL, msg);
 					}
@@ -3756,6 +4650,7 @@ int WaypointFindAvailable(bot_t *pBot)
 			WAYPOINT_VALUE wpt_value[max_at_cross];
 			int best_wpt = -1;
 			bool run_value_based_decision = false;
+			bool act_predictable = false;																			// NEW CODE 094
 
 			// go through found waypoints to find their value
 			for (i = 0; i < num_found_wpt; i++)
@@ -3784,13 +4679,13 @@ int WaypointFindAvailable(bot_t *pBot)
 				for (i = 0; i < num_found_wpt; i++)
 				{
 					// are there two same weighted waypoints then pick one of them randomly
-					if (last_value == wpt_value[i].wpt_value && choice < 50)
+					if ((last_value == wpt_value[i].wpt_value) && (choice < 50))
 					{
 						best_wpt = wpt_value[i].wpt_index;
 						last_value = wpt_value[i].wpt_value;
 					}
 					// otherwise try to always pick the most weighted waypoint
-					else if (last_value < wpt_value[i].wpt_value || choice < 5)
+					else if ((last_value < wpt_value[i].wpt_value) || (choice < 5))
 					{
 						best_wpt = wpt_value[i].wpt_index;
 						last_value = wpt_value[i].wpt_value;
@@ -3801,13 +4696,13 @@ int WaypointFindAvailable(bot_t *pBot)
 				// ie. skip the priority based decision
 				if (best_wpt != -1)
 				{
-					if (debug_cross)
+					if (botdebugger.IsDebugCross())
 					{
 						char msg[256];
 						char wpt_flags[128];
 						WptGetType(best_wpt, wpt_flags);
 						
-						sprintf(msg, "<<CROSS>>Taking wpt based on current NEEDS (#%d<%s>)\n", best_wpt + 1, wpt_flags);
+						sprintf(msg, "<<CROSS>>Taking wpt based on current NEEDS -> it's wpt #%d<%s>\n", best_wpt + 1, wpt_flags);
 						PrintOutput(NULL, msg);
 					}
 					
@@ -3850,21 +4745,46 @@ int WaypointFindAvailable(bot_t *pBot)
 			// make a choice percentage for picking the waypoint
 			choice = RANDOM_LONG(1, 100);
 
-			// in 85% of time we're acting regular
-			if (choice > 14)
+			//																								NEW CODE 094
+
+			// set how often the bot should act predictable (ie. behaviour based on waypoint priorities)
+			// priority == 5 case cannot fall directly to completely random choice
+			// because that would completely disable 'super low priority' system (above) for this priority setting
+			// and this system prevents from using the same waypoint & path again where possible
+
+			// if there is at least one priority == 1 (highest) waypoint then in 90% of time we're acting predictable
+			if ((w_prior[0] == 1) && (choice > 9))
+				act_predictable = true;
+			// if there is/are only priority == 2 waypoint/s then act predictable in 80% of time
+			else if ((w_prior[0] == 2) && (choice > 19))
+				act_predictable = true;
+			// is/are there only priority == 3 waypoint/s ... then act predictable in 70% of time
+			else if ((w_prior[0] == 3) && (choice > 29))
+				act_predictable = true;
+			// is/are only priority == 4 waypoint/s then act predictable in 60% of time
+			else if ((w_prior[0] == 4) && (choice > 39))
+				act_predictable = true;
+			// finally there is/are only priority == 5 waypoint/s then act predictable only in 50% of time
+			else if ((w_prior[0] == 5) && (choice > 49))
+				act_predictable = true;
+			
+			//******************************************************************************************	NEW CODE 094 END
+
+			//if (choice > 14)																								NEW CODE 094 (prev code)
+			if (act_predictable)//																							NEW CODE 094
 			{
 				// if there is only one waypoint with the highest priority then take it
 				if (high_prior_count == 1)
 				{
 					the_found = w_index[0];
 					
-					if (debug_cross)
+					if (botdebugger.IsDebugCross())
 					{
 						char msg[256];
 						char wpt_flags[128];
 						WptGetType(the_found, wpt_flags);
 
-						sprintf(msg, "<<CROSS>>Taking wpt based on priority -> HIGHEST ONE is #%d<%s>\n", the_found + 1,
+						sprintf(msg, "<<CROSS>>Taking wpt based on priority -> HIGHEST ONE is wpt #%d<%s>\n", the_found + 1,
 							wpt_flags);
 						PrintOutput(NULL, msg);
 					}
@@ -3872,29 +4792,29 @@ int WaypointFindAvailable(bot_t *pBot)
 				// there are more waypoints with the same priority 
 				else
 				{
-					// so pick of of them
+					// so pick one of them
 					choice = RANDOM_LONG(1, high_prior_count);
 					the_found = w_index[choice - 1];
 					
-					if (debug_cross)
+					if (botdebugger.IsDebugCross())
 					{
 						char msg[256];
 						char wpt_flags[128];
 						WptGetType(the_found, wpt_flags);
 
-						sprintf(msg, "<<CROSS>>Taking wpt based on priority -> MULTIPLE same priority wpts -> picking this one (#%d<%s>)\n",
+						sprintf(msg, "<<CROSS>>Taking wpt based on priority -> MULTIPLE same priority wpts -> picking wpt #%d<%s>\n",
 							the_found + 1, wpt_flags);
 						PrintOutput(NULL, msg);
 					}
 				}
 			}
-			// otherwise acting irregular (less predictable)
+			// otherwise the bot is acting unpredictably (or at least less predictable)
 			else
 			{
 				// see if there is at least one waypoint with higher priority (but not highest) that means ...
-				// 1st position cannot be lowest priority because then there would be only lowest priority waypoints there
-				// also position right behind the highest priority waypoint/waypoints cannot be default priority because then
-				// there would be only highest priority and the rest would be default priority waypoints
+				// 1st position cannot be lowest priority because then there would have been only lowest priority waypoints there
+				// also position right behind the highest priority waypoint/waypoints cannot be the default priority
+				// because then there would have been only highest priority and the rest would be default priority waypoints
 				if ((w_prior[0] != MAX_WPT_PRIOR) && (w_prior[high_prior_count] != MAX_WPT_PRIOR) && (RANDOM_LONG(1, 100) > 30))
 				{
 					// ignore highest priority waypoints, but still try to find a waypoint with higher priority
@@ -3914,13 +4834,13 @@ int WaypointFindAvailable(bot_t *pBot)
 					{
 						the_found = w_index[high_prior_count];
 
-						if (debug_cross)
+						if (botdebugger.IsDebugCross())
 						{
 							char msg[256];
 							char wpt_flags[128];
 							WptGetType(the_found, wpt_flags);
 							
-							sprintf(msg, "<CROSS>>Ignoring ONLY highest priority -> picking waypoint (#%d<%s>)\n",
+							sprintf(msg, "<CROSS>>Ignoring ONLY highest priority -> picking wpt #%d<%s>\n",
 								the_found + 1, wpt_flags);
 							PrintOutput(NULL, msg);
 						}
@@ -3931,13 +4851,13 @@ int WaypointFindAvailable(bot_t *pBot)
 						choice = high_prior_count + RANDOM_LONG(0, priority);
 						the_found = w_index[choice];
 
-						if (debug_cross)
+						if (botdebugger.IsDebugCross())
 						{
 							char msg[256];
 							char wpt_flags[128];
 							WptGetType(the_found, wpt_flags);
 							
-							sprintf(msg, "<CROSS>>Ignoring ONLY highest priority -> picking waypoint (#%d<%s>) from total of %d like waypoints\n",
+							sprintf(msg, "<CROSS>>Ignoring ONLY highest priority -> picking wpt #%d<%s> from total of %d like waypoints\n",
 								the_found + 1, wpt_flags, priority + 1);
 							PrintOutput(NULL, msg);
 						}
@@ -3960,13 +4880,13 @@ int WaypointFindAvailable(bot_t *pBot)
 					choice = RANDOM_LONG(1, num_found_wpt);
 					the_found = w_index[choice - 1];
 					
-					if (debug_cross)
+					if (botdebugger.IsDebugCross())
 					{
 						char msg[256];
 						char wpt_flags[128];
 						WptGetType(the_found, wpt_flags);
 						
-						sprintf(msg, "<<CROSS>>Ignoring all priorities -> entirely RANDOM PICK (#%d<%s>)\n",
+						sprintf(msg, "<<CROSS>>Ignoring all priorities -> entirely RANDOM PICK of wpt #%d<%s>\n",
 							the_found + 1, wpt_flags);
 						PrintOutput(NULL, msg);
 					}
@@ -3995,15 +4915,17 @@ int WaypointFindAvailable(bot_t *pBot)
 				continue;
 			}
 
-			// skip the aim waypoints
-			if (waypoints[i].flags & W_FL_AIMING)
+			// skip the aim and deleted waypoints
+			//if (waypoints[i].flags & W_FL_AIMING)																		NEW CODE 094 (prev code)
+			if (waypoints[i].flags & (W_FL_AIMING | W_FL_DELETED))//													NEW CODE 094
 				continue;
 
 			// skip ladder waypoints if on end ladder
 			if ((pBot->waypoint_top_of_ladder) && (waypoints[i].flags & W_FL_LADDER))
 				continue;
 
-			distance = (waypoints[i].origin - waypoints[the_source].origin).Length();
+			//distance = (waypoints[i].origin - waypoints[the_source].origin).Length();									NEW CODE 094 (prev code)
+			distance = GetWaypointDistance(i, the_source);//															NEW CODE 094
 
 			// we are looking only for the nearest waypoint
 			if (distance > the_nearest)
@@ -4036,7 +4958,7 @@ int WaypointFindAvailable(bot_t *pBot)
 
 		if (w_index[0] != -1)
 		{
-			if (debug_waypoints)
+			if (botdebugger.IsDebugWaypoints())
 			{
 				char msg[256];
 				char wpt_flags[128];
@@ -4096,7 +5018,7 @@ int WaypointFindFirst(bot_t *pBot, float range, int skip_this_index)
 			continue;
 		}
 
-		// is this waypoint origin higher than max jump high then so skip it
+		// is this waypoint origin higher than max jump height then skip it
 		if (waypoints[i].origin.z > (pEdict->v.origin.z + 45.0))
 			continue;
 
@@ -4174,8 +5096,15 @@ int WaypointFindNearestType(edict_t *pEntity, float range, int type)
 * returns ending waypoint index of current ladder
 * if none is found return -1
 */
+// CURRENTLY THIS ISN'T USED AT ALL (There's a call for this in the code, but that call cannot happen, because the condition isn't met)
 int FindRightLadderWpt(bot_t *pBot)
 {
+
+	// TODO: This needs to be changed to work for both cases. 1) when the ladder is waypointed with the use of ladder type waypoint,
+	//		 2) when the ladder is done using just normal waypoints.
+	//		 Also it needs to check for waypoints that aren't just straight up or down, because some ladders aren't straight either.
+
+
 	int i, curr_index;
 	float x_curr, y_curr, z_curr;		// current or nearest ladder wpt (start destination)
 	float x_end, y_end, z_end;			// end ladder wpt (end destination)
@@ -4222,7 +5151,8 @@ int FindRightLadderWpt(bot_t *pBot)
 		if (z_end == z_curr)
 			continue;
 
-		UTIL_TraceLine(waypoints[curr_index].origin, waypoints[i].origin, ignore_monsters, pBot->pEdict, &tr);
+		//UTIL_TraceLine(waypoints[curr_index].origin, waypoints[i].origin, ignore_monsters, pBot->pEdict, &tr);							NEW CODE 094 (prev code)
+		UTIL_TraceLine(Vector(x_curr, y_curr, y_curr), Vector(x_end, y_end, z_end), ignore_monsters, pBot->pEdict, &tr);//					NEW CODE 094
 
 		if (tr.flFraction >= 1.0)
 		{
@@ -4296,7 +5226,7 @@ int WaypointFindNearest(edict_t *pEntity, float range, int team)
 * find the nearest "special" aiming waypoint (for sniper aiming)
 * return -1 if not found
 */
-int WaypointFindNearestAiming(bot_t *pBot, Vector v_origin)
+int WaypointFindNearestAiming(bot_t *pBot, Vector *v_origin)
 {
 	int index;
 	int min_index = -1;
@@ -4325,7 +5255,7 @@ int WaypointFindNearestAiming(bot_t *pBot, Vector v_origin)
 			((waypoints[index].blue_priority == 0) && (pBot->bot_team == TEAM_BLUE)))
 			continue;
 
-		distance = (v_origin - waypoints[index].origin).Length();
+		distance = (*v_origin - waypoints[index].origin).Length();
 
 		if (distance <= max_range)
 		{
@@ -4484,7 +5414,7 @@ int WaypointFindNearestStandard(int end_waypoint, int path_index)
 					if (PathCompareTeamDownwards(path_index, this_path) && PathCompareClassDownwards(path_index, this_path))
 					{
 						// this waypoint is the end waypoint of this path ... we cannot access it then
-						if (IsPath(this_path, path_one) && i == GetPathEnd(this_path))
+						if (IsPath(this_path, PathT::path_one) && i == GetPathEnd(this_path))
 							continue;
 						else
 						{
@@ -4508,7 +5438,7 @@ int WaypointFindNearestStandard(int end_waypoint, int path_index)
 				// ... unless it's a lone standing goback waypoint
 				// (this probably happened when the waypointer tried to change the path end waypoint into a goback,
 				// but used command to add a new waypoint instead of using the change waypoint command)
-				if (!IsWaypoint(i, wpt_goback))
+				if (!IsWaypoint(i, WptT::wpt_goback))
 				{
 					TraceResult tr;
 					UTIL_TraceLine(waypoints[i].origin, waypoints[end_waypoint].origin, ignore_monsters, NULL, &tr);
@@ -4534,7 +5464,7 @@ int WaypointFindNearestStandard(int end_waypoint, int path_index)
 int WaypointFindAimingAround(int source_waypoint)
 {
 	// check validity first
-	if (source_waypoint == -1 || waypoints[source_waypoint].flags & W_FL_DELETED)
+	if ((source_waypoint == -1) || (waypoints[source_waypoint].flags & W_FL_DELETED))
 		return -1;
 
 	float aim_waypoint_range = 100.0;
@@ -4709,6 +5639,36 @@ void DrawTheBeam(edict_t *pEntity, Vector start, Vector end, int sprite, int wid
 	MESSAGE_END();
 }
 
+// allows to specify duration of the beam
+void DrawBeam(edict_t *pEntity, Vector start, Vector end, int life, int red, int green, int blue, int speed)
+{
+	if ((pEntity == NULL) || (UTIL_GetBotIndex(pEntity) > -1))
+		return;
+
+	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, NULL, pEntity);
+	WRITE_BYTE(TE_BEAMPOINTS);
+	WRITE_COORD(start.x);
+	WRITE_COORD(start.y);
+	WRITE_COORD(start.z);
+	WRITE_COORD(end.x);
+	WRITE_COORD(end.y);
+	WRITE_COORD(end.z);
+	WRITE_SHORT(m_spriteTexture);
+	WRITE_BYTE(1); // framestart
+	WRITE_BYTE(10); // framerate
+	WRITE_BYTE(life); // life in 0.1's
+	WRITE_BYTE(10); // width
+	WRITE_BYTE(0);  // noise
+
+	WRITE_BYTE(red);   // r, g, b
+	WRITE_BYTE(green);   // r, g, b
+	WRITE_BYTE(blue);   // r, g, b
+
+	WRITE_BYTE(250);   // brightness
+	WRITE_BYTE(speed);    // speed
+	MESSAGE_END();
+}
+
 void WaypointBeam(edict_t *pEntity, Vector start, Vector end, int width,
 				  int noise, int red, int green, int blue, int brightness, int speed)
 {
@@ -4790,9 +5750,9 @@ int Wpt_CountFlags(int wpt_index)
 /*
 * returns TRUE if the flag is set on this waypoint
 */
-bool IsWaypoint(int wpt_index, WPT_TYPES flag_type)
+bool IsWaypoint(int wpt_index, WptT flag_type)
 {
-	if ((wpt_index == -1) || (flag_type == default_flagtype))
+	if ((wpt_index == -1) || (flag_type <= WptT::scrapped_flagtype))
 		return FALSE;
 
 	int flag = 0;
@@ -4800,51 +5760,51 @@ bool IsWaypoint(int wpt_index, WPT_TYPES flag_type)
 
 	// convert the flag_type to a real waypoint flag
 	// the order is set by how much are particular types used
-	if (flag_type == wpt_normal)
+	if (flag_type == WptT::wpt_normal)
 		flag = W_FL_STD;
-	else if (flag_type == wpt_crouch)
+	else if (flag_type == WptT::wpt_crouch)
 		flag = W_FL_CROUCH;
-	else if (flag_type == wpt_prone)
+	else if (flag_type == WptT::wpt_prone)
 		flag = W_FL_PRONE;
-	else if (flag_type == wpt_cross)
+	else if (flag_type == WptT::wpt_cross)
 		flag = W_FL_CROSS;
-	else if (flag_type == wpt_aim)
+	else if (flag_type == WptT::wpt_aim)
 		flag = W_FL_AIMING;
-	else if (flag_type == wpt_no)
+	else if (flag_type == WptT::wpt_no)
 		flag = W_FL_DELETED;
-	else if (flag_type == wpt_goback)
+	else if (flag_type == WptT::wpt_goback)
 		flag = W_FL_GOBACK;
-	else if (flag_type == wpt_sniper)
+	else if (flag_type == WptT::wpt_sniper)
 		flag = W_FL_SNIPER;
-	else if (flag_type == wpt_jump)
+	else if (flag_type == WptT::wpt_jump)
 		flag = W_FL_JUMP;
-	else if (flag_type == wpt_duckjump)
+	else if (flag_type == WptT::wpt_duckjump)
 		flag = W_FL_DUCKJUMP;
-	else if (flag_type == wpt_ammobox)
+	else if (flag_type == WptT::wpt_ammobox)
 		flag = W_FL_AMMOBOX;
-	else if (flag_type == wpt_ladder)
+	else if (flag_type == WptT::wpt_ladder)
 		flag = W_FL_LADDER;
-	else if (flag_type == wpt_sprint)
+	else if (flag_type == WptT::wpt_sprint)
 		flag = W_FL_SPRINT;
-	else if (flag_type == wpt_fire)
+	else if (flag_type == WptT::wpt_fire)
 		flag = W_FL_FIRE;
-	else if (flag_type == wpt_mine)
+	else if (flag_type == WptT::wpt_mine)
 		flag = W_FL_MINE;
-	else if (flag_type == wpt_chute)
+	else if (flag_type == WptT::wpt_chute)
 		flag = W_FL_CHUTE;
-	else if (flag_type == wpt_flag)
+	else if (flag_type == WptT::wpt_pushpoint)
 		flag = W_FL_PUSHPOINT;
-	else if (flag_type == wpt_trigger)
+	else if (flag_type == WptT::wpt_trigger)
 		flag = W_FL_TRIGGER;
-	else if (flag_type == wpt_cover)
+	else if (flag_type == WptT::wpt_cover)
 		flag = W_FL_COVER;
-	else if (flag_type == wpt_bandages)
+	else if (flag_type == WptT::wpt_bandages)
 		flag = W_FL_BANDAGES;
-	else if (flag_type == wpt_use)
+	else if (flag_type == WptT::wpt_use)
 		flag = W_FL_USE;
-	else if (flag_type == wpt_door)
+	else if (flag_type == WptT::wpt_door)
 		flag = W_FL_DOOR;
-	else if (flag_type == wpt_dooruse)
+	else if (flag_type == WptT::wpt_dooruse)
 		flag = W_FL_DOORUSE;
 	
 	// is the flag set on this waypoint?
@@ -4901,11 +5861,28 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 	// now add all other flags based on the waypoint type
 	if (FStrEq(wpt_type, "normal"))
 	{
-		;	// we don't need to add anything else, the flag is already set
+		// we don't need to add anything else, the flag is already set
+		//																						NEW CODE 094 END
+		// so we only check if autowaypointing is turned on and ...
+		if (wptser.IsAutoWaypointing())
+		{
+			edict_t* pent = NULL;
+			// search the surrounding for ammobox entity
+			while ((pent = UTIL_FindEntityInSphere(pent, pEntity->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+			{
+				// if we found it then change the waypoint type to ammobox waypoint
+				if (strcmp(STRING(pent->v.classname), "ammobox") == 0)
+				{
+					waypoints[index].flags |= W_FL_AMMOBOX;	// add another flag that makes this type
+					waypoints[index].range = (float)20;
+				}
+			}
+		}
+		//************************************************************************************	NEW CODE 094 END
 	}
 	else if (FStrEq(wpt_type, "ammobox"))
 	{
-		waypoints[index].flags |= W_FL_AMMOBOX;	// add another flag that makes this type
+		waypoints[index].flags |= W_FL_AMMOBOX;
 		waypoints[index].range = (float) 20;
 	}
 	else if (FStrEq(wpt_type, "parachute"))
@@ -4990,6 +5967,18 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 		waypoints[index].flags = 0;
 		waypoints[index].flags |= W_FL_CROSS;
 		waypoints[index].range = WPT_RANGE * (float) 3;
+
+		//																						NEW CODE 094 END
+		// stop autowaypointing when a cross waypoint is added manually
+		if (wptser.IsAutoWaypointing())
+		{
+			StartAutoWaypointg(FALSE);
+
+			// also change its range to match the autowaypointing distance
+			// in order to reach (be able to connect to) normal waypoint/s added by the autowaypointing
+			waypoints[index].range = wptser.GetAutoWaypointingDistance() + (float) 10;
+		}
+		//************************************************************************************	NEW CODE 094 END
 	}
 	else
 	{
@@ -5000,10 +5989,10 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 	}
 
 	// get size/hight of the beam based on waypoint type
-	Wpt_SetSize(index, start, end);
+	SetWaypointSize(index, start, end);
 
 	// use temp vector to set color for this waypoint
-	Vector color = Wpt_SetColor(index);
+	Vector color = SetWaypointColor(index);
 
 	// draw the waypoint
 	WaypointBeam(pEntity, start, end, 30, 0, color.x, color.y, color.z, 250, 5);
@@ -5012,18 +6001,18 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 	waypoints[index].origin = pEntity->v.origin;
 
 	// store the last used waypoint for the auto waypoint code...
-	last_waypoint = pEntity->v.origin;
+	//last_waypoint = pEntity->v.origin;																			NEW CODE 094 (prev code)
+	// unless it is a cross or aiming waypoint
+	if (!(waypoints[index].flags & (W_FL_CROSS | W_FL_AIMING)))//													NEW CODE 094
+		last_waypoint = pEntity->v.origin;
 
 	// set the time that this waypoint was originally displayed...
-	//wp_display_time[index] = gpGlobals->time;		//PREV CODE
 	wp_display_time[index] = 0.0;
 
 	// set the time for possible range highlighting
-	//f_ranges_display_time[index] = gpGlobals->time;		//PREV CODE
 	f_ranges_display_time[index] = 0.0;
 
 	// set the time for possible in range status of any cross or aim wpt (to draw connection)
-	//f_conn_time[index][index] = gpGlobals->time;			//PREV CODE
 	f_conn_time[index][index] = 0.0;
 
 	EMIT_SOUND_DYN2(pEntity, CHAN_WEAPON, "weapons/xbow_hit1.wav", 1.0, ATTN_NORM, 0, 100);
@@ -5032,20 +6021,24 @@ char *WptAdd(edict_t *pEntity, const char *wpt_type)
 	if (index == num_waypoints)
 		num_waypoints++;
 
-	return const_cast<char *>(wpt_type);
+	// and start displaying the waypoints
+	wptser.SetShowWaypoints(true);//																				NEW CODE 094
+
+	return (char *) wpt_type;
 }
 
 /*
+*	THIS ISN'T USED YET (except for one case)
 * add new waypoint to given location and specify all waypoint values (priority, time etc.)
 * return the type (normal, aim etc.) of that waypoint
 */
-WPT_TYPES WaypointAdd(const Vector position, WPT_TYPES wpt_type)
+WptT WaypointAdd(const Vector position, WptT wpt_type)
 {
 	int index;
 	//Vector start, end;
 	
 	if (num_waypoints >= MAX_WAYPOINTS)
-		return wpt_no;
+		return WptT::wpt_no;
 
 	index = 0;
 
@@ -5066,9 +6059,10 @@ WPT_TYPES WaypointAdd(const Vector position, WPT_TYPES wpt_type)
 	*/
 
 	// no type specified? so use default type
-	if (wpt_type == wpt_no || wpt_type < 0)
+	//if ((wpt_type == wpt_no) || (wpt_type < 0))
+	if ((wpt_type == WptT::wpt_no) || (wpt_type <= WptT::scrapped_flagtype))
 	{
-		wpt_type = wpt_normal;		
+		wpt_type = WptT::wpt_normal;
 	}
 
 	// reset this waypoint slot before using it
@@ -5080,111 +6074,140 @@ WPT_TYPES WaypointAdd(const Vector position, WPT_TYPES wpt_type)
 	waypoints[index].flags |= W_FL_STD;
 
 	// now add all other flags based on the waypoint type
-	if (wpt_type == wpt_normal)
+	if (wpt_type == WptT::wpt_normal)
 	{
-		;	// we don't need to add anything else, the flag is already set
+		// we don't need to add anything else, the flag is already set
+		//																						NEW CODE 094 END
+		// so we only check if autowaypointing is turned on and ...
+		if (wptser.IsAutoWaypointing())
+		{
+			edict_t* pent = NULL;
+			// search the surrounding for ammobox entity
+			while ((pent = UTIL_FindEntityInSphere(pent, position, PLAYER_SEARCH_RADIUS)) != NULL)
+			{
+				// if we found it then change the waypoint type to ammobox waypoint
+				if (strcmp(STRING(pent->v.classname), "ammobox") == 0)
+				{
+					waypoints[index].flags |= W_FL_AMMOBOX;	// add another flag that makes this type
+					waypoints[index].range = (float)20;
+				}
+			}
+		}
+		//************************************************************************************	NEW CODE 094 END
 	}
-	else if (wpt_type == wpt_ammobox)
+	else if (wpt_type == WptT::wpt_ammobox)
 	{
 		waypoints[index].flags |= W_FL_AMMOBOX;	// add another flag that makes this type
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_chute)
+	else if (wpt_type == WptT::wpt_chute)
 	{
 		waypoints[index].flags |= W_FL_CHUTE;
 	}
-	else if (wpt_type == wpt_crouch)
+	else if (wpt_type == WptT::wpt_crouch)
 	{
 		waypoints[index].flags |= W_FL_CROUCH;
 	}
-	else if (wpt_type == wpt_door)
+	else if (wpt_type == WptT::wpt_door)
 	{
 		waypoints[index].flags |= W_FL_DOOR;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_dooruse)
+	else if (wpt_type == WptT::wpt_dooruse)
 	{
 		waypoints[index].flags |= W_FL_DOORUSE;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_fire)
+	else if (wpt_type == WptT::wpt_fire)
 	{
 		waypoints[index].flags |= W_FL_FIRE;
 	}
-	else if (wpt_type == wpt_goback)
+	else if (wpt_type == WptT::wpt_goback)
 	{
 		waypoints[index].flags |= W_FL_GOBACK;
 	}
-	else if (wpt_type == wpt_jump)
+	else if (wpt_type == WptT::wpt_jump)
 	{
 		waypoints[index].flags |= W_FL_JUMP;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_duckjump)
+	else if (wpt_type == WptT::wpt_duckjump)
 	{
 		waypoints[index].flags |= W_FL_DUCKJUMP;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_ladder)
+	else if (wpt_type == WptT::wpt_ladder)
 	{
 		waypoints[index].flags |= W_FL_LADDER;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_mine)
+	else if (wpt_type == WptT::wpt_mine)
 	{
 		waypoints[index].flags |= W_FL_MINE;
 	}
-	else if (wpt_type == wpt_prone)
+	else if (wpt_type == WptT::wpt_prone)
 	{
 		waypoints[index].flags |= W_FL_PRONE;
 	}
-	else if (wpt_type == wpt_flag)
+	else if (wpt_type == WptT::wpt_pushpoint)
 	{
 		waypoints[index].flags |= W_FL_PUSHPOINT;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_sprint)
+	else if (wpt_type == WptT::wpt_sprint)
 	{
 		waypoints[index].flags |= W_FL_SPRINT;
 	}
-	else if (wpt_type == wpt_sniper)
+	else if (wpt_type == WptT::wpt_sniper)
 	{
 		waypoints[index].flags |= W_FL_SNIPER;
 	}
-	else if (wpt_type == wpt_trigger)
+	else if (wpt_type == WptT::wpt_trigger)
 	{
 		waypoints[index].flags |= W_FL_TRIGGER;
 	}
-	else if (wpt_type == wpt_use)
+	else if (wpt_type == WptT::wpt_use)
 	{
 		waypoints[index].flags |= W_FL_USE;
 		waypoints[index].range = (float) 20;
 	}
-	else if (wpt_type == wpt_aim)
+	else if (wpt_type == WptT::wpt_aim)
 	{
 		waypoints[index].flags = 0;				// we need to clear the STD flag
 		waypoints[index].flags |= W_FL_AIMING;
 		waypoints[index].range = (float) 0;
 	}
-	else if (wpt_type == wpt_cross)
+	else if (wpt_type == WptT::wpt_cross)
 	{
 		waypoints[index].flags = 0;
 		waypoints[index].flags |= W_FL_CROSS;
 		waypoints[index].range = WPT_RANGE * (float) 3;
+
+		//																						NEW CODE 094 END
+		// stop autowaypointing when a cross waypoint is added manually
+		if (wptser.IsAutoWaypointing())
+		{
+			StartAutoWaypointg(FALSE);
+
+			// also change its range to match the autowaypointing distance
+			// in order to reach (be able to connect to) normal waypoint/s added by the autowaypointing
+			waypoints[index].range = wptser.GetAutoWaypointingDistance() + (float) 10;
+		}
+		//************************************************************************************	NEW CODE 094 END
 	}
 	else
 	{
 		// reset the flag back to default ie to deleted waypoint
 		waypoints[index].flags = W_FL_DELETED;
 
-		return wpt_no;
+		return WptT::wpt_no;
 	}
 
 	// get size/hight of the beam based on waypoint type
-	//Wpt_SetSize(index, start, end);
+	//SetWaypointSize(index, start, end);
 
 	// use temp vector to set color for this waypoint
-	//Vector color = Wpt_SetColor(index);
+	//Vector color = SetWaypointColor(index);
 
 	// draw the waypoint
 	//WaypointBeam(pEntity, start, end, 30, 0, color.x, color.y, color.z, 250, 5);
@@ -5193,7 +6216,8 @@ WPT_TYPES WaypointAdd(const Vector position, WPT_TYPES wpt_type)
 	waypoints[index].origin = position;
 
 	// store the last used waypoint for the auto waypoint code...
-	last_waypoint = position;
+	if ((wpt_type != WptT::wpt_aim) && (wpt_type != WptT::wpt_cross))//													NEW CODE 094
+		last_waypoint = position;
 
 	wp_display_time[index] = 0.0;
 	f_ranges_display_time[index] = 0.0;
@@ -5251,16 +6275,25 @@ void WaypointDelete(edict_t *pEntity)
 	if (index == -1)
 		return;
 
-	// check if exists any paths
+	// check if there are any paths
 	if (num_w_paths >= 1)
 	{
 		// go through all paths
 		for (int path_index = 0; path_index < num_w_paths; path_index++)
 		{
-			// remove waypoint from this path
+			// remove this waypoint from any path this waypoint was added to
 			ExcludeFromPath(index, path_index);
 		}
 	}
+
+	//																								NEW CODE 094
+	// if we are deleting the last added waypoint
+	// then we also need to reset the position for autowaypointing
+	// otherwise we won't be able to start autowaypointing nearby
+	if (waypoints[index].origin == last_waypoint)
+		last_waypoint = g_vecZero;//Vector(0, 0, 0);
+
+	//******************************************************************************************	NEW CODE 094 END
 
 	// call the init method which will reset the waypoint
 	WaypointInit(index);
@@ -5271,6 +6304,10 @@ void WaypointDelete(edict_t *pEntity)
 	// clear the connections "sub array" too
 	for (int j = 0; j < MAX_WAYPOINTS; j++)
 		f_conn_time[index][j] = 0.0;
+
+	// deactivate compass if this is the waypoint the user was looking for
+	if (wptser.GetCompassIndex() == index)
+		wptser.ResetCompassIndex();
 
 	EMIT_SOUND_DYN2(pEntity, CHAN_WEAPON, "weapons/mine_activate.wav", 1.0, ATTN_NORM, 0, 100);
 }
@@ -5308,23 +6345,25 @@ bool WaypointCreatePath(edict_t *pEntity)
 bool WaypointFinishPath(edict_t *pEntity)
 {
 	// is any path currenly in edit
-	if (g_path_to_continue != -1)
+	if (internals.IsPathToContinue())
 	{
-		int path_status;
+		int path_validity;
 
-		path_status = WaypointIsPathOkay(g_path_to_continue);
+		//path_validity = WaypointIsPathOkay(g_path_to_continue);					// NEW CODE 094 (prev code)
 		
-		// test current path if there are no errors like the same wpt added twice in a row etc.
-		if (path_status == 1)
+		path_validity = WaypointValidatePath(internals.GetPathToContinue());//					NEW CODE 094
+		
+		
+		if (path_validity == 1)
 			ClientPrint(pEntity, HUD_PRINTNOTIFY, "there was an error in this path that has been automatically fixed\n");
-		else if (path_status == -1)
+		else if (path_validity == -1)
 			ClientPrint(pEntity, HUD_PRINTNOTIFY, "there is an error in this path that couldn't be fixed automatically\n");
 
 		// also update this path status
-		UpdatePathStatus(g_path_to_continue);
+		UpdatePathStatus(internals.GetPathToContinue());
 
-		g_path_to_continue = -1;	
-		g_path_last_wpt = -1;	// clear last path waypoint
+		// we aren't going to edit this path anymore so we must reset the "pointer"
+		internals.ResetPathToContinue();
 
 		return TRUE;
 	}
@@ -5354,12 +6393,10 @@ bool WaypointPathContinue(edict_t *pEntity, int path_index)
 	}
 
 	// is the path valid
-	if (path_index != -1 && w_paths[path_index] != NULL)
+	if ((path_index != -1) && (w_paths[path_index] != NULL))
 	{
-		// update global "pointers"
-		g_path_to_continue = path_index;
-
-		g_path_last_wpt = GetPathEnd(path_index);
+		// update global "pointer"
+		internals.SetPathToContinue(path_index);
 
 		return TRUE;
 	}
@@ -5375,8 +6412,8 @@ bool WaypointAddIntoPath(edict_t *pEntity)
 	int current_waypoint = -1;
 	int result;
 
-	// if auto_path is on the wpt must be really close
-	if (g_auto_path)
+	// if automatic additions to path is active then the waypoint must be really close
+	if (wptser.IsAutoAddToPath())
 		current_waypoint = WaypointFindNearest(pEntity, AUTOADD_DISTANCE, -1);
 	// otherwise use standard distance
 	else
@@ -5391,7 +6428,8 @@ bool WaypointAddIntoPath(edict_t *pEntity)
 
 	result = ContinueCurrPath(current_waypoint);
 
-	if (result > 0)
+	//if (result > 0)																				NEW CODE 094 (prev code)
+	if (result == 1)//																				NEW CODE 094
 	{
 		return TRUE;
 	}
@@ -5420,9 +6458,9 @@ bool WaypointRemoveFromPath(edict_t *pEntity, int path_index)
 
 	// if not specified path use actual (currently in edit) path
 	if (path_index == -1)
-		path_index = g_path_to_continue;
+		path_index = internals.GetPathToContinue();
 
-	// if still no path search the first on current wpt
+	// if still no path then try to find any path on nearby wpt
 	if (path_index == -1)
 		path_index = FindPath(current_waypoint);
 
@@ -5438,13 +6476,171 @@ bool WaypointRemoveFromPath(edict_t *pEntity, int path_index)
 			UTIL_DebugInFile("***E_F_P|UNK\n");
 #endif
 #ifdef _DEBUG
-			UTIL_DebugDev("ExcludeFromPath()->unk\n", current_waypoint +1, path_index + 1);
+			UTIL_DebugDev("ExcludeFromPath()->unk\n", current_waypoint, path_index);
 			ALERT(at_console, "unknown error in ExcludeFromPath()\n");
 #endif
 		return FALSE;
 	}
 
 	return FALSE;
+}
+
+/*
+* split path into two parts, either by given path index as arg2 or the first found path on given waypoint as arg3 or on nearby waypoint if arg3 is NULL
+* returns the index of the new path if we successfully split original path
+* returns -1 if not close to any wpt or there's no path on it
+* returns -2 if the path is too short (ie. path has less than 4 wpts -> new paths after the split must have at least 2 wpts each)
+* returns -3 if the waypoint isn't in this path
+* returns -4 if we can't split the path at this position (ie. the waypoint is its starting point or ending point or is at the penultimate position in the path)
+* returns -5 if we are unable to start a new path (most probably reached the max. amount of paths)
+* returns -6 if something went wrong when shuffling the waypoints between the paths or if either of the path offsprings didn't pass validation
+* returns -7 if the path doesn't exist or was deleted
+* returns -8 if the waypoint doesn't exist or was deleted
+*/
+int WaypointSplitPath(edict_t *pEntity, const char *arg2, const char *arg3)
+{
+	int path_index = -1;
+	int wpt_index = -1;
+	int path_length = 0;
+	int min_length = 5;		// min length of the path to allow the split
+	w_path *p = NULL;
+
+	// get path index from argument
+	if ((arg2 != NULL) && (*arg2 != 0))
+	{
+		path_index = atoi(arg2);
+		path_index--;					// due to array based style
+
+		// return error if such index doesn't exist or it's a deleted path
+		if ((path_index == -1) || (w_paths[path_index] == NULL))
+			return -7;
+
+		path_length = WaypointGetPathLength(path_index);
+
+		// return error if the path is too short to create two valid path "offsprings" after we divide it
+		if ((path_length > 0) && (path_length < min_length))
+			return -2;
+	}
+
+	// get waypoint index from argument
+	if ((arg3 != NULL) && (*arg3 != 0))
+	{
+		wpt_index = atoi(arg3);
+		wpt_index--;
+
+		// return error if such waypoint doesn't exist or was deleted
+		if ((wpt_index < 0) || (wpt_index > num_waypoints) || (waypoints[wpt_index].flags & W_FL_DELETED))
+			return -8;
+	}
+
+	// try to find nearby waypoint if there was no argument
+	if (wpt_index == -1)
+	{
+		wpt_index = WaypointFindNearest(pEntity, 50.0, -1);
+
+		// there's no waypoint where the split could be done so return error
+		if (wpt_index == -1)
+			return -1;
+	}
+
+	// if there was no path given as argument then ...
+	if (path_index == -1)
+	{
+		// find the first path on waypoint
+		path_index = FindPath(wpt_index);
+
+		if (path_index == -1)
+			return -1;
+
+		path_length = WaypointGetPathLength(path_index);
+
+		if ((path_length > 0) && (path_length < min_length))
+			return -2;
+	}
+
+	// find the position of the waypoint in the path
+	p = GetWaypointPointer(wpt_index, path_index);
+
+	// return error if the waypoint isn't present in our path
+	if (p == NULL)
+		return -3;
+
+	// if there is no previous node then this waypoint must be at the beginning of the path so we can't split it here
+	if (p->prev == NULL)
+		return -4;
+
+	// if there aren't at least two nodes preceding this one then we can't split the path
+	// in other words this must be at least 3rd waypoint from the beginning of the path to allow the split
+	// this is due to the fact that if the splitting is done automatically as a result of waypoint change
+	// to a cross waypoint then such waypoint will be excluded from the path ...
+	// therefore there must be at least three waypoints left in the first part of path
+	if (p->prev->prev == NULL)
+		return -4;
+
+	// if there is no next node then the waypoint is at the end of the path so we can't split the path here either
+	if (p->next == NULL)
+		return -4;
+
+	// if there aren't at least two nodes after this then we can't split the path at this position
+	// in other words there must be at least two waypoints left in the path
+	// so the part we'll cut off will be a valid path (ie. a path with at least two waypoints)
+	if (p->next->next == NULL)
+		return -4;
+
+	// set the pointer to next node
+	// (ie. next waypoint in the path, because that is the waypoint which will be the starting point of the new path)
+	p = p->next;
+
+	// return error if we can't start new path
+	if (StartNewPath(p->wpt_index) == FALSE)
+		return -5;
+
+	// back up the index of the new path
+	int other_path = internals.GetPathToContinue();
+
+	// copy all path data from current path to the new one
+	w_paths[other_path]->flags = w_paths[path_index]->flags;
+
+	// and remove the waypoint from current path
+	if (ExcludeFromPath(p, path_index) != 1)
+		return -6;
+
+	// the pointer was freed so we must find the position of the waypoint in the path again
+	p = GetWaypointPointer(wpt_index, path_index);
+
+	// so that we can again set the pointer to next node and proceed the rest of the path
+	p = p->next;
+
+	// now go through the rest of the path and move it to the other path
+	while (p)
+	{
+		if (ContinueCurrPath(p->wpt_index) < 1)
+			return -6;
+
+		if (ExcludeFromPath(p, path_index) != 1)
+			return -6;
+
+		p = GetWaypointPointer(wpt_index, path_index);
+		p = p->next;
+	}
+
+	// we're done here so we must reset it
+	internals.ResetPathToContinue();
+
+	// check both paths for errors
+	if (WaypointValidatePath(path_index) != -1)
+	{
+		if (WaypointValidatePath(other_path) != -1)
+		{
+			// and update both path status, because we changed them both
+			UpdatePathStatus(path_index);
+			UpdatePathStatus(other_path);
+
+			return other_path;
+		}
+	}
+
+	return -6;
 }
 
 /*
@@ -5568,17 +6764,31 @@ bool WaypointPathInfo(edict_t *pEntity, int path_index)
 			if (w_paths[path_index] == NULL)
 				continue;
 
-			// do we highlight red team accessible path AND path is NOT for red team
-			if ((highlight_this_path == HIGHLIGHT_RED) &&
+			// are we highlighting red team accessible path AND path is NOT for red team
+			if ((wptser.GetPathToHighlight() == HIGHLIGHT_RED) &&
 				!(w_paths[path_index]->flags & (P_FL_TEAM_NO | P_FL_TEAM_RED)))
 				continue;	// so skip it
-			// do we highlight blue team accessible path AND path is NOT for blue team
-			else if ((highlight_this_path == HIGHLIGHT_BLUE) &&
+			// are we highlighting blue team accessible path AND path is NOT for blue team
+			else if ((wptser.GetPathToHighlight() == HIGHLIGHT_BLUE) &&
 				!(w_paths[path_index]->flags & (P_FL_TEAM_NO | P_FL_TEAM_BLUE)))
 				continue;
-			// do we highlight one-way path AND path is NOT one-way
-			else if ((highlight_this_path == HIGHLIGHT_ONEWAY) &&
+			// are we highlighting one-way path AND path is NOT one-way
+			else if ((wptser.GetPathToHighlight() == HIGHLIGHT_ONEWAY) &&
 				!(w_paths[path_index]->flags & P_FL_WAY_ONE))
+				continue;
+			// are we highlighting sniper path AND path is NOT one-way
+			else if ((wptser.GetPathToHighlight() == HIGHLIGHT_SNIPER) &&
+				!(w_paths[path_index]->flags & P_FL_CLASS_SNIPER))
+				continue;
+			// are we highlighting machine gunner path AND path is NOT one-way
+			else if ((wptser.GetPathToHighlight() == HIGHLIGHT_MGUNNER) &&
+				!(w_paths[path_index]->flags & P_FL_CLASS_MGUNNER))
+				continue;
+			// are we highlighting specific path AND this index doesn't match it
+			else if ((wptser.GetPathToHighlight() != HIGHLIGHT_DISABLED) && (wptser.GetPathToHighlight() != path_index) &&
+				(wptser.GetPathToHighlight() != HIGHLIGHT_RED) && (wptser.GetPathToHighlight() != HIGHLIGHT_BLUE) &&
+				(wptser.GetPathToHighlight() != HIGHLIGHT_ONEWAY) && (wptser.GetPathToHighlight() != HIGHLIGHT_SNIPER) &&
+				(wptser.GetPathToHighlight() != HIGHLIGHT_MGUNNER))
 				continue;
 			
 			p = w_paths[path_index];
@@ -5602,9 +6812,9 @@ bool WaypointPathInfo(edict_t *pEntity, int path_index)
 		}
 	}
 
-	// if not close to any wpt AND is any path actual (in edditing) so use it
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	// if not close to any waypoint, but there is a path that is currently edited
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();			// then use it
 
 	// is path specified AND the path doesn't exist
 	// OR path_index is -1 (ie path == NULL)
@@ -5953,9 +7163,10 @@ bool WaypointResetPath(edict_t *pEntity, int path_index)
 		path_index = FindPath(closest_wpt);
 	}
 
-	// if not close to any wpt AND is any path actual (in edditing) so use it
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	// if not close to any waypoint, but there is a path
+	// that is currently edited then use it
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();
 
 	// is path specified AND the path doesn't exist
 	// OR path_index is -1 (ie path == NULL)
@@ -6011,12 +7222,13 @@ int WptPathChangeTeam(edict_t *pEntity, const char *new_value, int path_index)
 		path_index = FindPath(closest_wpt);
 	}
 
-	// if not close to any waypoint AND is any path actual (in edditing) so use it
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	// if not close to any waypoint, but there is a path
+	// that is currently edited then use it
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();
 
 	// change the team flag only if the path exist
-	if (path_index != -1 && w_paths[path_index])
+	if ((path_index != -1) && w_paths[path_index])
 	{
 		// remove the old value first
 		if (w_paths[path_index]->flags & P_FL_TEAM_NO)
@@ -6072,10 +7284,10 @@ int WptPathChangeClass(edict_t *pEntity, const char *new_value, int path_index)
 		path_index = FindPath(closest_wpt);
 	}
 
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();
 
-	if (path_index != -1 && w_paths[path_index])
+	if ((path_index != -1) && w_paths[path_index])
 	{
 		// remove the "all" flag at first
 		// we assume that the path will be restricted for some classes
@@ -6153,10 +7365,10 @@ int WptPathChangeWay(edict_t *pEntity, const char *new_value, int path_index)
 		path_index = FindPath(closest_wpt);
 	}
 
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();
 
-	if (path_index != -1 && w_paths[path_index])
+	if ((path_index != -1) && w_paths[path_index])
 	{
 		if (w_paths[path_index]->flags & P_FL_WAY_ONE)
 			w_paths[path_index]->flags &= ~P_FL_WAY_ONE;
@@ -6209,10 +7421,10 @@ int WptPathChangeMisc(edict_t *pEntity, const char *new_value, int path_index)
 		path_index = FindPath(closest_wpt);
 	}
 
-	if ((path_index == -1) && (g_path_to_continue != -1))
-		path_index = g_path_to_continue;
+	if ((path_index == -1) && internals.IsPathToContinue())
+		path_index = internals.GetPathToContinue();
 
-	if (path_index != -1 && w_paths[path_index])
+	if ((path_index != -1) && w_paths[path_index])
 	{
 		// if the flag already is on this path then remove it
 		if (w_paths[path_index]->flags & new_misc_val)
@@ -6292,7 +7504,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 	char filename[256];
 	PATH_HDR header;
 	char msg[256];
-	bool show_paths_on = FALSE;		// TRUE if paths were turned on
+	bool show_paths_again = FALSE;		// TRUE if paths were turned on
 	W_PATH *p = NULL;
 	int path_index, path_length, flags, wpt_index;
 	
@@ -6307,7 +7519,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 		strcat(mapname, ".pth");
 	}
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -6315,7 +7527,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 	if (is_dedicated_server)
 	{
 		sprintf(msg, "loading paths file: %s\n", filename);
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -6331,16 +7543,16 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 			if (header.waypoint_file_version != WAYPOINT_VERSION)
 			{
 				sprintf(msg, "Incompatible version of MarineBot paths!\n");
-				PrintOutput(pEntity, msg, msg_error);
+				PrintOutput(pEntity, msg, MType::msg_error);
 
 				sprintf(msg, "Paths not loading!\n");
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 				
 				// "wpt load" command shouldn't let run this method at all, but just in case
 				if (pEntity == NULL)
 				{
 					sprintf(msg, "Auto conversion started...\n");
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 
 				fclose(bfp);
@@ -6378,12 +7590,11 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 				// remove any existing paths
 				FreeAllPaths();
 
-				// is path showing on so turn it off
-				if (g_path_waypoint_on)
+				// if paths are displayed then hide them until the rebuild is done
+				if (wptser.IsShowPaths())
 				{
-					g_path_waypoint_on = false;
-
-					show_paths_on = TRUE;
+					wptser.ResetShowPaths();
+					show_paths_again = TRUE;
 				}
 
 				// load and rebuild all paths
@@ -6392,7 +7603,7 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 					// read the stored path_index
 					fread(&path_index, sizeof(path_index), 1, bfp);
 
-					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));	// create new head node
+					p = (W_PATH *)malloc(sizeof(W_PATH));	// create new head node
 
 					if (p == NULL)
 					{
@@ -6408,8 +7619,8 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 					// store head node of the new path into w_paths array
 					w_paths[path_index] = p;
 
-					// init actual path (a must for ContinueCurrPath())
-					g_path_to_continue = path_index;
+					// init actual path (a must for Continue Curr Path())
+					internals.SetPathToContinue(path_index);
 
 					// read the path length
 					fread(&path_length, sizeof(path_length), 1, bfp);
@@ -6436,7 +7647,8 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 						fread(&wpt_index, sizeof(p->wpt_index), 1, bfp);
 
 						// check if waypoint was added correctly
-						if (ContinueCurrPath(wpt_index) != 1)
+						//if (ContinueCurrPath(wpt_index) != 1)												NEW CODE 094 (prev code)
+						if (ContinueCurrPath(wpt_index, FALSE) < 1)//										NEW CODE 094
 							return 0;
 					}
 
@@ -6449,10 +7661,10 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 			else
 			{
 				sprintf(msg, "MarineBot paths are not for this map! %s\n", filename);
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 				
 				sprintf(msg, "Bots will not play well this map!\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return 0;
@@ -6473,10 +7685,10 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 		else
 		{
 			sprintf(msg, "Not MarineBot path file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_warning);
+			PrintOutput(pEntity, msg, MType::msg_warning);
 
 			sprintf(msg, "Bots will not play well this map!\n");
-			PrintOutput(pEntity, msg, msg_info);
+			PrintOutput(pEntity, msg, MType::msg_info);
 			
 			fclose(bfp);
 			return 0;
@@ -6487,20 +7699,20 @@ int WaypointPathLoad(edict_t *pEntity, char *name)
 	else
 	{
 		sprintf(msg, "path file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_warning);
+		PrintOutput(pEntity, msg, MType::msg_warning);
 
 		sprintf(msg, "Bots will not play well this map!\n");
-		PrintOutput(pEntity, msg, msg_info);
+		PrintOutput(pEntity, msg, MType::msg_info);
 
 		return 0;
 	}
 
-	// clear actual path "pointer"
-	g_path_to_continue = -1;
+	// clear current path "pointer"
+	internals.ResetPathToContinue();
 
-	// if the paths were shown then turn the draw paths back on
-	if (show_paths_on)
-		g_path_waypoint_on = TRUE;
+	// if the paths were temporarily hidden then display them again
+	if (show_paths_again)
+		wptser.SetShowPaths(true);
 
 	return 1;
 }
@@ -6575,7 +7787,7 @@ bool WaypointPathSave(const char *name)
 		strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".pth");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -6655,16 +7867,16 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 	//OLD_PATH_HDR old_header;
 	PATH_HDR header;		// can be used current header until any change is done
 	char msg[256];
-	bool show_paths_on = FALSE;		// TRUE if paths were turned on
+	bool show_paths_again = FALSE;		// TRUE if paths were turned on
 	W_PATH *p = NULL;
 	int path_index, path_length, flags, wpt_index;
-	bool known = false;
+	bool known;
 	OLD_W_PATH *old_paths = NULL;	// we don't really need it here
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".pth");
 	
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -6672,7 +7884,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 	if (is_dedicated_server)
 	{
 		sprintf(msg, "loading unsupported paths from: %s\n", filename);
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -6688,7 +7900,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 			if (header.waypoint_file_version == WAYPOINT_VERSION)
 			{
 				sprintf(msg, "This path file is actual. No need to load it this way.\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -6703,12 +7915,12 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 					known = TRUE;
 
 					sprintf(msg, "found known older MarineBot path file (version %d - MB0.9b) - conversion in progress...\n", OLD_WAYPOINT_VERSION);
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 				else
 				{
 					sprintf(msg, "unknown path file version (probably too old) - conversion failed!\n");
-					PrintOutput(pEntity, msg, msg_error);
+					PrintOutput(pEntity, msg, MType::msg_error);
 
 					fclose(bfp);
 					return FALSE;
@@ -6718,7 +7930,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 			if (header.waypoint_flag != num_waypoints)
 			{
 				sprintf(msg, "Waypoint file doesn't match to path file record! - conversion failed!\n");
-				PrintOutput(pEntity, msg, msg_error);
+				PrintOutput(pEntity, msg, MType::msg_error);
 
 				fclose(bfp);
 				return FALSE;
@@ -6746,20 +7958,19 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 				FreeAllPaths();
 
 				sprintf(msg, "loading converted path file\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
-				if (g_path_waypoint_on)
+				if (wptser.IsShowPaths())
 				{
-					g_path_waypoint_on = FALSE;
-
-					show_paths_on = TRUE;
+					wptser.ResetShowPaths();
+					show_paths_again = TRUE;
 				}
 
 				// load and rebuild all paths
 				for (int all_paths = 0; all_paths < num_w_paths; all_paths++)
 				{
 					// create new head node for the new path
-					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
+					p = (W_PATH *)malloc(sizeof(W_PATH));
 
 					if (p == NULL)
 					{
@@ -6796,8 +8007,8 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 						// store head node of the new path into w_paths array
 						w_paths[path_index] = p;
 
-						// init actual path (a must for ContinueCurrPath())
-						g_path_to_continue = path_index;
+						// init actual path (a must for Continue Curr Path())
+						internals.SetPathToContinue(path_index);
 
 						// read the path length
 						fread(&path_length, sizeof(path_length), 1, bfp);
@@ -6826,7 +8037,8 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 							fread(&wpt_index, sizeof(old_paths->wpt_index), 1, bfp);
 
 							// check if wpt was added correctly
-							if (ContinueCurrPath(wpt_index) != 1)
+							//if (ContinueCurrPath(wpt_index) != 1)										NEW CODE 094 (prev code)
+							if (ContinueCurrPath(wpt_index, FALSE) < 1)//								NEW CODE 094
 								return FALSE;
 						}
 
@@ -6845,7 +8057,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 			else
 			{
 				sprintf(msg, "MarineBot paths are not for this map! %s\n", filename);
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 
 				fclose(bfp);
 				return FALSE;
@@ -6868,7 +8080,7 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 		else
 		{
 			sprintf(msg, "Not MarineBot path file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_error);
+			PrintOutput(pEntity, msg, MType::msg_error);
 			
 			fclose(bfp);
 			return FALSE;
@@ -6879,16 +8091,15 @@ bool WaypointPathLoadUnsupported(edict_t *pEntity)
 	else
 	{
 		sprintf(msg, "Path file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_warning);
+		PrintOutput(pEntity, msg, MType::msg_warning);
 
 		return FALSE;
 	}
 
-	// clear actual path "pointer"
-	g_path_to_continue = -1;
+	internals.ResetPathToContinue();
 
-	if (show_paths_on)
-		g_path_waypoint_on = TRUE;
+	if (show_paths_again)
+		wptser.SetShowPaths(true);
 
 	return TRUE;
 }
@@ -6908,17 +8119,17 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 	//OLD_PATH_HDR header;
 	PATH_HDR header;		// can be used current header until any change is done
 	char msg[256];
-	bool show_paths_on = FALSE;		// TRUE if paths were turned on
+	bool show_paths_again = FALSE;		// TRUE if paths were turned on
 	W_PATH *p = NULL;
 	int path_index, path_length, flags, wpt_index;
-	bool known = false;
+	bool known;
 	OLD_W_PATH *old_paths = NULL;	// we don't really need it here
 	int OLD_WAYPOINT_VERSION_5 = 5;		// we have to "override" standard conversion by sending even older version number
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".pth");
 	
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -6926,7 +8137,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 	if (is_dedicated_server)
 	{
 		sprintf(msg, "loading unsupported paths from: %s\n", filename);
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -6942,7 +8153,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 			if (header.waypoint_file_version == WAYPOINT_VERSION)
 			{
 				sprintf(msg, "This path file is actual. No need to load it this way.\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -6957,12 +8168,12 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 					known = TRUE;
 
 					sprintf(msg, "found known older MarineBot path file (version %d - MB0.8b) - conversion in progress...\n", OLD_WAYPOINT_VERSION_5);
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 				else
 				{
 					sprintf(msg, "unknown path file version (probably too old) - conversion failed!\n");
-					PrintOutput(pEntity, msg, msg_error);
+					PrintOutput(pEntity, msg, MType::msg_error);
 
 					fclose(bfp);
 					return FALSE;
@@ -6972,7 +8183,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 			if (header.waypoint_flag != num_waypoints)
 			{
 				sprintf(msg, "Waypoint file doesn't match to path file record! - conversion failed!\n");
-				PrintOutput(pEntity, msg, msg_error);
+				PrintOutput(pEntity, msg, MType::msg_error);
 
 				fclose(bfp);
 				return FALSE;
@@ -7014,20 +8225,19 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 				FreeAllPaths();
 
 				sprintf(msg, "loading converted path file\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
-				if (g_path_waypoint_on)
+				if (wptser.IsShowPaths())
 				{
-					g_path_waypoint_on = FALSE;
-
-					show_paths_on = TRUE;
+					wptser.ResetShowPaths();
+					show_paths_again = TRUE;
 				}
 
 				// load and rebuild all paths
 				for (int all_paths = 0; all_paths < num_w_paths; all_paths++)
 				{
 					// create new head node
-					p = static_cast<W_PATH *>(malloc(sizeof(W_PATH)));
+					p = (W_PATH *)malloc(sizeof(W_PATH));
 
 					if (p == NULL)
 					{
@@ -7064,8 +8274,8 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 						// store head node of the new path into w_paths array
 						w_paths[path_index] = p;
 
-						// init actual path (a must for ContinueCurrPath())
-						g_path_to_continue = path_index;
+						// init actual path (a must for Continue Curr Path())
+						internals.SetPathToContinue(path_index);
 
 						// read the path length
 						fread(&path_length, sizeof(path_length), 1, bfp);
@@ -7094,7 +8304,8 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 							fread(&wpt_index, sizeof(old_paths->wpt_index), 1, bfp);
 
 							// check if wpt was added correctly
-							if (ContinueCurrPath(wpt_index) != 1)
+							//if (ContinueCurrPath(wpt_index) != 1)											NEW CODE 094 (prev code)
+							if (ContinueCurrPath(wpt_index, FALSE) < 1)//									NEW CODE 094
 								return FALSE;
 						}
 
@@ -7148,7 +8359,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 			else
 			{
 				sprintf(msg, "MarineBot paths are not for this map! %s\n", filename);
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 
 				fclose(bfp);
 				return FALSE;
@@ -7171,7 +8382,7 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 		else
 		{
 			sprintf(msg, "Not MarineBot path file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_error);
+			PrintOutput(pEntity, msg, MType::msg_error);
 			
 			fclose(bfp);
 			return FALSE;
@@ -7182,16 +8393,15 @@ bool WaypointPathLoadVersion5(edict_t *pEntity)
 	else
 	{
 		sprintf(msg, "Path file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_warning);
+		PrintOutput(pEntity, msg, MType::msg_warning);
 
 		return FALSE;
 	}
 
-	// clear actual path "pointer"
-	g_path_to_continue = -1;
+	internals.ResetPathToContinue();
 
-	if (show_paths_on)
-		g_path_waypoint_on = TRUE;
+	if (show_paths_again)
+		wptser.SetShowPaths(true);
 
 	return TRUE;
 }
@@ -7224,7 +8434,7 @@ int WaypointLoad(edict_t *pEntity, char *name)
 		strcat(mapname, ".wpt");
 	}
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -7233,7 +8443,7 @@ int WaypointLoad(edict_t *pEntity, char *name)
 	{
 		sprintf(msg, "loading waypoint file: %s\n", filename);
 
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -7249,17 +8459,17 @@ int WaypointLoad(edict_t *pEntity, char *name)
 			if (header.waypoint_file_version != WAYPOINT_VERSION)
 			{
 				sprintf(msg, "Incompatible waypoint file version!\n");
-				PrintOutput(pEntity, msg, msg_error);
+				PrintOutput(pEntity, msg, MType::msg_error);
 
 				sprintf(msg, "Waypoints not loading!\n");
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 
 				// don't print this on user command "wpt load",
 				// because in that case we don't autoconvert them
 				if (pEntity == NULL)
 				{
 					sprintf(msg, "Auto conversion started...\n");
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 
 				fclose(bfp);
@@ -7298,10 +8508,10 @@ int WaypointLoad(edict_t *pEntity, char *name)
 			else
 			{
 				sprintf(msg, "Waypoints are not for this map!\n");
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 
 				sprintf(msg, "Bots will not play well this map!\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return 0;
@@ -7323,10 +8533,10 @@ int WaypointLoad(edict_t *pEntity, char *name)
 		else
 		{
 			sprintf(msg, "Not MarineBot waypoint file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_error);
+			PrintOutput(pEntity, msg, MType::msg_error);
 
 			sprintf(msg, "Bots will not play well this map!\n");
-			PrintOutput(pEntity, msg, msg_info);
+			PrintOutput(pEntity, msg, MType::msg_info);
 			
 			fclose(bfp);
 			return 0;
@@ -7337,10 +8547,10 @@ int WaypointLoad(edict_t *pEntity, char *name)
 	else
 	{
 		sprintf(msg, "Waypoint file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_error);
+		PrintOutput(pEntity, msg, MType::msg_error);
 
 		sprintf(msg, "Bots will not play well this map!\n");
-		PrintOutput(pEntity, msg, msg_info);
+		PrintOutput(pEntity, msg, MType::msg_info);
 
 		return -10;
 	}
@@ -7394,7 +8604,7 @@ bool WaypointSave(const char *name)
 		strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -7442,12 +8652,12 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 	int index;
 	OLD_WAYPOINT oldwaypoints_ver[1];	// we need just one slot because we are converting them one by one
 	TRIGGER_EVENT_OLD old_triggers[1];
-	bool known = false;
+	bool known;
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -7456,7 +8666,7 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 	{
 		sprintf(msg, "loading unsupported waypoints from: %s\n", filename);
 		
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -7472,7 +8682,7 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 			if (header.waypoint_file_version == WAYPOINT_VERSION)
 			{
 				sprintf(msg, "This waypoint file is actual. No need to load it this way.\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -7489,13 +8699,13 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 					known = TRUE;
 
 					sprintf(msg, "found known older MarineBot waypoint file (version %d - MB0.9b) - conversion in progress...\n", OLD_WAYPOINT_VERSION);
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 				// otherwise ignore all other (older) waypoint versions
 				else
 				{
 					sprintf(msg, "unknown waypoint file version (probably too old) - conversion failed!\n");
-					PrintOutput(pEntity, msg, msg_error);
+					PrintOutput(pEntity, msg, MType::msg_error);
 
 					fclose(bfp);
 					return FALSE;
@@ -7510,7 +8720,7 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 				WaypointInit();
 
 				sprintf(msg, "loading converted waypoint file\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				for (index = 0; index < header.number_of_waypoints; index++)
 				{
@@ -7605,10 +8815,10 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 			else
 			{
 				sprintf(msg, "MarineBot waypoints are not for this map! %s\n", filename);
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 				
 				sprintf(msg, "Bots will not play well this map!\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -7617,10 +8827,10 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 		else
 		{
 			sprintf(msg, "Not MarineBot waypoint file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_warning);
+			PrintOutput(pEntity, msg, MType::msg_warning);
 				
 			sprintf(msg, "Bots will not play well this map!\n");
-			PrintOutput(pEntity, msg, msg_info);
+			PrintOutput(pEntity, msg, MType::msg_info);
 
 			fclose(bfp);
 			return FALSE;
@@ -7631,10 +8841,10 @@ bool WaypointLoadUnsupported(edict_t *pEntity)
 	else
 	{
 		sprintf(msg, "Waypoint file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_warning);
+		PrintOutput(pEntity, msg, MType::msg_warning);
 				
 		sprintf(msg, "Bots will not play well this map!\n");
-		PrintOutput(pEntity, msg, msg_info);
+		PrintOutput(pEntity, msg, MType::msg_info);
 
 		return FALSE;
 	}
@@ -7649,15 +8859,15 @@ bool WaypointLoadVersion5(edict_t *pEntity)
 
 // version 5 waypoint structure (needed because there was a change in the structure itself)
 typedef struct {
-	int		flags;			// jump, crouch, button, lift, flag, ammo, etc.
-	int		red_priority;	// 0-5 where 1 have highest priority for red team (0 - no priority, bot ingnores this waypoint)
-	float	red_time;		// time the bot wait at this wpt for red team
-	int		blue_priority;	// 0-5 where 1 have highest priority for blue team
-	float	blue_time;		// time the bot wait at this wpt for blue team
-	int		class_pref;		// -- NOT USED -- higher than priority based on bot class (NONE-all)
-	float	range;			// circle around wpt where bot detects this waypoint
-	int		misc;			// additional slot for various things
-	Vector	origin;			// location of this waypoint in 3D space
+	int		flags = W_FL_DELETED;			// jump, crouch, button, lift, flag, ammo, etc.
+	int		red_priority = MAX_WPT_PRIOR;	// 0-5 where 1 have highest priority for red team (0 - no priority, bot ingnores this waypoint)
+	float	red_time = 0.0;					// time the bot wait at this wpt for red team
+	int		blue_priority = MAX_WPT_PRIOR;	// 0-5 where 1 have highest priority for blue team
+	float	blue_time = 0.0;				// time the bot wait at this wpt for blue team
+	int		class_pref =0;					// -- NOT USED -- higher than priority based on bot class (NONE-all)
+	float	range = WPT_RANGE;				// circle around wpt where bot detects this waypoint
+	int		misc = 0;						// additional slot for various things
+	Vector	origin = g_vecZero;//Vector(0, 0, 0);		// location of this waypoint in 3D space
 } OLD_WAYPOINT_STRUCT_VERSION_5;
 
 	char mapname[64];
@@ -7668,12 +8878,12 @@ typedef struct {
 	int index;
 	OLD_WAYPOINT_STRUCT_VERSION_5 oldwaypoints_ver[1];	// we need just one slot because we are converting them one by one
 	int OLD_WAYPOINT_VERSION_5 = 5;		// we have to "override" standard conversion by sending even older version number
-	bool known = false;
+	bool known;
 
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -7682,7 +8892,7 @@ typedef struct {
 	{
 		sprintf(msg, "loading unsupported waypoints from: %s\n", filename);
 		
-		PrintOutput(NULL, msg, msg_info);
+		PrintOutput(NULL, msg, MType::msg_info);
 	}
 
 	FILE *bfp = fopen(filename, "rb");
@@ -7698,7 +8908,7 @@ typedef struct {
 			if (header.waypoint_file_version == WAYPOINT_VERSION)
 			{
 				sprintf(msg, "This waypoint file is actual. No need to load it this way.\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -7715,13 +8925,13 @@ typedef struct {
 					known = TRUE;
 
 					sprintf(msg, "found known older MarineBot waypoint file (version %d - MB0.8b) - conversion in progress...\n", OLD_WAYPOINT_VERSION_5);
-					PrintOutput(pEntity, msg, msg_info);
+					PrintOutput(pEntity, msg, MType::msg_info);
 				}
 				// otherwise ignore all other (older) waypoint versions
 				else
 				{
 					sprintf(msg, "unknown waypoint file version (probably too old) - conversion failed!\n");
-					PrintOutput(pEntity, msg, msg_error);
+					PrintOutput(pEntity, msg, MType::msg_error);
 
 					fclose(bfp);
 					return FALSE;
@@ -7736,7 +8946,7 @@ typedef struct {
 				WaypointInit();
 
 				sprintf(msg, "loading converted waypoint file\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				for (index = 0; index < header.number_of_waypoints; index++)
 				{
@@ -7814,10 +9024,10 @@ typedef struct {
 			else
 			{
 				sprintf(msg, "MarineBot waypoints are not for this map! %s\n", filename);
-				PrintOutput(pEntity, msg, msg_warning);
+				PrintOutput(pEntity, msg, MType::msg_warning);
 				
 				sprintf(msg, "Bots will not play well this map!\n");
-				PrintOutput(pEntity, msg, msg_info);
+				PrintOutput(pEntity, msg, MType::msg_info);
 
 				fclose(bfp);
 				return FALSE;
@@ -7826,10 +9036,10 @@ typedef struct {
 		else
 		{
 			sprintf(msg, "Not MarineBot waypoint file! %s\n", filename);
-			PrintOutput(pEntity, msg, msg_warning);
+			PrintOutput(pEntity, msg, MType::msg_warning);
 				
 			sprintf(msg, "Bots will not play well this map!\n");
-			PrintOutput(pEntity, msg, msg_info);
+			PrintOutput(pEntity, msg, MType::msg_info);
 
 			fclose(bfp);
 			return FALSE;
@@ -7840,10 +9050,10 @@ typedef struct {
 	else
 	{
 		sprintf(msg, "Waypoint file not found! %s\n", filename);
-		PrintOutput(pEntity, msg, msg_warning);
+		PrintOutput(pEntity, msg, MType::msg_warning);
 				
 		sprintf(msg, "Bots will not play well this map!\n");
-		PrintOutput(pEntity, msg, msg_info);
+		PrintOutput(pEntity, msg, MType::msg_info);
 
 		return FALSE;
 	}
@@ -7852,10 +9062,17 @@ typedef struct {
 }
 
 /*
-* autosaves waypoints and paths after given time to temporary files
+* autosaves waypoints and paths after given time to special files
 */
 bool WaypointAutoSave(void)
 {
+	// don't save waypoints if we are currently building a path
+	// because path save routine automatically stops it
+	// so we would break stuff such as auto waypointing for example
+	// that would stop creating the path and would only add waypoints
+	if (internals.IsPathToContinue())
+		return FALSE;
+
 	char custom_name[32];
 
 	// set name for those files
@@ -7891,7 +9108,7 @@ bool WaypointRawLoad(edict_t *pEntity, bool flags, bool priority, bool time, boo
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".raw");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -8162,7 +9379,7 @@ void WaypointRawSave(bool flags, bool priority, bool time, bool class_preference
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".raw");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -8208,7 +9425,7 @@ int WaypointGetSystemVersion(void)
 	strcpy(mapname, STRING(gpGlobals->mapname));
 	strcat(mapname, ".wpt");
 
-	if (b_custom_wpts)
+	if (internals.IsCustomWaypoints())
 		UTIL_MarineBotFileName(filename, "customwpts", mapname);
 	else
 		UTIL_MarineBotFileName(filename, "defaultwpts", mapname);
@@ -8310,7 +9527,7 @@ bool WaypointReachable(Vector v_src, Vector v_dest, edict_t *pEntity)
 
             // is the difference in the last height and the current height
             // higher that the jump height?
-            if ((last_height - curr_height) > 45.0)
+            if ((last_height - curr_height) > (float)45.0)
             {
                // can't get there from here...
                return FALSE;
@@ -8697,6 +9914,63 @@ void WaypointPrintInfo(edict_t *pEntity, const char *arg2, const char *arg3)
 }
 
 /*
+* draws a simple beam connecting player origin and waypoint origin specified in argument
+* handles also turning the feature off either by off argument or no argument
+*/
+bool WaypointCompass(edict_t *pEntity, const char *arg2)
+{
+	int wpt_index = -1;
+
+	if ((arg2 != NULL) && (*arg2 != 0))
+	{
+		if (FStrEq(arg2, "off"))
+		{
+			wptser.ResetCompassIndex();
+
+			ClientPrint(pEntity, HUD_PRINTCONSOLE, "waypoint compass turned off\n");
+			return TRUE;
+		}
+
+		// due to array based style
+		wpt_index = atoi(arg2) - 1;
+
+		if ((wpt_index < 0) || (wpt_index > num_waypoints))
+		{
+			ClientPrint(pEntity, HUD_PRINTCONSOLE, "invalid waypoint index!\n");
+			return FALSE;
+		}
+
+		if (waypoints[wpt_index].flags & W_FL_DELETED)
+		{
+			ClientPrint(pEntity, HUD_PRINTCONSOLE, "cannot guide you to deleted waypoint!\n");
+			return FALSE;
+		}
+
+		// now everything seems to be valid so we can turn it on
+		wptser.SetCompassIndex(wpt_index);
+		f_compass_time = 0.0;
+
+		// turn these two on as well so the user can see things right away
+		wptser.SetShowWaypoints(true);
+		wptser.SetShowPaths(true);
+
+		// but turn these off to prevent overloading game engine which then makes the waypoints and all
+		// these beams to flicker
+		wptser.ResetCheckAims();
+		wptser.ResetCheckCross();
+		wptser.ResetCheckRanges();
+
+		return TRUE;
+	}
+	else
+	{
+		ClientPrint(pEntity, HUD_PRINTCONSOLE, "invalid or missing argument!\n");
+	}
+
+	return FALSE;
+}
+
+/*
 * lists through all waypoints printing their index and their flags/tags
 */
 void  WaypointPrintAllWaypoints(edict_t *pEntity)
@@ -8779,7 +10053,6 @@ void WaypointTriggerPrintInfo(edict_t *pEntity)
 		sprintf(special_info_b,"\tBlue Team priority(1-highest)= %d trigger priority= %d\n", blue_prior, trigger_blue);
 
 	TriggerIntToName(trigger_on_id, trigger_on);
-	//sprintf(msg, "\tTrigger on event=\"%s\"\n", trigger_on);
 	TriggerIntToName(trigger_off_id, trigger_off);
 	sprintf(msg, "\tTrigger on event=\"%s\" trigger off event=\"%s\"\n", trigger_on, trigger_off);
 
@@ -8839,7 +10112,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;			// reset also both wait times
 			waypoints[index].blue_time = 0;
 			waypoints[index].range = (float) 0;		// reset also range
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 
 		// we need to immediately leave this method when special waypoint is done
@@ -8862,7 +10135,42 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;
 			waypoints[index].blue_time = 0;
 			waypoints[index].range = WPT_RANGE * (float) 3;	// set the range to cross default
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
+
+			//																						NEW CODE 094 END
+
+			// see if this waypoint is part of any path
+			int in_path = FindPath(index);
+			
+			// convert this waypoint index to a string value
+			char wpt_index_as_char[6];
+			sprintf(wpt_index_as_char, "%d", index + 1);
+
+			while (in_path != -1)
+			{
+				char path_index_as_char[6];
+				sprintf(path_index_as_char, "%d", in_path + 1);
+
+				// first try to split the path on this waypoint
+				WaypointSplitPath(pEntity, path_index_as_char, wpt_index_as_char);
+
+				// no matter how the splitting went
+				// (even if it was successfully splitted this waypoint is still inside this path as its last waypoint)
+				// exclude this waypoint from this path
+				ExcludeFromPath(index, in_path);
+
+				// and check if there is yet another path on this waypoint
+				in_path = FindPath(index);
+			}
+
+			// if we are autowaypointing ...
+			if (wptser.IsAutoWaypointing())
+			{
+				// change its range to match the autowaypointing distance
+				// in order to reach (be able to connect to) normal waypoint/s added by the autowaypointing
+				waypoints[index].range = wptser.GetAutoWaypointingDistance() + (float) 10;
+			}
+			//************************************************************************************	NEW CODE 094 END
 		}
 
 		return output;
@@ -8888,7 +10196,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 
 		waypoints[index].flags |= W_FL_STD;
 
-		output = const_cast<char *>(new_type);
+		output = (char *)new_type;
 	}
 
 	else if (FStrEq(new_type, "ammobox"))
@@ -8906,7 +10214,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			// set smaller range only if range is quite big
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -8943,7 +10251,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].red_time = 0;
 			waypoints[index].blue_time = 0;
 			waypoints[index].flags |= W_FL_CHUTE;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -8960,7 +10268,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_PRONE;
 
 			waypoints[index].flags |= W_FL_CROUCH;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -8982,7 +10290,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].flags |= W_FL_DOOR;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9004,7 +10312,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].flags |= W_FL_DOORUSE;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9018,7 +10326,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_FIRE;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9032,7 +10340,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_GOBACK;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9056,7 +10364,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9080,7 +10388,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9101,7 +10409,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9119,7 +10427,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_CROUCH;
 
 			waypoints[index].flags |= W_FL_MINE;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9136,7 +10444,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_CROUCH;
 
 			waypoints[index].flags |= W_FL_PRONE;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9150,7 +10458,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_PUSHPOINT;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9169,7 +10477,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 				waypoints[index].flags &= ~W_FL_PRONE;
 
 			waypoints[index].flags |= W_FL_SPRINT;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9183,7 +10491,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_SNIPER;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9197,7 +10505,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 		else
 		{
 			waypoints[index].flags |= W_FL_TRIGGER;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9215,7 +10523,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 			waypoints[index].blue_time = 0;
 			if (waypoints[index].range > 20)
 				waypoints[index].range = (float) 20;
-			output = const_cast<char *>(new_type);
+			output = (char *)new_type;
 		}
 	}
 
@@ -9239,7 +10547,7 @@ char *WptFlagChange(edict_t *pEntity, const char *new_type)
 */
 int WptPriorityChange(edict_t *pEntity, const char *arg2, const char *arg3)
 {
-	int index, new_priority, wpt_priority = -1, team = 0;
+	int index, new_priority, wpt_priority = -1, team = -1;
 
 	// find the nearest waypoint
 	index = WaypointFindNearest(pEntity, 50.0, -1);
@@ -9347,7 +10655,7 @@ int WptPriorityChange(edict_t *pEntity, const char *arg2, const char *arg3)
 */
 int WptTriggerPriorityChange(edict_t *pEntity, const char *priority, const char *for_team)
 {
-	int index, new_priority, wpt_priority = -1, team = 0;
+	int index, new_priority, wpt_priority = -1, team = -1;
 
 	// find the nearest trigger waypoint
 	index = WaypointFindNearestType(pEntity, 50.0, W_FL_TRIGGER);
@@ -9447,7 +10755,7 @@ int WptTriggerPriorityChange(edict_t *pEntity, const char *priority, const char 
 */
 float WptTimeChange(edict_t *pEntity, const char *arg2, const char *arg3)
 {
-	int index, team = 0;
+	int index, team = -1;
 	float new_time, wpt_time = -1.0;
 
 	// find the nearest waypoint
@@ -9658,7 +10966,7 @@ bool WptResetAdditional(edict_t *pEntity, const char* arg1, const char* arg2, co
 * sets correct size/height of the beam based on waypoint type
 * keep this order to ensure that the waypoint will be shown correctly
 */
-void Wpt_SetSize(int wpt_index, Vector &start, Vector &end)
+void SetWaypointSize(int wpt_index, Vector &start, Vector &end)
 {
 	if (waypoints[wpt_index].flags & (W_FL_CROSS | W_FL_AIMING))
 	{
@@ -9752,7 +11060,7 @@ void Wpt_SetSize(int wpt_index, Vector &start, Vector &end)
 * we have to keep this order to show correct color due to the fact
 * that there can be more flag/tag bits on the waypoint
 */
-Vector Wpt_SetColor(int wpt_index)
+Vector SetWaypointColor(int wpt_index)
 {
 	// init waypoint color values
 	// (white isn't used for any waypoint so we can easily see if there is any problem)
@@ -9790,7 +11098,7 @@ Vector Wpt_SetColor(int wpt_index)
 * the texture is returned as an int variable that has been precached
 * in DispatchSpawn() in dll.cpp
 */
-int Wpt_SetPathTexture(int path_index)
+int SetPathTexture(int path_index)
 {
 	// default path sprite
 	int sprite = m_spriteTexturePath2;
@@ -9813,7 +11121,7 @@ int Wpt_SetPathTexture(int path_index)
 * we have to keep this order to show correct color due to the fact
 * that there is more flag/tag bits on the path
 */
-Vector Wpt_SetPathColor(int path_index)
+Vector SetPathColor(int path_index)
 {
 	int red = 255, green = 255, blue = 255;
 
@@ -9849,6 +11157,49 @@ void UpdateWaypointData(void)
 }
 
 
+//																										NEW CODE 094
+/*
+* handle all events with turning auto waypoint on and off
+*/
+void StartAutoWaypointg(bool switch_on)
+{
+	extern edict_t *listenserver_edict;
+
+	if (switch_on)
+	{
+		wptser.SetAutoWaypointing(true);	// turn autowaypointing on
+		wptser.SetShowWaypoints(true);		// turn waypoints on too just in case
+
+		// sign the waypoints as autowaypointed ones
+		if (WaypointSubscribe("built-in auto waypointing", TRUE, TRUE))
+		{
+			// we should also clear the 'modified by' signature
+			WaypointSubscribe("clear", FALSE, FALSE);
+			WaypointSave(NULL);
+			WaypointPathSave(NULL);
+		}
+
+		wptser.SetAutoAddToPath(true);		// activate also auto adding to path
+		wptser.SetShowPaths(true);			// start displaying the paths as well
+	}
+	else
+	{
+		wptser.ResetAutoWaypointing();		// stop autowaypointing
+		wptser.ResetAutoAddToPath();		// deactivate automatic additions to path
+
+		// correctly end current path
+		WaypointFinishPath(listenserver_edict);
+
+		// run waypoint self cleaning routines
+		UTIL_RepairWaypointRangeandPosition(listenserver_edict);
+		WaypointRepairCrossRange();
+		WaypointRepairInvalidPathMerge();
+	}
+
+	return;
+}//*******************************************************************************************		NEW CODE 094 END
+
+
 /*
 * handle all waypoint and path drawing (redrawing)
 * also handle autowaypoint and autoadding to path features
@@ -9861,13 +11212,13 @@ void WaypointThink(edict_t *pEntity)
 	int i;
 
 	// is auto waypoint on
-	if (g_auto_waypoint)
+	if (wptser.IsAutoWaypointing())
 	{
 		// find the distance from the last used waypoint
 		distance = (last_waypoint - pEntity->v.origin).Length();
 
 		// is this wpt far enough to add new wpt
-		if (distance > g_auto_wpt_distance)
+		if (distance > wptser.GetAutoWaypointingDistance())
 		{
 			min_distance = 9999.0;
 
@@ -9882,13 +11233,21 @@ void WaypointThink(edict_t *pEntity)
 				{
 					distance = (waypoints[i].origin - pEntity->v.origin).Length();
 
+					//																									NEW CODE 094
+					// if the distance to this cross waypoint is at least half of
+					// current auto waypointing distance then ignore this cross waypoint
+					if ((waypoints[i].flags & W_FL_CROSS) &&
+						(distance > (wptser.GetAutoWaypointingDistance() / 2)))
+						continue;
+					//**********************************************************************************************	NEW CODE 094 END
+
 					if (distance < min_distance)
 						min_distance = distance;
 				}
 			}
 
 			// make sure nearest waypoint is far enough away
-			if (min_distance >= g_auto_wpt_distance)
+			if (min_distance >= wptser.GetAutoWaypointingDistance())
 			{
 				// is the edict NOT a bot
 				if (!(pEntity->v.flags & FL_FAKECLIENT))
@@ -9905,46 +11264,50 @@ void WaypointThink(edict_t *pEntity)
 	}
 
 	// is path autoadding on
-	if (g_auto_path)
+	if (wptser.IsAutoAddToPath())
 	{
-		static int older_wpt = -1;
-		int backup_wpt = -1;
-
 		// is the edict NOT a bot
 		if (!(pEntity->v.flags & FL_FAKECLIENT))
 		{
 			// search through all waypoints
 			for (i = 0; i < num_waypoints; i++)
 			{
+				// continue current path routine can return even -1, but if 'not enough memory' error
+				// happens then things wouldn't work at all so this is a safe value
 				int result = -1;
 
 				distance = (waypoints[i].origin - pEntity->v.origin).Length();
 
-				// if player "touch" the waypoint AND the waypoint was NOT already added
-				if ((distance <= AUTOADD_DISTANCE) && (i != g_path_last_wpt) && (i != older_wpt))
+				// if player "touch" the waypoint
+				if (distance <= AUTOADD_DISTANCE)
 				{
-					// make a copy of last path waypoint
-					backup_wpt = g_path_last_wpt;
-
-					result = ContinueCurrPath(i);	// add the waypoint in actual path
+					// add the waypoint to actual path
+					result = ContinueCurrPath(i);
 				}
 
 				// if waypoint was added successfully play snd_done
 				if (result == 1)
 				{
-					// update additional history of waypoint that has been previously added
-					if (backup_wpt != g_path_last_wpt)
-						older_wpt = backup_wpt;
-
-					EMIT_SOUND_DYN2(pEntity, CHAN_WEAPON, "plats/elevbell1.wav", 1.0,
-						ATTN_NORM, 0, 100);
+					// however sound confirmation routine isn't known here so we have to do it manually
+					EMIT_SOUND_DYN2(pEntity, CHAN_WEAPON, "plats/elevbell1.wav", 1.0, ATTN_NORM, 0, 100);
 				}
+				//																									NEW CODE 094
+				// if we are autowaypoing and this is the first waypoint that should be added to a path...
+				else if (wptser.IsAutoWaypointing() && (result == -2))
+				{
+					// then we must start a new path
+					if (StartNewPath(i))
+					{
+						EMIT_SOUND_DYN2(pEntity, CHAN_WEAPON, "plats/elevbell1.wav", 1.0, ATTN_NORM, 0, 100);
+					}
+				}
+				//**********************************************************************************************	NEW CODE 094 END
 			}
 		}
 	}
 
 	// display the waypoints if turned on
-	if (g_waypoint_on)
+	if (wptser.IsShowWaypoints())
 	{
 		for (i = 0; i < num_waypoints; i++)
 		{
@@ -9959,24 +11322,22 @@ void WaypointThink(edict_t *pEntity)
 				distance = (waypoints[i].origin - pEntity->v.origin).Length();
 
 				// is this waypoint close enough AND is in view cone (in FOV)
-				if ((distance < g_draw_distance) && (FInViewCone(&waypoints[i].origin, pEntity)))
+				if ((distance < wptser.GetWaypointsDrawDistance()) && (FInViewCone(&waypoints[i].origin, pEntity)))
 				{
-					// is path highlighting on and it's a specific (by index) path highlighting
-					if ((highlight_this_path != -1) && (highlight_this_path != HIGHLIGHT_RED) &&
-						(highlight_this_path != HIGHLIGHT_BLUE) &&
-						(highlight_this_path != HIGHLIGHT_ONEWAY))
+					// is a path to highlight activated and is it a specific (by index) path to highlight
+					if (wptser.IsPathToHighlightAPathIndex())
 					{
 						// if this waypoint is NOT in the path we want then skip it
-						// (ie display only waypoints that are in this path)
-						if (WaypointIsInPath(i, highlight_this_path) == FALSE)
+						// (ie. display only waypoints that are on path that the user wants to see)
+						if (WaypointIsInPath(i, wptser.GetPathToHighlight()) == FALSE)
 							continue;
 					}
 
 					// get size/hight of the beam based on waypoint type
-					Wpt_SetSize(i, start, end);
+					SetWaypointSize(i, start, end);
 
 					// use temp vector to set color for this waypoint
-					Vector color = Wpt_SetColor(i);
+					Vector color = SetWaypointColor(i);
 
 					// draw the waypoint
 					WaypointBeam(pEntity, start, end, 30, 0, color.x, color.y, color.z, 250, 5);
@@ -9988,12 +11349,12 @@ void WaypointThink(edict_t *pEntity)
 	}
 
 	// display the waypoint range if turned on
-	if (check_ranges)
+	if (wptser.IsCheckRanges())
 	{
 		for (i = 0; i < num_waypoints; i++)
 		{
 			// skip all deleted, aim, cross, ladder and door waypoints
-			// (some aren't used for navigation and others doesn't use range setting)
+			// (some aren't used for navigation and others don't use range setting)
 			if (waypoints[i].flags & (W_FL_DELETED | W_FL_AIMING | W_FL_CROSS | \
 										W_FL_LADDER | W_FL_DOOR | W_FL_DOORUSE))
 				continue;
@@ -10003,13 +11364,11 @@ void WaypointThink(edict_t *pEntity)
 			{
 				distance = (waypoints[i].origin - pEntity->v.origin).Length();
 
-				if ((distance < g_draw_distance) && (FInViewCone(&waypoints[i].origin, pEntity)))
+				if ((distance < wptser.GetWaypointsDrawDistance()) && (FInViewCone(&waypoints[i].origin, pEntity)))
 				{
-					if ((highlight_this_path != -1) && (highlight_this_path != HIGHLIGHT_RED) &&
-						(highlight_this_path != HIGHLIGHT_BLUE) &&
-						(highlight_this_path != HIGHLIGHT_ONEWAY))
+					if (wptser.IsPathToHighlightAPathIndex())
 					{
-						if (WaypointIsInPath(i, highlight_this_path) == FALSE)
+						if (WaypointIsInPath(i, wptser.GetPathToHighlight()) == FALSE)
 							continue;
 					}
 
@@ -10039,40 +11398,47 @@ void WaypointThink(edict_t *pEntity)
 	}
 
 	// display pathbeams (ie connections between waypoints) if turned on
-	if (g_path_waypoint_on)
+	if (wptser.IsShowPaths())
 	{
 		int path_index;
 
 		// go through all paths
 		for (path_index = 0; path_index < num_w_paths; path_index++)
 		{
-			// if path highlighting is on AND this path is NOT the highlighted path skip it
-			if ((highlight_this_path != -1) && (highlight_this_path != HIGHLIGHT_RED) &&
-				(highlight_this_path != HIGHLIGHT_BLUE) &&
-				(highlight_this_path != HIGHLIGHT_ONEWAY) && (path_index != highlight_this_path))
+			// if the user wanted to see just one specific path then
+			// we must show only that path and skip all other
+			if ((wptser.IsPathToHighlightAPathIndex()) && (path_index != wptser.GetPathToHighlight()))
 				continue;
 
 			// exists the path AND is it time to refresh it
-			if ((w_paths[path_index] != NULL) &&
-				(f_path_time[path_index] + 1.0 <= gpGlobals->time))
+			if ((w_paths[path_index] != NULL) && (f_path_time[path_index] + 1.0 <= gpGlobals->time))
 			{
 				W_PATH *p, *prev;
 				float path_wpt_dist;	// distance between path waypoint and player
 				
-				// do we highlight red team accessible path AND path is NOT for red team
-				if ((highlight_this_path == HIGHLIGHT_RED) &&
+				// do we highlight red team accessible paths AND this path is NOT for red team
+				if ((wptser.GetPathToHighlight() == HIGHLIGHT_RED) &&
 					!(w_paths[path_index]->flags & (P_FL_TEAM_NO | P_FL_TEAM_RED)))
 					continue;	// so skip it
-				// do we highlight blue team accessible path AND path is NOT for blue team
-				else if ((highlight_this_path == HIGHLIGHT_BLUE) &&
+				// do we highlight blue team accessible paths AND this path is NOT for blue team
+				else if ((wptser.GetPathToHighlight() == HIGHLIGHT_BLUE) &&
 					!(w_paths[path_index]->flags & (P_FL_TEAM_NO | P_FL_TEAM_BLUE)))
 					continue;
-				// do we highlight one-way path AND path is NOT one-way
-				else if ((highlight_this_path == HIGHLIGHT_ONEWAY) && !(w_paths[path_index]->flags & P_FL_WAY_ONE))
+				// do we highlight one-way paths AND this path is NOT one-way
+				else if ((wptser.GetPathToHighlight() == HIGHLIGHT_ONEWAY) &&
+					!(w_paths[path_index]->flags & P_FL_WAY_ONE))
+					continue;
+				// do we want to see just sniper paths AND this one isn't snipers only path
+				else if ((wptser.GetPathToHighlight() == HIGHLIGHT_SNIPER) &&
+					!(w_paths[path_index]->flags & P_FL_CLASS_SNIPER))
+					continue;
+				// same as above, but for machine gunner
+				else if ((wptser.GetPathToHighlight() == HIGHLIGHT_MGUNNER) &&
+					!(w_paths[path_index]->flags & P_FL_CLASS_MGUNNER))
 					continue;
 
-				int sprite = Wpt_SetPathTexture(path_index);
-				Vector color = Wpt_SetPathColor(path_index);
+				int sprite = SetPathTexture(path_index);
+				Vector color = SetPathColor(path_index);
 
 				p = w_paths[path_index];
 				prev = NULL;
@@ -10084,7 +11450,7 @@ void WaypointThink(edict_t *pEntity)
 
 					// is player close enough to draw path from this node AND
 					// is in view cone
-					if ((path_wpt_dist < g_draw_distance)
+					if ((path_wpt_dist < wptser.GetWaypointsDrawDistance())
 						&& (FInViewCone(&waypoints[p->wpt_index].origin, pEntity)))
 					{
 						// if both exist
@@ -10108,7 +11474,7 @@ void WaypointThink(edict_t *pEntity)
 	}
 
 	// display connections between waypoint with wait time and its aim waypoints
-	if (check_aims)
+	if (wptser.IsCheckAims())
 	{
 		// check all waypoints for any aim waypoint
 		for (int aim_wpt = 0; aim_wpt < num_waypoints; aim_wpt++)
@@ -10125,7 +11491,7 @@ void WaypointThink(edict_t *pEntity)
 			float distance = (waypoints[aim_wpt].origin - pEntity->v.origin).Length();
 
 			// is the player close enough AND is waypoint in his view cone
-			if ((distance < g_draw_distance) && (FInViewCone(&waypoints[aim_wpt].origin, pEntity)))
+			if ((distance < wptser.GetWaypointsDrawDistance()) && (FInViewCone(&waypoints[aim_wpt].origin, pEntity)))
 			{
 				// check all waypoints again for any possible "waittimed" waypoint
 				for (int in_range = 0; in_range < num_waypoints; in_range++)
@@ -10174,7 +11540,7 @@ void WaypointThink(edict_t *pEntity)
 	}
 
 	// is check_cross
-	if (check_cross)
+	if (wptser.IsCheckCross())
 	{
 		// check all wpts
 		for (int cross_wpt = 0; cross_wpt < num_waypoints; cross_wpt++)
@@ -10191,8 +11557,7 @@ void WaypointThink(edict_t *pEntity)
 			float distance = (waypoints[cross_wpt].origin - pEntity->v.origin).Length();
 
 			// is the player close enough AND is waypoint in his view cone
-			if ((distance < g_draw_distance) &&
-				(FInViewCone(&waypoints[cross_wpt].origin, pEntity)))
+			if ((distance < wptser.GetWaypointsDrawDistance()) && (FInViewCone(&waypoints[cross_wpt].origin, pEntity)))
 			{
 				// check all waypoints again
 				for (int in_range = 0; in_range < num_waypoints; in_range++)
@@ -10229,6 +11594,24 @@ void WaypointThink(edict_t *pEntity)
 					}
 				}
 			}
+		}
+	}
+
+	// display the waypoint compass if turned on
+	if (wptser.GetCompassIndex() != NO_VAL)
+	{
+		// is it time to refresh the compass
+		// the delay is purposely higher than the beam life
+		// otherwise the compass beam wouldn't blink
+		if ((f_compass_time + 0.5) < gpGlobals->time)
+		{
+			start = waypoints[wptser.GetCompassIndex()].origin;
+			end = pEntity->v.origin;
+
+			// draw red line
+			DrawBeam(pEntity, start, end, 2, 255, 5, 5, 125);
+
+			f_compass_time = gpGlobals->time;
 		}
 	}
 }
@@ -10934,37 +12317,6 @@ void Wpt_Check(void)
 	ALERT(at_console, "There's %d messed wpts\n", messed);
 }
 
-// just for testing, at least for now
-void DrawBeam(edict_t *pEntity, Vector start, Vector end, int life,
-        int red, int green, int blue, int speed)
-{
-	if ((pEntity == NULL) || (UTIL_GetBotIndex(pEntity) > -1))
-		return;
-	
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, NULL, pEntity);
-	WRITE_BYTE( TE_BEAMPOINTS);
-	WRITE_COORD(start.x);
-	WRITE_COORD(start.y);
-	WRITE_COORD(start.z);
-	WRITE_COORD(end.x);
-	WRITE_COORD(end.y);
-	WRITE_COORD(end.z);
-	WRITE_SHORT( m_spriteTexture );
-	WRITE_BYTE( 1 ); // framestart
-	WRITE_BYTE( 10 ); // framerate
-	WRITE_BYTE( life ); // life in 0.1's
-	WRITE_BYTE( 10 ); // width
-	WRITE_BYTE( 0 );  // noise
-	
-	WRITE_BYTE( red );   // r, g, b
-	WRITE_BYTE( green );   // r, g, b
-	WRITE_BYTE( blue );   // r, g, b
-	
-	WRITE_BYTE( 250 );   // brightness
-	WRITE_BYTE( speed );    // speed
-	MESSAGE_END();
-}
-
 // TEMP: at least for now, used to highlight bots aiming location
 void ReDrawBeam(edict_t *pEdict, Vector start, Vector end, int team)
 {
@@ -10994,4 +12346,3 @@ void ShiftWpts(int x, int y, int z)
 }
 
 #endif	// _DEBUG
-

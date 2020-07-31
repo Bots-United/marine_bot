@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot.h
@@ -21,10 +21,21 @@
 #ifndef BOT_H
 #define BOT_H
 
-#include "PathMap.h"
 #include "Config.h"
+#include "defines.h"
 
 // stuff for Win32 vs. Linux builds
+
+#if defined ( NEWSDKAM ) || defined ( NEWSDKVALVE )
+
+#undef DLLEXPORT
+#ifdef _WIN32
+#define DLLEXPORT __stdcall
+#else
+#define DLLEXPORT __attribute__ ((visibility("default")))
+#endif
+
+#endif
 
 #ifndef __linux__
 
@@ -51,9 +62,6 @@ typedef void (*LINK_ENTITY_FUNC)(entvars_t *);
 extern int mod_id;
 extern char mod_dir_name[32];
 
-// the max number of clients in the game
-#define MAX_CLIENTS			32
-
 // define constants used to identify the MOD we are playing
 #define FIREARMS_DLL	1
 
@@ -70,6 +78,9 @@ extern int g_mod_version;
 #define FA_30			7
 
 extern bool is_steam;
+
+// used to test for existence (e.g. if bot doesn't have any grenade then the slot must use this "no value")
+#define NO_VAL			-1
 
 // for development debug file, this file is created in dll.cpp->GameDLLInit()
 extern char debug_fname[256];
@@ -95,7 +106,7 @@ extern char debug_fname[256];
 // max name lenght that can be used for bot (includes chars for '[MB]' tag)
 #define BOT_NAME_LEN 32
 
-#define MAX_BOT_WHINE 100
+#define MAX_BOT_WHINE 1				// NOT USED
 
 
 
@@ -131,7 +142,7 @@ int Cmd_Argc( void );
 
 // pBot->f_move_speed constants (keep this order otherwise some things may cause wrong behaviour)
 #define SPEED_NO		1
-#define SPEED_SLOWER	2
+#define SPEED_SLOWEST	2
 #define SPEED_SLOW		3
 #define SPEED_MAX		4
 
@@ -170,41 +181,45 @@ int Cmd_Argc( void );
 #define CQUARTER		(1<<11)		// bot with SMG & shotgun
 #define MGUNNER			(1<<12)		// bot with machinegun
 #define SNIPER			(1<<13)		// bot with sniper rifle
-// to store last bot position in combat
-#define BOT_STANDING	(1<<29)		// standard stand position
+// to handle bot stance/position
+#define BOT_DONTGOPRONE	(1<<25)		// temporary prevents going prone in order to allow successful weapon reload, merge magazines etc.
+#define GOTO_STANDING	(1<<26)		// should stand up
+#define GOTO_CROUCH		(1<<27)		// should go to crouch
+#define GOTO_PRONE		(1<<28)		// should go to prone
+#define BOT_STANDING	(1<<29)		// bot is in standing position
 #define BOT_CROUCHED	(1<<30)		// bot is fully crouched
 #define BOT_PRONED		(1<<31)		// bot is in prone
 
 // pBot->bot_tasks constants
 // some of these tasks aren't really tasks, they are more of flags or something, but having
 // things set this way is probably better than having dozens of unique bool variables
-#define TASK_PROMOTED		(1<<0)	// the bot has been promoted to higher rank (has to take some skills)
-#define TASK_DEATHFALL		(1<<1)	// the bot is tracelining forward direction to detect deep pits
-#define TASK_DONTMOVE		(1<<2)	// the bot is forced to stay on one place (ie. not moving single step forward)
-#define TASK_BREAKIT		(1<<3)	// trying to destroy breakable object to free his way forward
-#define TASK_FIRE			(1<<4)	// the bot has to use primary fire out of combat mode
-#define TASK_IGNOREAIMS		(1<<5)	// the bot will ignore aim wpts ie. won't target them
-#define TASK_PRECISEAIM		(1<<6)	// the bot will try to face the aim wpt really accurately (useful for breakables)
-#define TASK_CHECKAMMO		(1<<7)	// the bot has to check his ammo reserves so he know how many mags should he take from ammobox
-#define TASK_GOALITEM		(1<<8)	// the bot is carrying a goal item
-#define TASK_NOJUMP			(1<<9)	// the bot isn't allowed to jump, stamina is low (under 30)
-#define TASK_SPRINT			(1<<10)	// the bot has to sprint
-#define TASK_WPTACTION		(1<<11)	// the bot is asked for doing some waypoint based action (use something)
-#define TASK_BACKTOPATROL	(1<<12)	// the bot has to return back on patrol path (being set when getting to combat while on patrol path)
-#define TASK_PARACHUTE		(1<<13)	// the bot has a parachute pack
-#define TASK_PARACHUTE_USED	(1<<14)	// the bot has opened the parachute
-#define TASK_BLEEDING		(1<<15)	// the bot is bleeding
-#define TASK_DROWNING		(1<<16)	// the bot is drowning
-#define TASK_HEALHIM		(1<<17)	// the bot is going to heal someone (someone called for medic)
-#define TASK_MEDEVAC		(1<<18)	// the bot has to treat downed teammate
-#define TASK_FIND_ENEMY		(1<<19)	// the bot needs to find different enemy then the one he has right now
-#define TASK_USETANK		(1<<20)	// the bot is using a mounted gun (ie TANK)
-#define TASK_BIPOD			(1<<21)	// the bot just used the bipod on current weapon (ie. can't move, limited pitch&yaw)
-#define TASK_CLAY_IGNORE	(1<<22)	// the bot is asked for ignoring this claymore
-#define TASK_CLAY_EVADE		(1<<23)	// the bot needs to evade this claymore
-#define TASK_GOPRONE		(1<<24)	// the bot is forced to go prone
-#define TASK_AVOID_ENEMY	(1<<25)	// the bot has to ignore distant enemies
-#define TASK_IGNORE_ENEMY	(1<<26)	// the bot has to ignore all enemies except those who are right next to him
+#define TASK_PROMOTED			(1<<0)	// the bot has been promoted to higher rank (has to take some skills)
+#define TASK_DEATHFALL			(1<<1)	// the bot is tracelining forward direction to detect deep pits
+#define TASK_DONTMOVEINCOMBAT	(1<<2)	// the bot is forced to stay on one place (ie. not moving single step forward)
+#define TASK_BREAKIT			(1<<3)	// trying to destroy breakable object to free his way forward
+#define TASK_FIRE				(1<<4)	// the bot has to use primary fire out of combat mode
+#define TASK_IGNOREAIMS			(1<<5)	// the bot will ignore aim wpts ie. won't target them
+#define TASK_PRECISEAIM			(1<<6)	// the bot will try to face the aim wpt really accurately (useful for breakables)
+#define TASK_CHECKAMMO			(1<<7)	// the bot has to check his ammo reserves so he know how many mags should he take from ammobox
+#define TASK_GOALITEM			(1<<8)	// the bot is carrying a goal item
+#define TASK_NOJUMP				(1<<9)	// the bot isn't allowed to jump, stamina is low (under 30)
+#define TASK_SPRINT				(1<<10)	// the bot has to sprint
+#define TASK_WPTACTION			(1<<11)	// the bot is asked for doing some waypoint based action (use something)
+#define TASK_BACKTOPATROL		(1<<12)	// the bot has to return back on patrol path (being set when getting to combat while on patrol path)
+#define TASK_PARACHUTE			(1<<13)	// the bot has a parachute pack
+#define TASK_PARACHUTE_USED		(1<<14)	// the bot has opened the parachute
+#define TASK_BLEEDING			(1<<15)	// the bot is bleeding
+#define TASK_DROWNING			(1<<16)	// the bot is drowning
+#define TASK_HEALHIM			(1<<17)	// the bot is going to heal someone (someone called for medic)
+#define TASK_MEDEVAC			(1<<18)	// the bot has to treat downed teammate
+#define TASK_FIND_ENEMY			(1<<19)	// the bot has to find different enemy then the one he has right now
+#define TASK_USETANK			(1<<20)	// the bot is using a mounted gun (ie TANK)
+#define TASK_BIPOD				(1<<21)	// the bot just used the bipod on current weapon (ie. can't move, limited pitch&yaw)
+#define TASK_CLAY_IGNORE		(1<<22)	// the bot has to ignore this claymore
+#define TASK_CLAY_EVADE			(1<<23)	// the bot has to evade this claymore
+#define TASK_GOPRONE			(1<<24)	// the bot has to go prone
+#define TASK_AVOID_ENEMY		(1<<25)	// the bot has to ignore distant enemies
+#define TASK_IGNORE_ENEMY		(1<<26)	// the bot has to ignore all enemies except those who are right next to him
 // other possible tasks (ie. change current code to use it)
 //#define TASK_SETCLAYMORE
 
@@ -224,18 +239,24 @@ int Cmd_Argc( void );
 #define ST_HEAL				(1<<12)	// the bot is trying to restore patient's health
 #define ST_GIVE				(1<<13)	// the bot is trying to give bandages to his patient
 #define ST_HEALED			(1<<14)	// the bot finished the medical treatment
-#define ST_SAY_CEASEFIRE	(1<<15)	// the bot needs to say a cease fire team message
+#define ST_SAY_CEASEFIRE	(1<<15)	// the bot has to say a cease fire team message
 #define ST_FACEENEMY		(1<<16) // the bot is currently facing his enemy (also possible new enemy)
-#define ST_RESETCLAYMORE	(1<<17)	// the bot needs to reset claymore usage because he wasn't able to place it correctly (ie. was too close to some object)
+#define ST_RESETCLAYMORE	(1<<17)	// the bot has to reset claymore usage because he wasn't able to place it correctly (ie. was too close to some object)
 #define ST_DOOR_OPEN		(1<<18) // the bot is passing doors
 #define ST_TANK_SHORT		(1<<19) // the bot is forced to use the mounted gun only for given time period (ie. waypoint wait time is set)
 #define ST_RANDOMCENTRE		(1<<20)	// we need to randomize the final point the bot is aiming at (ie. a small range around the original point), useful if the bot has to target a breakable object that has a hole in its middle
 //#define ST_CROUCHBREAK		(1<<21)	// the bot is crouched so try to use only origin istead of origin+head to send the traceline forward
+#define ST_NOOTHERNADE		(1<<21)	// checked that the bot doesn't carry more than one grenade type
+#define ST_W_CLIP			(1<<22)	// the bot has to check how much ammo is left in the clip
+#define ST_CANTPRONE		(1<<23)	// bot cannot go prone ... engine prevents it due to being too close to a wall for example
+#define ST_EVASIONSTARTED	(1<<24)	// bot started one evasion action (eg. will jump over claymore)
 
 //pBot->bot_needs constants
 #define NEED_AMMO			(1<<0)	// the bot has low ammo and needs to take some more
 #define NEED_GOAL			(1<<1)	// the bot is in mood for reaching the map objective
 #define NEED_GOAL_NOT		(1<<2)	// the bot isn't in mood for reaching any objective
+#define NEED_NEXTWPT		(1<<3)	// the bot needs to get next waypoint right at the moment he can call navigation again
+#define NEED_RESETNAVIG		(1<<4)	// the bot needs to reset current waypoint and path
 #define NEED_RESETPARACHUTE (1<<31) // the bot needs to check if parachute is finally gone (for FA 2.65 and below)
 
 // pBot->bot_fa_skill
@@ -258,8 +279,8 @@ int Cmd_Argc( void );
 #define ZOOM_1X		20.0	// ssg3000 and dragunov (also m82)
 #define ZOOM_2X		10.0	// m82
 
-// constants used to detect the status of edict->v.flags (those not in const.h, but used in FA)
-#define FL_PRONED		(1<<27)		// player is fully proned (as well goes to/from prone)
+// constants used to detect the status of edict->v.flags (those not in const.h, but specific to FA)
+#define FL_PRONED		(1<<27)		// player is fully proned (or goes to prone)
 #define FL_BROKENLEG	(1<<28)		// player has broken his leg (slower movement)
 
 // constants used to detect the status of edict->v.iuser3
@@ -277,9 +298,11 @@ int Cmd_Argc( void );
 // pBot->weapon_action constants
 #define W_READY				1		// ready to shoot
 #define W_TAKEOTHER			2		// change to another weapon
-#define W_INCHANGE			3		// in process of taking the another weapon
-#define W_INRELOAD			4		// reloading it
-//#define W_INMOUNT			5		// mounting silencer	// not used yet
+#define W_INCHANGE			3		// in process of taking other weapon
+#define W_INHANDS			4		// the weapon change is almost finished (current weapon message sent appropriate ID)
+#define W_INRELOAD			5		// reloading it
+#define W_INMERGEMAGS		6		// merging magazines
+//#define W_INMOUNT					// mounting silencer	// not used yet
 
 // pBot->clay_action & pBot->grenade_action constants
 #define ALTW_NOTUSED		1
@@ -290,10 +313,16 @@ int Cmd_Argc( void );
 #define ALTW_USED			6
 
 // pBot->weapon_status constants
-#define WA_ALLOWSILENCER	(1<<0)
-#define WA_MOUNTSILENCER	(1<<1)
-#define WA_SILENCERUSED		(1<<2)
-#define WA_USEAKIMBO		(1<<3)
+#define WS_ALLOWSILENCER	(1<<0)
+#define WS_MOUNTSILENCER	(1<<1)
+#define WS_SILENCERUSED		(1<<2)
+#define WS_USEAKIMBO		(1<<3)
+#define WS_PRESSRELOAD		(1<<4)	// to know that bot just "pressed reload button" (set IN_RELOAD to Edict->v.button)
+#define WS_INVALID			(1<<5)	// weapon based action (e.g. reloading) was invalidated by another action (e.g. someone started to heal this bot)
+#define WS_NOTEMPTYMAG		(1<<6)	// when the bot is going to reload weapon with not completely empty magazine (used to detect the need to merge magazines)
+#define WS_MERGEMAGS1		(1<<7)	// first almost empty magazine was reloaded
+#define WS_MERGEMAGS2		(1<<8)	// second almost empty magazine was reloaded (now the bot needs to merge magazines)
+#define WS_CANTBIPOD		(1<<9)	// when bipod cannot be deployed (e.g. bot is standing in open area)
 
 // pBot->forced_usage constants
 #define USE_MAIN		1
@@ -304,6 +333,7 @@ int Cmd_Argc( void );
 // used to detect if bot is close enough to any entity bot searched
 #define PLAYER_SEARCH_RADIUS		70.0
 #define EXTENDED_SEARCH_RADIUS		300.0
+#define FIND_ITEM_RADIUS			200.0
 
 // constants used to recognize in which team the bot is
 #define TEAM_NONE	-1
@@ -316,7 +346,7 @@ int Cmd_Argc( void );
 #define FM_BURST		2
 #define FM_AUTO			4
 
-typedef enum {dont_test_weapons = 0, test_weapons = 1} CHANGE_FM_TEST;
+typedef enum class FireMode_WTest {dont_test_weapons = 0, test_weapons = 1};
 
 // constants used to specify text message the bot has to say
 #define SAY_GRENADE_IN			1
@@ -344,7 +374,7 @@ typedef struct
    int  iAmmo2;		// amount of ammo in secondary reserve (i.e. mags)
 } bot_current_weapon_t;
 
-const int ROUTE_LENGTH = 32;
+const int ROUTE_LENGTH = 1;//32;// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 
 class HistoryPoint
 {
@@ -465,16 +495,21 @@ public:
 	float BotSetSpeed(void);
 	bool UpdateSounds(edict_t *pPlayer);
 	void FacepItem(void);
-	void TargetAimWaypoint(void);
+	void ResetAims(const char* loc = NULL);
+	void TargetAimWaypoint(const char* loc = NULL);
 	void BotWaitHere(void);
-	void ResetAims(void);
-	void BotSelectMainWeapon(void);
+	void ReloadWeapon(const char* loc = NULL);
+	void SetReloadTime(void);
+	bool CheckMainWeaponOutOfAmmo(const char* loc = NULL);
+	bool CheckBackupWeaponOutOfAmmo(const char* loc = NULL);
+	void DecideNextWeapon(const char* loc = NULL);
+	void BotSelectMainWeapon(const char* loc = NULL);
 	edict_t *BotFindEnemy(void);
 	bool IsIgnorePath(int path_index = -1);
 	int GetNextWaypoint(void);
 	float GetEffectiveRange(int weapon_index = -1);
 	void BotForgetEnemy(void);
-	inline void clear_path()
+	inline void clear_path()// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 	{
 		point_list[0] = -1;
 	};
@@ -487,7 +522,7 @@ public:
 		if (bot_behaviour & behaviour)
 			bot_behaviour &= ~behaviour;
 	};
-	inline BOOL IsBehaviour(int behaviour)
+	inline bool IsBehaviour(int behaviour)
 	{
 		return (bot_behaviour & behaviour) == behaviour;
 	}
@@ -500,7 +535,7 @@ public:
 		if (bot_tasks & task)
 			bot_tasks &= ~task;
 	};
-	inline BOOL IsTask(int task)
+	inline bool IsTask(int task)
 	{
 		return (bot_tasks & task) == task;
 	}
@@ -513,7 +548,7 @@ public:
 		if (bot_subtasks & subtask)
 			bot_subtasks &= ~subtask;
 	};
-	inline BOOL IsSubTask(int subtask)
+	inline bool IsSubTask(int subtask)
 	{
 		return (bot_subtasks & subtask) == subtask;
 	}
@@ -526,7 +561,7 @@ public:
 		if (bot_needs & need)
 			bot_needs &= ~need;
 	};
-	inline BOOL IsNeed(int need)
+	inline bool IsNeed(int need)
 	{
 		return (bot_needs & need) == need;
 	}
@@ -555,7 +590,7 @@ public:
 		if (time == 0.0)
 			f_pause_time = time;
 		else
-			f_pause_time = gpGlobals->time - fabs(time);
+			f_pause_time = gpGlobals->time - (float)fabs(time);
 	};
 	inline void SetWaitTime(float time = (float) 0.0)
 	{
@@ -566,8 +601,37 @@ public:
 		if (time == 0.0)
 			wpt_wait_time = time;
 		else
-			wpt_wait_time = gpGlobals->time - fabs(time);
+			wpt_wait_time = gpGlobals->time - (float)fabs(time);
 	};
+	inline void UseWeapon(int weapon = USE_KNIFE)
+	{
+		forced_usage = weapon;
+	}
+	inline bool NotSeenEnemyfor(float time = (float) 0.0)		// not seen enemy for (time) seconds
+	{
+		return ((f_bot_see_enemy_time > 0) && ((f_bot_see_enemy_time + time) < gpGlobals->time));
+	}
+	void SetDontCheckStuck(const char* loc = NULL, float time = (float)1.0);
+	// true when the bot is going to/resume from prone
+	inline bool IsGoingProne(void)
+	{
+		// time from calling the command to a moment when FA allows firing from the gun (based on test in FA 3.0)
+		// battlefield agility doesn't have any effect on this time (despite the fact that they say so)
+		return (f_go_prone_time + 1.2 > gpGlobals->time);
+	}
+	inline void SetWeaponStatus(int status)
+	{
+		weapon_status |= status;
+	}
+	void RemoveWeaponStatus(int status)
+	{
+		if (weapon_status & status)
+			weapon_status &= ~status;
+	};
+	inline bool IsWeaponStatus(int status)
+	{
+		return (weapon_status & status) == status;
+	}
 
 
 	bool is_used;
@@ -597,7 +661,7 @@ public:
 	int bot_health;
 	int bot_armor;
 	int bot_weapons;	// bit map of weapons the bot is carrying
-	int bot_behaviour;	// bit map, determines bots behaviour (checking also main weapon)
+	int bot_behaviour;	// bit map, determines bots behaviour (checking also main weapon), NOT being cleared at respawn
 	int bot_tasks;		// bit map, stores short time tasks (is being cleared at each respawn)
 	int bot_subtasks;	// bit map, stores actions based on tasks (cleared at respawn)
 	int bot_needs;		// bit map, stores things the bot currently needs, like need ammo etc. (cleared at respawn)
@@ -649,20 +713,20 @@ public:
 	//Vector waypoint_flag_origin;	// --- NOT USED YET --- & NOT SURE IF NEEDED
 	float  prev_wpt_distance;
 	float  wpt_action_time;		// time the bot needs to do specified wpt action
-	float  wpt_wait_time;		// time taken from current waypoint the bot will wait by this wpt
+	float  wpt_wait_time;		// time taken from current waypoint the bot will wait (camp) at this wpt
 	float  f_face_wpt;			// time to face current/some wpt (ie to get the wpt in front of bot)
 
 	int  curr_path_index;	// path index the bot is on/following
 	int  prev_path_index;	// index of the last path bot was on; to prevent using the same path again and again
-	bool opposite_path_dir;	// TRUE if bot follow the path in opposite direction
-	int  patrol_path_wpt;	// stores last visited wpt in PATROL path for after combat return purposes
+	bool opposite_path_dir;	// TRUE if bot follows the path in opposite direction (i.e. path end -> path start)
+	int  patrol_path_wpt;	// stores last visited wpt on PATROL path for after combat return purposes
 
 	edict_t *pBotEnemy;
 	float	f_bot_see_enemy_time;
 	float	f_bot_find_enemy_time;
 	edict_t *pBotPrevEnemy;		// holds the pointer to current enemy when the bot is try to find another enemy
-	float	f_bot_wait_for_enemy_time;	// bot will wait for it to see if his enemy does show again
-	Vector	v_last_enemy_position;		// backup last known enemy position to keep looking to that direction once the enemy is lost
+	float	f_bot_wait_for_enemy_time;	// bot will wait for this time to see if his enemy become visible again
+	Vector	v_last_enemy_position;		// backup of the last known enemy position, to keep looking to that direction when the bot lost direct visibily of his enemy
 	float	f_prev_enemy_dist;			// previous frame distance to enemy to check if enemy is moving
 	float	f_reaction_time;			// delay between spotting the enemy and starting to fight back
 
@@ -676,23 +740,23 @@ public:
 //	float	f_bot_say_killed;
 
 	int	  aim_index[4];			// max of four aim waypoints
-	int	  curr_aim_index;		// current target
+	int	  curr_aim_index;		// index of the aim waypoint the bot is currently aiming at (watching)
 	float f_aim_at_target_time;	// time the bot is aiming at one target (ie. aim waypoint)
-	float f_check_aim_time;		// time to check if the bot is aiming at current target
-	int	  targeting_stop;		// safety stop for a case the bot cannot face current aim
+	float f_check_aim_time;		// time to check if the bot is really aiming at current aim waypoint
+	int	  targeting_stop;		// safety stop for a case the bot isn't able to face current aim waypoint
 
-	int   weapon_action;		// holds a flag of current weapon state
-	int   weapon_status;		// bitmap of current weapon status (silencer mounted etc.)
-	float f_shoot_time;			// time the bot last fired
+	int   weapon_action;		// holds a flag of current weapon state (e.g. ready to fire or reloaded or changed)
+	int   weapon_status;		// bitmap of current weapon status (e.g. silencer mounted etc.), it's NOT being reset at bot respawn
+	float f_shoot_time;			// time the bot last fired (used also in weapon change)
 	float f_fullauto_time;		// time the bot keeps the fire button pressed
-	float f_reload_time;		// needed to reload the weapon properly
+	float f_reload_time;		// time needed to reload current weapon
 
 	float f_pause_time;			// for additional waiting events like waiting for medic etc.
-	float f_sound_update_time;	// time the bot checked sounds last
-	float f_look_for_ground_items;	// time for checking for placed claymores etc.
-	Vector v_ground_item;		// location of the item (claymore, corpse etc.)
+	float f_sound_update_time;	// time of the last sound check (e.g. sound of footsteps of possible enemy)
+	float f_look_for_ground_items;	// time to check for placed claymores, fallen teammates etc.
+	Vector v_ground_item;		// holds the location of the item (claymore, corpse etc.)
 
-	int    claymore_slot;		// -1 means not equipped
+	int    claymore_slot;		// holds ID of the mine or NO_VAL if not equipped
 	float  f_use_clay_time;
 	int	   clay_action;			// holds a flag of last claymore action
 
@@ -708,7 +772,7 @@ public:
 
 	int	bot_fa_skill;			// bit map of fa skill the bot has (marks1, arty1, leadership, field med etc.)
 
-	float f_bipod_try_time;		// time for correct start/stop using bipod (ie we won't keep sending bipod command)
+	float f_bipod_time;			// time needed to handle bipod deploying or folding
 	float chute_action_time;	// to check if the parachute was used or should be used
 
 	int   bot_prev_health;		// for bleeding checks
@@ -717,37 +781,37 @@ public:
 	float f_medic_treat_time;	// the time bot needs to treat the wounded soldier
 
 	float f_cant_prone;		// the time the bot will not try to go prone
-	float f_go_prone_time;	// the time for correct going to/resuming from proned position
+	float f_go_prone_time;		// time needed to correctly finish going to/resuming from proned position
 
 	float search_closest_time;	// handle search for closest enemy
 	float speak_time;			// the time bot used one of radio&voice commands
 	float text_msg_time;		// the time bot used say or say_team command
 	int   prev_msg;				// holds the last message the bot said
 
-	int   main_weapon;		// primary weapon - use most time -1 not equipped
-	int   backup_weapon;	// usually handgun -1 not equipped
+	int   main_weapon;		// primary weapon - used most of the time, NO_VAL means not equipped
+	int   backup_weapon;	// usually handgun, NO_VAL == not equipped
 	int	  forced_usage;		// 1 main weapon, 2 backup, 3 knife, 4 any granade
-	int	  grenade_slot;		// when -1 not equipped
-	float grenade_time;		// for handling bot usage of grenades
-	int   grenade_action;	// holds a flag of last grenade action
-	bool  secondary_active;	// TRUE weapon is in secondary fire mode
-	float sniping_time;		// stop and fire for that time
+	int	  grenade_slot;		// hold ID of the grenade the bot has, NO_VAL means not equipped
+	float grenade_time;		// for handling bot grenade usage
+	int   grenade_action;	// holds a flag of last grenade action (e.g. selecting it, priming it etc.)
+	bool  secondary_active;	// TRUE when weapon is in secondary fire mode (usually zoomed)
+	float sniping_time;		// stop and fire for this period of time
 	bool  main_no_ammo;		// TRUE when no ammo for main weapon
 	bool  backup_no_ammo;	// TRUE when no ammo for backup weapon
 
 	float check_ammunition_time;	// holds the last time we checked the ammo reserves
-	int   take_main_mags;			// number of mags that the bot should take from ammobox
-	int   take_backup_mags;			// number of mags that the bot should take from ammobox
+	int   take_main_mags;			// number of mags for main weapon that the bot should take from ammobox
+	int   take_backup_mags;			// number of mags for backup weapon that the bot should take from ammobox
 
-	float f_combat_advance_time;	// if this time > globaltime bot moves toward his enemy
+	float f_combat_advance_time;	// if this time > globaltime bot moves towards his enemy
 	float f_overide_advance_time;	// time to override advance time to allow bot to move even if not time to do so, used when the bot is out of effective range for current weapon
-	float f_check_stance_time;	// check if clear way to enemy (from standing, crouched, proned)
-	float f_stance_changed_time;	// don't go to new stance until some time from last change
+	float f_check_stance_time;		// time to check whether the bot can change stance (standing/crouched/prone) and keep direct visibility to current enemy
+	float f_stance_changed_time;	// holds the time when the bot last changed his stance
 
 	bot_current_weapon_t current_weapon;  // one current weapon for each bot
 	int curr_rgAmmo[MAX_AMMO_SLOTS];	// total ammo amounts (1 array for each bot)
 
-	int point_list[ROUTE_LENGTH];
+	int point_list[ROUTE_LENGTH];// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 	//PointList point_list;	// current bot's route - chain of wpts
 	
 	bool harakiri;	// TRUE when the bot should commit suicide as a result of end game events (ie. no reins)
@@ -759,138 +823,14 @@ public:
 
 
 #ifdef _DEBUG
-	Vector curr_aim_location;		// debug stuff
+	Vector curr_aim_offset;		// debug stuff
+	Vector target_aim_offset;		// debug stuff
 	bool is_forced;					// debug stuff
 	int forced_stance;				// debug stuff
 #endif
 };
 
 extern bot_t *bots;
-
-class client_t
-{
-public:
-	client_t();
-	inline bool IsHuman() { return client_is_human; }
-	inline void SetHuman(bool flag) { client_is_human = flag; }
-	inline bool IsBleeding() { return client_bleeds; }
-	inline void SetBleeding(bool flag) { client_bleeds = flag; }
-	inline void SetMaxSpeedTime(float time) { max_speed_time = time; }
-	inline float GetMaxSpeedTime(void) { return max_speed_time; }
-	inline int add_human() { return ++humans_num; }
-	inline int add_bot() { return ++bots_num; }
-	inline int substr_human() { return --humans_num; }
-	inline int substr_bot() { return --bots_num; }
-	inline int HumanCount() { return humans_num; }
-	inline int BotCount() { return bots_num; }
-	inline int ClientCount() { return (bots_num + humans_num); }
-	edict_t *pEntity;		// pEntity
-
-private:
-	bool client_is_human;				// not a fakeclient ie. not a bot
-	bool client_bleeds;
-	float max_speed_time;		// to check if round ended or if it is only a single death
-
-	// more client and bot globals can be stored here
-	// for example current possition for all players (bot and human)
-
-	static int humans_num;
-	static int bots_num;
-};
-
-extern client_t clients[MAX_CLIENTS];
-
-// class of variables that are available to be set externally in .cfg file
-class externals_t
-{
-public:
-	externals_t();
-	inline void SetIsLogging(bool newVal) { is_logging = newVal; }
-	inline bool GetIsLogging(void) { return is_logging; }
-	inline void ResetIsLogging(void) { is_logging = FALSE; }	// will set it to deafult value
-	inline void SetRandomSkill(bool newVal) { random_skill = newVal; }
-	inline bool GetRandomSkill(void) { return random_skill; }
-	inline void ResetRandomSkill(void) { random_skill = FALSE; }
-	inline void SetSpawnSkill(int newVal) { spawn_skill = newVal; }
-	inline int GetSpawnSkill(void) { return spawn_skill; }
-	inline void ResetSpawnSkill(void) { spawn_skill = 3; }
-	inline void SetReactionTime(float newVal) { reaction_time = newVal; }
-	inline float GetReactionTime(void) { return reaction_time; }
-	inline void ResetReactionTime(void) { reaction_time = 0.2; }
-	inline void SetBalanceTime(float newVal) { auto_balance_time = newVal; }
-	inline float GetBalanceTime(void) { return auto_balance_time; }
-	inline void ResetBalanceTime(void) { auto_balance_time = 30.0; }
-	inline void SetMinBots(int newVal) { min_bots = newVal; }
-	inline int GetMinBots(void) { return min_bots; }
-	inline void ResetMinBots(void) { min_bots = 2; }
-	inline void SetMaxBots(int newVal) { max_bots = newVal; }
-	inline int GetMaxBots(void) { return max_bots; }
-	inline void ResetMaxBots(void) { max_bots = 6; }
-	inline void SetCustomClasses(bool newVal) { custom_classes = newVal; }
-	inline bool GetCustomClasses(void) { return custom_classes; }
-	inline void ResetCustomClasses(void) { custom_classes = TRUE; }
-	inline void SetInfoTime(float newVal) { info_time = newVal; }
-	inline float GetInfoTime(void) { return info_time; }
-	inline void ResetInfoTime(void) { info_time = 150.0; }
-	inline void SetPresentationTime(float newVal) { presentation_time = newVal; }
-	inline float GetPresentationTime(void) { return presentation_time; }
-	inline void ResetPresentationTime(void) { presentation_time = 210.0; }
-	inline void SetDontSpeak(bool newVal) { dont_speak = newVal; }
-	inline bool GetDontSpeak(void) { return dont_speak; }
-	inline void ResetDontSpeak(void) { dont_speak = FALSE; }
-	inline void SetDontChat(bool newVal) { dont_chat = newVal; }
-	inline bool GetDontChat(void) { return dont_chat; }
-	inline void ResetDontChat(void) { dont_chat = FALSE; }
-	inline void SetRichNames(bool newVal) { rich_names = newVal; }
-	inline bool GetRichNames(void) { return rich_names; }
-	inline void ResetRichNames(void) { rich_names = TRUE; }
-	inline void SetPassiveHealing(bool newVal) { passive_healing = newVal; }
-	inline bool GetPassiveHealing(void) { return passive_healing; }
-	inline void ResetPassiveHealing(void) { passive_healing = FALSE; }
-
-
-	// These two are still public, they should go private, but I don't know if they are
-	// going to be used at all, because the code behind these doesn't work
-
-	bool  be_samurai;			// will allow bots to commit suicide in certain situations (for example when there are no reains and bots are "stuck" at opposite team spawn area, ie. neither team can win the game)
-	float harakiri_time;		// the delay bots have to finish the game using standard ways (ie. killing the other team and so on) before starting to commit suicides
-
-private:
-	bool  is_logging;		// will allow logging MB events into default HL log file
-	bool  random_skill;		// do we use default skill or randomly generated skill
-	int   spawn_skill;		// default skill when there's no skill specified in recruit command
-	float reaction_time;	// applied the first time the bot sees an enemy
-	float auto_balance_time;// the time between two team balance tests
-	int   min_bots;			// the minimal number of bots on DS (won't be kicked when clients join)
-	int   max_bots;			// the maximal number of bots on DS
-	bool  custom_classes;	// will allow custom classes from .cfg
-	float info_time;		// the time for printing various info/summary to DS console
-	float presentation_time;// the time between sending two presentation messages
-	bool  dont_speak;		// the bot will or won't use Voice commands
-	bool  dont_chat;		// the bot will or won't use say or say_team commands
-	bool  rich_names;		// will allow '[MB]' sign being a part of a bot name
-	bool  passive_healing;	// the bot will not heal teammates automatically when this is TRUE
-};
-
-extern externals_t externals;
-
-// class of global variables that can be set only by using console command (ie. not via .cfg file)
-class internals_t
-{
-public:
-	internals_t();
-	inline void SetIsDistLimit(bool newVal) { is_limit_dist = newVal; }
-	inline bool IsDistLimit(void) { return is_limit_dist; }
-	inline void ResetIsDistLimit(void) { is_limit_dist = false; }
-	inline void SetMaxDistance(float newVal) { max_enemy_dist = (float) newVal; }
-	inline float GetMaxDistance(void) { return max_enemy_dist; }
-	inline void ResetMaxDistance(void) { max_enemy_dist = (float) 7500; }
-private:
-	bool  is_limit_dist;		// do we limit the view distance?, useful on maps where the bot can see enemy through skybox - ps_island
-	float max_enemy_dist;		// used to limit the view distance, bots won't see/attack enemies that are farther than this number
-};
-
-extern internals_t internals;
 
 typedef struct
 {
@@ -917,12 +857,8 @@ typedef struct
 
 extern bot_fire_delay_t bot_fire_delay[MAX_WEAPONS];
 
-typedef enum {msg_null = 0, msg_default, msg_info, msg_warning, msg_error} MESSAGE_TYPE;
-
-typedef bool (*NAVIGATOR)(bot_t *pBot);
-typedef std::map<int, NAVIGATOR> NavigatorMap;
-typedef NavigatorMap::iterator NavigatorMapI;
-extern NavigatorMap NavigatorMethods;
+typedef enum class MarineBotMessageType {msg_null = 0, msg_default, msg_info, msg_warning, msg_error};
+typedef MarineBotMessageType MType;
 
 #endif // BOT_H
 

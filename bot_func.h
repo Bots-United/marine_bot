@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot_func.h
@@ -91,8 +91,6 @@ void BotWeaponArraysInit(Section *conf_weapons);
 //edict_t *BotFindEnemy( bot_t *pBot );
 void BotShootAtEnemy( bot_t *pBot );
 
-int BotChooseCorrectSkill(bot_t *pBot);
-
 bool BotFindWaypoint(bot_t *pBot, bool ladder);
 bool BotHandleLadder(bot_t *pBot, float moved_distance);
 bool BotCantStrafeLeft(edict_t *pEdict);
@@ -104,7 +102,9 @@ void BotEvadeClaymore(bot_t *pBot);
 
 Vector BotBodyTarget(bot_t *pBot);
 void BotPlantClaymore(bot_t *pBot);
-
+void BotMergeClips(bot_t *pBot, const char* loc = NULL);
+void BotUseBipod(bot_t *pBot, bool forced_call, const char* loc = NULL);
+float SetBipodHandlingTime(int weapon, bool deploying);
 
 // util.cpp functions
 edict_t *UTIL_FindEntityInSphere( edict_t *pentStart, const Vector &vecCenter, float flRadius );
@@ -147,11 +147,13 @@ bool UTIL_IsMachinegun(int weapon);
 bool UTIL_IsSMG(int weapon);
 bool UTIL_IsShotgun(int weapon);
 bool UTIL_IsHandgun(int weapon);
+bool UTIL_IsGrenade(int weapon);
 bool IsBipodWeapon(int weapon);
 void UTIL_ChangeWeapon(bot_t *pBot);
-void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, CHANGE_FM_TEST wtest);
+void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, FireMode_WTest wtest);
 void UTIL_ShowWeapon(bot_t *pBot);
-void UTIL_CheckAmmoReserves(bot_t *pBot);
+bool UTIL_ShouldReload(bot_t *pBot, const char* loc = NULL);
+void UTIL_CheckAmmoReserves(bot_t *pBot, const char* loc = NULL);
 int UTIL_FindBotByName(const char *name_string);
 bool UTIL_KickBot(int which_one);
 bool UTIL_KillBot(int which_one);
@@ -163,8 +165,9 @@ int UTIL_ChangeAimSkillLevel(int skill_level);
 //int UTIL_GetIDFromName(const char *weapon_name);		// NOT USED
 bool UTIL_IsStealth(edict_t *pEdict);
 bool UTIL_CanMountSilencer(bot_t *pBot);
-bool UTIL_GoProne(bot_t *pBot);
-void SetStanceByte(bot_t *pBot, int flag);
+bool UTIL_GoProne(bot_t *pBot, const char* loc = NULL);
+void SetStance(bot_t *pBot, int flag, const char* loc = NULL);
+void SetStance(bot_t *pBot, int flag, bool is_forced_stance, const char* loc = NULL);
 bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range);
 int UTIL_RemoveFalsePaths(bool print_details);
 int UTIL_CheckPathsForProblems(bool log_in_file);
@@ -178,17 +181,20 @@ bool UTIL_IsDontMoveWpt(edict_t *pEdict, int wpt_index, bool passed);
 int UTIL_GetLadderDir(bot_t *pBot);
 bool UTIL_CheckForwardForBreakable(edict_t *pEdict);
 bool UTIL_CheckForBreakableAround(bot_t *pBot);
-int UTIL_DoWaypointAction(bot_t *pBot);
+bool UTIL_CheckForUsablesAround(bot_t *pBot);
 bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive);
 bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded);
 bool UTIL_PatientNeedsTreatment(edict_t *pPatient);
 void UTIL_HumanizeTheName(const char *original_name, char *name);
 bool IsOfficialWpt(const char *waypointer);
-void PrintOutput(edict_t *pEdict, char *message, MESSAGE_TYPE msg_type);
-void PrintOutput(edict_t *pEdict, char *message, MESSAGE_TYPE msg_type = msg_null);
+void PrintOutput(edict_t *pEdict, char *message, MType msg_type);
+void PrintOutput(edict_t *pEdict, char *message, MType msg_type = MType::msg_null);
 void EchoConsole(const char *message);
 void HudNotify(char *msg);
+void HudNotify(char* msg, bot_t* pBot);
 void HudNotify(char *msg, bool islogging);
+void HudNotify(char *msg, bool islogging, bot_t *pBot);
+
 void UTIL_HighlightTrace(Vector v_source, Vector v_dest, edict_t *pEdict);
 void UTIL_DebugInFile(char *msg);
 void UTIL_DebugDev(char *msg, int wpt = -100, int path = -100);
@@ -216,7 +222,6 @@ void DisplayMsg(edict_t *pEntity, const char *msg);
 void CustDisplayMsg(edict_t *pEntity, const char *msg, int x_pos, float time);
 
 #ifdef _DEBUG
-void DrawBeam(edict_t *pEntity, Vector start, Vector end, int life, int red, int green, int blue, int speed);
 void ReDrawBeam(edict_t *pEdict, Vector start, Vector end, int team);
 #endif
 

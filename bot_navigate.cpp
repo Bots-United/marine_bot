@@ -11,7 +11,7 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // bot_navigate.cpp
@@ -23,32 +23,25 @@
 #pragma warning(disable:4786)
 #endif
 
-# include <stdio.h>
-# include <string.h>
-# include <sys/types.h>
-# include <math.h>
+#if defined(WIN32)
+#pragma warning(disable: 4005 91)
+#endif
+
+#include <string.h>
 
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <math.h>
+
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "waypoint.h"
 #include "bot_weapons.h"
-
-#include "bot_navigate.h"
-// for learning the maps by kota@
-#include "PathMap.h"
-
-// used to tell the path algorithm that bot should turnd back and continue in opposite direction
-#define PATH_TURNBACK (W_FL_GOBACK | W_FL_AMMOBOX | W_FL_USE)
-
-extern bool debug_waypoints;
-extern bool debug_paths;
-
-NavigationMethods NMethodsDict; // dictionary of available navigation methods (with pointers to those methods)
-NavigationList NMethodsList;	// pointers to the navigation methods in right order
 
 
 // few function prototypes used in this file
@@ -60,10 +53,6 @@ void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index);
 //int getNextWptInPath(bot_t *pBot);		// not used
 bool TraceForward(bot_t *pBot, bool check_head, bool check_feet, int dist, TraceResult *tr);
 bool TraceJumpUp(bot_t *pBot, int height);
-NavigatorMap NavigatorMethods;
-//registration of navigation methods should be here;
-//NavigatorMethods[0] = BotOnPath1;
-
 
 void BotFixIdealPitch(edict_t *pEdict)
 {
@@ -98,7 +87,7 @@ float BotChangePitch( bot_t *pBot, float speed )
 	if (pBot->IsTask(TASK_BIPOD))
 	{
 		// in pEdict->v.vuser1 is stored v_view angle when player started using bipod
-		// (ie the directon player faced when he used "bipod" command)
+		// (ie the direction player faced when he used "bipod" command)
 
 		// is current angle bigger than top limit angle (while the bot is looking upwards)
 		// OR is current angle bigger than bottom limit angle (while the bot is looking downwards)
@@ -108,7 +97,7 @@ float BotChangePitch( bot_t *pBot, float speed )
 	}
 
 	// find the difference in the current and ideal angle
-	diff = fabs(current - ideal);
+	diff = fabs((double) current - ideal);
 
 	// check if the bot is already facing the idealpitch direction
 	if (diff <= 1)
@@ -211,10 +200,10 @@ float BotChangeYaw( bot_t *pBot, float speed )
 		float bipod_limit = 45.0;
 
 		// in pEdict->v.vuser1 is stored v_view angle when player started using bipod
-		// (ie the directon player looked when he used "bipod" command)
+		// (ie the direction player looked when he used "bipod" command)
 
 		// is bot trying to turn more than bipod allows
-		if (fabs(pEdict->v.vuser1.y - current) > bipod_limit)
+		if (fabs((double) pEdict->v.vuser1.y - current) > bipod_limit)
 		{
 			current = pEdict->v.vuser1.y;
 		}
@@ -229,7 +218,7 @@ float BotChangeYaw( bot_t *pBot, float speed )
 		speed = speed - speed_tweak;
 	}
 
-	diff = fabs(current - ideal);
+	diff = fabs((double) current - ideal);
 
 	// the bot is basically facing the direction we wanted so we can remove the flag
 	if (diff < 4)
@@ -300,16 +289,6 @@ void UpdateWptHistory(bot_t *pBot)
 	{
 		return;
 	}
-
-	// NOTE: This doesn't work now with wpt system 6 and above,
-	// it needs to be updated to current version as well
-
-	//int wpt_last = pBot->prev_wpt_index.get();
-	
-	// for learning the map by kota@
-	//::teamPathMap[pBot->bot_team].add(wpt_last, pBot->curr_wpt_index, 1,
-	//		waypoints[wpt_last].flags, waypoints[wpt_last].misc,
-	//		waypoints[pBot->curr_wpt_index].flags, waypoints[pBot->curr_wpt_index].misc);
 
 	pBot->prev_wpt_index.push(pBot->curr_wpt_index);
 	pBot->prev_wpt_origin = pBot->wpt_origin;
@@ -392,12 +371,12 @@ W_PATH *GetWaypointFromPath (bot_t *pBot, int wpt_index, int path_index)
 
 
 /* kota@
-* this is the standard path move from BotOnPath()
+* this is the standard path move from Bot OnPath()
 * I move it into separate function for easy understanding and manipulation
 * Function set path_next_wpt, path_end.
-* Function return status like BotOnPath.
-* 0 - need continue run BotOnPath
-* 1 - return BotOnPath with the same status.
+* Function return status like Bot OnPath().
+* 0 - need continue run Bot OnPath()
+* 1 - return Bot OnPath() with the same status.
 */
 int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 {
@@ -420,11 +399,12 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 			pBot->f_waypoint_time = gpGlobals->time;
 
-			if (debug_paths)
+			if (botdebugger.IsDebugPaths())
 			{
-				ALERT(at_console, "\n***Reached one-way path end! - path #%d | curr_wpt #%d | dir %d (1=end->start) | new wpt #%d\n\n",
-					pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir,
-					pBot->curr_wpt_index + 1);
+				char fpmsg[128];
+				sprintf(fpmsg, "\n***Reached the end of one-way path! - path #%d | curr_wpt #%d | dir is (start->end) | next wpt #%d\n\n",
+					pBot->curr_path_index + 1, p->wpt_index + 1, pBot->curr_wpt_index + 1);
+				HudNotify(fpmsg);
 			}
 
 			return 1;
@@ -438,10 +418,12 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 			// bot still has a waypoint
 			pBot->f_waypoint_time = gpGlobals->time;
 
-			if (debug_paths)
+			if (botdebugger.IsDebugPaths())
 			{
-				ALERT(at_console, "\n\n<<BUG IN WAYPOINTS>>Reached one-way path end but didn't find wpt! - path #%d | last_wpt #%d | dir %d (1=end->start)\n\n\n",
-					pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir);
+				char fpemsg[128];
+				sprintf(fpemsg, "\n\n<<BUG IN WAYPOINTS>>Reached the end of one-way path, but didn't find wpt! - path #%d | last_wpt #%d\n\n\n",
+					pBot->curr_path_index + 1, p->wpt_index + 1);
+				HudNotify(fpemsg);
 			}
 
 			return -1;
@@ -452,7 +434,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	{
 		// if path ends with goback and similar "turnback" waypoints
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
-			WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
+			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 		{
 			if (p->prev != NULL)
 			{
@@ -486,11 +468,12 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 				pBot->f_waypoint_time = gpGlobals->time;
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n***Reached path end! - path #%d | curr_wpt #%d | dir %d (1=end->start) | new wpt #%d\n\n",
-						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir,
-						pBot->curr_wpt_index + 1);
+					char fpmsg[128];
+					sprintf(fpmsg, "\n***Reached the end of path! - path #%d | curr_wpt #%d | dir is (start->end) | next wpt #%d\n\n",
+						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->curr_wpt_index + 1);
+					HudNotify(fpmsg);
 				}
 
 				return 1;
@@ -507,10 +490,12 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 					path_next_wpt = p->prev->wpt_index;
 				}
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n\n<<BUG IN WAYPOINTS>>Reached path end but din't find wpt! - path #%d | curr_wpt #%d | dir %d (1=end->start)\n\n\n",
-						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir);
+					char fpemsg[128];
+					sprintf(fpemsg, "\n\n<<BUG IN WAYPOINTS>>Reached the end of this path, but didn't find next wpt! - path #%d | curr_wpt #%d\n\n\n",
+						pBot->curr_path_index + 1, p->wpt_index + 1);
+					HudNotify(fpemsg);
 				}
 
 				return -1;
@@ -522,9 +507,9 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	{
 		// if path ends with these waypoints do nothing (further code does all we need)
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
-			WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
+			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 			;
-		// otherwise if does NOT end with "turnbacks" check
+		// otherwise if it does NOT end with "turnbacks" check
 		// if there is a chance to leave this path
 		else if (RANDOM_LONG(1, 100) < 15)
 		{
@@ -539,11 +524,12 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 				pBot->f_waypoint_time = gpGlobals->time;
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n***Reached path end! - path #%d | curr_wpt #%d | dir %d (1=end->start) | new wpt #%d\n\n",
-						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir,
-						pBot->curr_wpt_index + 1);
+					char ppmsg[128];
+					sprintf(ppmsg, "\n***Reached patrol path end! - path #%d | curr_wpt #%d | dir is (start->end) | next wpt #%d\n\n",
+						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->curr_wpt_index + 1);
+					HudNotify(ppmsg);
 				}
 
 				return 1;
@@ -571,13 +557,13 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 
 /* kota@
-* this is the standart path move from BotOnPath.
+* this is the standart path move from Bot OnPath().
 * I move it into separate function for easy understanding and manipulation
 * Function set path_next_wpt, path_end.
-* Function return status like BotOnPath.
-* 0 - need continue run BotOnPath
-* 1 - return BotOnPath with the same status.
-* -1 - error , return BotOnPath with the same status.
+* Function return status like Bot OnPath().
+* 0 - need continue run Bot OnPath()
+* 1 - return Bot OnPath() with the same status.
+* -1 - error , return Bot OnPath() with the same status.
 */
 int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 {
@@ -601,7 +587,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	{
 		// if path ends with goback and similar "turnback" waypoints
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
-			WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
+			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 		{
 			if (p->next != NULL)
 			{
@@ -626,11 +612,12 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 				pBot->f_waypoint_time = gpGlobals->time;
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n***Reached path start! - path #%d | curr_wpt #%d | dir %d (1=end->start) | new wpt #%d\n\n",
-						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir,
-						pBot->curr_wpt_index + 1);
+					char bpmsg[128];
+					sprintf(bpmsg, "\n***Reached path start! - path #%d | curr_wpt #%d | dir is (end->start) | next wpt #%d\n\n",
+						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->curr_wpt_index + 1);
+					HudNotify(bpmsg);
 				}
 
 				// clear this flag before return
@@ -650,10 +637,12 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 					path_next_wpt = p->next->wpt_index;
 				}
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n\n<<BUG IN WAYPOINTS>>Reached path end but didn't find wpt! - path #%d | curr_wpt #%d | dir %d (1=end->start)\n\n\n",
-						pBot->curr_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir);
+					char bpemsg[128];
+					sprintf(bpemsg, "\n\n<<BUG IN WAYPOINTS>>Reached the end of this path, but didn't find next wpt! - path #%d | curr_wpt #%d\n\n\n",
+						pBot->curr_path_index + 1, p->wpt_index + 1);
+					HudNotify(bpemsg);
 				}
 
 				return -1;
@@ -665,7 +654,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	{
 		// if path ends with a turback do nothing (further code does all we need)
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
-			WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
+			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 			;
 		// otherwise if does NOT end with "turnbacks" check
 		// if there is a chance to leave this path
@@ -682,11 +671,12 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 
 				pBot->f_waypoint_time = gpGlobals->time;
 
-				if (debug_paths)
+				if (botdebugger.IsDebugPaths())
 				{
-					ALERT(at_console, "\n***Reached path start! - path #%d | curr_wpt #%d | dir %d (1=end->start) | new wpt #%d\n\n",
-						pBot->prev_path_index + 1, p->wpt_index + 1, pBot->opposite_path_dir,
-						pBot->curr_wpt_index + 1);
+					char ppmsg[128];
+					sprintf(ppmsg, "\n***Reached patrol path start! - path #%d | curr_wpt #%d | dir is (end->start) | next wpt #%d\n\n",
+						pBot->prev_path_index + 1, p->wpt_index + 1, pBot->curr_wpt_index + 1);
+					HudNotify(ppmsg);
 				}
 
 				// clear this flag before return
@@ -738,7 +728,10 @@ void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index = -1)
 	{
 		pBot->SetTask(TASK_AVOID_ENEMY);
 		
-		if (debug_paths)
+		// keep these messages as alert at console
+		// so the user can turn them on/off using the developer 1 command
+		// these are just additional info
+		if (botdebugger.IsDebugPaths())
 			ALERT(at_console, "<<PATHS>>Bot %s will AVOID all enemies that aren't in current weapon range (path #%d)\n",
 			pBot->name, pBot->curr_path_index + 1);
 	}
@@ -748,7 +741,7 @@ void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index = -1)
 	{
 		pBot->RemoveTask(TASK_AVOID_ENEMY);
 
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 			ALERT(at_console, "<<PATHS>>Bot %s will no longer AVOID enemies! Any visible foe can be a target again (path #%d)\n",
 			pBot->name, pBot->curr_path_index + 1);
 	}
@@ -758,7 +751,7 @@ void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index = -1)
 	{
 		pBot->SetTask(TASK_IGNORE_ENEMY);
 		
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 			ALERT(at_console, "<<PATHS>>Bot %s will IGNORE most enemies now (path %d)\n", pBot->name, pBot->curr_path_index + 1);
 	}
 	
@@ -767,7 +760,7 @@ void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index = -1)
 	{
 		pBot->RemoveTask(TASK_IGNORE_ENEMY);
 
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 			ALERT(at_console, "<<PATHS>>Bot %s will no longer IGNORE enemies! Any visible foe can be a target again (path #%d)\n",
 			pBot->name, pBot->curr_path_index + 1);
 	}
@@ -849,7 +842,7 @@ int BotOnPath(bot_t *pBot)
 	if (((found) || (found2)) && (path_next_wpt != -1))
 	{
 		// is the current waypoint a goback wpt and NOT end of the path
-		if (IsFlagSet(W_FL_GOBACK, pBot->curr_wpt_index, pBot->bot_team) == true && path_end == FALSE)
+		if (IsFlagSet(W_FL_GOBACK, pBot->curr_wpt_index, pBot->bot_team) && !path_end)
 		{
 			// clear opposite_dir flag and set next waypoint in llist
 			if ((pBot->opposite_path_dir) && (p->next != NULL))
@@ -882,10 +875,16 @@ int BotOnPath(bot_t *pBot)
 		// set correct behaviour based on the path flags
 		AssignPathBasedBehaviour(pBot, path_next_wpt);
 
-		if (debug_paths)
+		if (botdebugger.IsDebugPaths())
 		{
-			ALERT(at_console, "<<PATHS>>current path is #%d | current waypoint is #%d | path direction %d (0=start->end and 1=end->start)\n",
-				pBot->curr_path_index + 1, pBot->curr_wpt_index + 1, pBot->opposite_path_dir);
+			char pmsg[128];
+			if (pBot->opposite_path_dir)
+				sprintf(pmsg, "<<PATHS>>current path is #%d | current waypoint is #%d | path direction is (end->start)\n",
+					pBot->curr_path_index + 1, pBot->curr_wpt_index + 1);
+			else
+				sprintf(pmsg, "<<PATHS>>current path is #%d | current waypoint is #%d | path direction is (start->end)\n",
+					pBot->curr_path_index + 1, pBot->curr_wpt_index + 1);
+			HudNotify(pmsg);
 		}
 
 		return 1;
@@ -893,205 +892,12 @@ int BotOnPath(bot_t *pBot)
 
 #ifdef _DEBUG
 	char msg[80];
-	sprintf(msg, "BotOnPath()->unknown event | bot.opp_dir %d\n",
-			pBot->opposite_path_dir);
+	sprintf(msg, "BotOnPath()->unknown event | bot.opp_dir %d\n", pBot->opposite_path_dir);
 	UTIL_DebugDev(msg, pBot->curr_wpt_index, pBot->curr_path_index);
 #endif
 
 	return -1;
 }
-
-
-// SECTION BY kota@
-/*
-Check if current wpt is in PointList (if bot has current path).
-Erase all wpt int PointList before it 
-Return next point for bot from PointList after current wpt
-If PointList empty or bot losts its path we return -1 
-*/
-/*
-int getNextWptInPath(bot_t *pBot)
-{
-	int next_wpt = -1;
-	if (pBot->point_list[0] == -1) {
-		return -1;
-	}
-	if (pBot->curr_wpt_index == -1) {
-		pBot->clear_path();
-		return -1;
-	}
-	for (int i=0; i<ROUTE_LENGTH-1 && pBot->point_list[i] != -1; ++i) {
-		if (pBot->point_list[i] == pBot->curr_wpt_index) {
-			//we found bots current point.
-			next_wpt = pBot->point_list[i+1];
-			if (i != 0) { //cut points before it.
-				int j = 0;
-				for (; pBot->point_list[i] != -1 && i<ROUTE_LENGTH; ++i,++j) {
-					pBot->point_list[j] = pBot->point_list[i];
-				}
-				pBot->point_list[j] = -1;
-			}
-			return next_wpt;
-		}
-	}
-	pBot->clear_path();
-	return next_wpt;
-}
-/**/
-
-
-//Function take a decision about new bot path from Frank's path system.
-//It doesn't check any condition about current bot path.
-//That is why it should be called only 
-//when getNextWptInPath return negative status == -1
-//This is signal that bot doesn't have path now.
-//If function set new path it return TRUE
-// else FALSE.
-bool BotOnPath1(bot_t *pBot)
-{
-/*
-	// NOTE by Frank: We aren't using this so I put it all under debug
-#ifdef _DEBUG
-	int path_next_wpt = -1;
-	W_PATH *p = NULL;
-	int steps = 0;
-	
-	bool path_is_valid = FALSE;		// TRUE if curr wpt has been found in that path
-
-	
-	FILE *f;
-	static bool debug_path = false;
-	
-	if (!debug_path) {
-		//@@@@@@@@@ debug print paths
-	    f = fopen("c:\\debug.txt", "a"); 
-		//fprintf(f, "try to find path from %d paths\n", num_w_paths);
-		W_PATH *dp;
-		int jj;
-		for (jj=0; jj<num_w_paths; ++jj) {
-			dp = w_paths[jj];
-			if (dp == NULL) continue;
-//			fprintf(f, "# %d way_fl=%d #", jj, dp->way_fl);
-			do {
-				fprintf(f, "* %d ", dp->wpt_index);
-				dp = dp->next;
-			} while (dp != NULL);
-			fprintf(f,"\n");
-		}
-		fclose(f);
-		debug_path = true;
-	}
-	
-	// search all paths for this wpt
-	for (int path_index = 0; path_index < num_w_paths; path_index++)
-	{
-		if((p = FindPointInPath (pBot->curr_wpt_index, path_index))!=NULL)
-		{
-			
-			// is this path valid (ie team class flags match)
-			if (!IsPathPossible(pBot, path_index))
-			{
-				return false;
-			}
-		//@@@@@@@@@@@@@@
-			f = fopen("\\debug.txt", "a"); 
-			if (f!=NULL)
-			{
-			  fprintf(f, "AAA found wpt %d in path %d\n", 
-					pBot->curr_wpt_index,path_index);
-			  fprintf(f, "AAA old opposite_path_dir=%d next=%p, prev=%p\n", 
-				pBot->opposite_path_dir, p->next, p->prev);
-			  fclose(f);
-			}
-
-			//change move direction if bot is on special redirection point
-			//and this special wpt flag belongs his team.
-			if (((w_paths[path_index])->flags & P_FL_WAY_PATROL && RANDOM_LONG(1, 100) > 15)||
-					((w_paths[path_index])->flags & P_FL_WAY_TWO &&
-					waypoints[p->wpt_index].flags & (W_FL_GOBACK|W_FL_SNIPER|W_FL_AMMOBOX|W_FL_USE))) 
-			{
-				pBot->opposite_path_dir = (pBot->opposite_path_dir==TRUE)? FALSE : TRUE;
-				 //@@@@@@@@@@@
-				f = fopen("\\debug.txt", "a"); 
-				if(f!=NULL)
-				{
-				  fprintf(f, "BBB change opposite_path_dir=%d\n", 
-					pBot->opposite_path_dir);
-				  fclose(f);
-				}
-				
-			}
-			
-			f = fopen("\\debug.txt", "a"); 
-			if (f!=NULL)
-			{
-//			  fprintf(f, "CCC curr opposite_path_dir=%d wpt flag %d way=%u\n", 
-//				pBot->opposite_path_dir, waypoints[p->wpt_index].flags, (w_paths[path_index])->way_fl);
-			  fclose(f);
-			}
-			
-			//choose direction 
-			bool forward = true;
-			switch (pBot->opposite_path_dir) {
-			case TRUE: //bot is going backward
-				if (p->prev != NULL) {
-					forward = false;
-				}
-				else //there is no path for bot.
-				{
-					pBot->opposite_path_dir = FALSE;
-					pBot->curr_path_index = -1;
-					return false;
-				}
-				break;
-			default: //bot is going forward
-				if (p->next != NULL) {
-					forward = true;
-				}
-				else //there is no path for bot.
-				{
-					pBot->opposite_path_dir = FALSE;
-					pBot->curr_path_index = -1;
-					return false;
-				}
-			}
-
-
-			if((steps = fillPointList(pBot->point_list, ROUTE_LENGTH, p, forward))<=1)
-			{
-				//Only current point is in path (path is very short) or there is no path at all.
-				pBot->opposite_path_dir = FALSE;
-				pBot->curr_path_index = -1;
-				return false;
-			}
-
-			// if actual path is PATROL path store last wpt index (to return to after combat)
-			if (p->flags & P_FL_WAY_PATROL)
-				pBot->patrol_path_wpt = pBot->curr_wpt_index;
-			// if actual path isn't PATROL AND was set clear it
-			else if ((pBot->patrol_path_wpt != -1) &&
-					!(p->flags & P_FL_WAY_PATROL))
-				pBot->patrol_path_wpt = -1;
-
-			//@@@@@@@@@@
-			f = fopen("c:\\debug.txt", "a"); 
-			fprintf(f, "new path %d - forward=%d %d steps\n", 
-				path_index, forward, steps);
-			fclose(f);
-
-			// update path history
-			pBot->prev_path_index = pBot->curr_path_index;
-			pBot->curr_path_index = path_index;
-			return true;
-		}
-	}
-	pBot->opposite_path_dir = FALSE;
-	pBot->curr_path_index = -1;
-#endif
-/**/
-	return false;
-}
-// SECTION BY kota@ END
 
 
 /*
@@ -1103,6 +909,9 @@ bool BotFindWaypoint(bot_t *pBot, bool ladder)
 	
 	next_waypoint = -1;
 
+	//																						NOTE: As of now this cannot happen!!!
+	//					It should probably be changed to check for movetype == MOVETYPE_FLY
+	//					and scrap the bool ladder variable altogether.
 	if (ladder)
 	{
 		next_waypoint = FindRightLadderWpt(pBot);
@@ -1145,58 +954,146 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	int found;
 	float wpt_distance, wpt_range;
 	bool in_wpt_range;		// when bot reaches the wpt range
+	bool past_the_wpt;		// if bot run past current wpt set this and then double check if really reach its range
 	bool is_next_wpt;		// do we have next wpt to head to
-	bool past_the_wpt;		// if bot run past current wpt set this and then double check if really reach next wpt
-	int stuck_wpt_index = -1;	// prevents bot to take the same wpt where he got stuck before
+	int unreachable_wpt_index = -1;	// prevents the bot to take the same wpt where he got stuck before
 	float wpt_distance2D;	// prevents z-coord problems (like when dead body under wpt etc.)
-	
+	bool use_only_planar;	// in cases when we need to test just the 2D distance to waypoint (eg. tiny wpt range)			NEW CODE 094
+	char dbgmsg[128];		// allows printing feedback for waypointer who's testing his work
+
 	edict_t *pEdict = pBot->pEdict;
 
-	// forget on any waypoint that is unreachable for longer time
+	// forget on any waypoint that is unreachable for longer time															NEW CODE 094 (prev code)
 	// don't apply this when waiting or doing any action
-	if ((pBot->f_waypoint_time + 4.0 < gpGlobals->time) &&
-		(pBot->wpt_wait_time > 0.0) && (pBot->wpt_wait_time < gpGlobals->time) &&
-		(pBot->wpt_action_time > 0.0) && (pBot->wpt_action_time < gpGlobals->time))
+	//if ((pBot->f_waypoint_time + 5.0 < gpGlobals->time) &&
+	//	(pBot->wpt_wait_time > 0.0) && (pBot->wpt_wait_time < gpGlobals->time) &&
+	//	(pBot->wpt_action_time > 0.0) && (pBot->wpt_action_time < gpGlobals->time))
+	
+	// forget on any waypoint that is unreachable for longer time
+	if (pBot->f_waypoint_time + 5.0f < gpGlobals->time)//																	NEW CODE 094
 	{
 #ifdef _DEBUG
 		//@@@@@@@@@@@@@@@@
-		//ALERT(at_console, "f_wpt_time < globTIME ---- !!GENERAL!!\n");
+		if (botdebugger.IsDebugStuck())
+		{
+			//sprintf(dbgmsg, "(nav.cpp) f_wpt_time=%3.f < globTIME=%3.f for wpt #%d ---- !!GENERAL!! !!GENERAL!! !!GENERAL!!\n",
+			//	pBot->f_waypoint_time, gpGlobals->time, pBot->curr_wpt_index+1);
+			//HudNotify(dbgmsg);
+		}
 #endif
+
+		//																													NEW CODE 094
+		// if the bot was stuck in last 5 seconds AND
+		// it's NOT soon after battle, because the bot can move far away from
+		// his waypoint while in battle so we must allow him to reset navigation
+		// if he isn't able to reach his waypoint anymore
+		// for example if he fell from roof during battle
+		if ((pBot->f_stuck_time + 5.0f >= gpGlobals->time) &&
+			(pBot->f_bot_see_enemy_time + 8.0f < gpGlobals->time) &&
+			(pBot->f_bot_wait_for_enemy_time + 8.0f < gpGlobals->time))
+		{
+			if (pBot->IsNeed(NEED_RESETNAVIG) == false)
+			{
+				// then update the waypoint time to compensate the time he lost trying to free self
+				pBot->f_waypoint_time = gpGlobals->time;
+				// and prepare the navigation reset
+				pBot->SetNeed(NEED_RESETNAVIG);
+
+				if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+				{
+					sprintf(dbgmsg, "<<WARNING>>%s was stuck while heading to waypoint #%d -> setting extra time to reach it!\n",
+						pBot->name, pBot->curr_wpt_index + 1);
+					HudNotify(dbgmsg, pBot);
+				}
+			}
+			else
+			{
+				// the bot already had 10 seconds to reach current waypoint
+				// but give him another 10 seconds...
+				if (pBot->f_waypoint_time + 10.0f < gpGlobals->time)
+				{
+					// if the bot is still stuck while trying to reach this waypoint
+					// then mark current waypoint as unreachable waypoint to allow resetting navigation
+					unreachable_wpt_index = pBot->curr_wpt_index;
+
+					if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+					{
+						sprintf(dbgmsg, "<<WARNING>>%s's extra stuck time is over & still can't reach the wpt -> going to RESET NAVIG!\n",
+							pBot->name);
+						HudNotify(dbgmsg, pBot);
+					}
+				}
+			}
+		}
+		//	**************************************************************************************************************	NEW CODE 094 END
 
 		// if bot is near door ie handling door or on ladder or in crouch or in prone
-		if ((waypoints[pBot->curr_wpt_index].flags & (W_FL_DOOR | W_FL_DOORUSE)) ||
+		// of moving at slow or even slower speeds (e.g. going down the hill or stairs)
+		else if ((waypoints[pBot->curr_wpt_index].flags & (W_FL_DOOR | W_FL_DOORUSE)) ||
 			(waypoints[pBot->prev_wpt_index.get()].flags & (W_FL_DOOR | W_FL_DOORUSE)) ||
-			(pBot->pEdict->v.movetype == MOVETYPE_FLY) || (pBot->pEdict->v.flags & FL_DUCKING) ||
-			(pEdict->v.flags & FL_PRONED))
+			(pBot->pEdict->v.movetype == MOVETYPE_FLY) ||
+			pBot->IsBehaviour(BOT_CROUCHED) || pBot->IsBehaviour(BOT_PRONED) ||//											NEW CODE 094
+			(pBot->move_speed == SPEED_SLOW) || (pBot->move_speed == SPEED_SLOWEST))//										NEW CODE 094
 		{
-			// NOTE: here should be check for longer f_wpt_time delay to see
-			// if the doors opened or are still blocked
 
-			;
+			//			vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
+			// TO DO - Need to test somehow if the bot is moving forward
+			//		(maybe something like moved_distance in bot.cpp)
+			//		before doing any WPT & PATH resetting
+
+			//			^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+			// give the bot 15 seconds instead of default 5 seconds
+			// to reach this waypoint
+			if (pBot->f_waypoint_time + 15.0f < gpGlobals->time)
+			{
+				unreachable_wpt_index = pBot->curr_wpt_index;
+
+				if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+				{
+					sprintf(dbgmsg, "<<WARNING>>%s's extra time to reach wpt #%d is over -> going to RESET NAVIG!\n",
+						pBot->name, pBot->curr_wpt_index + 1);
+					HudNotify(dbgmsg, pBot);
+				}
+			}
+			else
+			{
+				;
 #ifdef _DEBUG
-			//@@@@@@@@@@@@@@@@
-			//ALERT(at_console, "f_wpt_time < globTIME --- door or ladder or crouch or prone\n");
+				//@@@@@@@@@@@@@@@@
+				//if (botdebugger.IsDebugStuck() || botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints())
+					//HudNotify("(nav.cpp) wpt_time(+5.0) < globTIME -> door OR ladder OR crouch OR prone OR slow/slower movement speed\n");
 #endif
+			}
 		}
-		// otherwise clear this waypoint it isn't reachable
+		// otherwise the bot must be stuck at this waypoint (unable to reach it)
 		else
 		{
+			unreachable_wpt_index = pBot->curr_wpt_index;//																			NEW CODE 094
+
 #ifdef _DEBUG
-			//@@@@@@@@@@@@@@@@
-			//ALERT(at_console, "!!!wptTime(4.0) is over - can't reach, wpt cleared!!!\n");
+//@@@@@@@@@@@@@@@@
+			//if (botdebugger.IsDebugStuck())
+			//	HudNotify("(nav.cpp)DEFAULT wptTime(+5.0) is over - can't reach this wpt in TIME -> going to RESET NAVIG!\n");
 #endif
-			if (debug_waypoints || debug_paths)
-			{
-				char msg[256];
-				
-				sprintf(msg, "<<BUG IN WAYPOINTS>>Can't get to wpt #%d in time -> going to find closer one (wpts may be too far from each other)\n",
+
+		}
+
+		// is this waypoint unreachable?
+		if (unreachable_wpt_index != -1)//																							NEW CODE 094
+		{
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+			{				
+				sprintf(dbgmsg, "<<POSSIBLE BUG IN WAYPOINTS>>Can't get to wpt #%d in time -> Navigation RESET (wpts may be too far from each other)\n",
 					pBot->curr_wpt_index + 1);
-				PrintOutput(NULL, msg);
+				HudNotify(dbgmsg, pBot);
 			}
 
-			// backup current wpt before clearing its record
-			stuck_wpt_index = pBot->curr_wpt_index;
+			// backup current wpt before clearing its record																		NEW CODE 094 (prev code)
+			//unreachable_wpt_index = pBot->curr_wpt_index;
 
 			// bot can't reach this wpt so clear it
 			pBot->curr_wpt_index = -1;
@@ -1210,7 +1107,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	// no waypoint so search for some
 	if (pBot->curr_wpt_index == -1)
 	{
-		found = WaypointFindFirst(pBot, MAX_WPT_DIST, stuck_wpt_index);
+		found = WaypointFindFirst(pBot, MAX_WPT_DIST, unreachable_wpt_index);
 
 		// didn't found any possible waypoint
 		if (found == -1)
@@ -1218,7 +1115,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			// clear all previously visited waypoints
 			pBot->prev_wpt_index.clear();
 
-			found = WaypointFindFirst(pBot, MAX_WPT_DIST, stuck_wpt_index);
+			found = WaypointFindFirst(pBot, MAX_WPT_DIST, unreachable_wpt_index);
 
 			// still no waypoint so clear current waypoint
 			if (found == -1)
@@ -1228,8 +1125,11 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			}
 		}
 
-		if (debug_waypoints)
-			ALERT(at_console, "***Have no wpt! Found this one (index %d) as a new wpt\n", found + 1);
+		if (botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+		{
+			sprintf(dbgmsg, "***Have no waypoint! Found this one (index=%d) as a new waypoint\n", found + 1);
+			HudNotify(dbgmsg, pBot);
+		}
 
 		pBot->curr_wpt_index = found;
 
@@ -1239,84 +1139,209 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		pBot->f_waypoint_time = gpGlobals->time;
 	}
 
-	// 3D distance (space - ie we check also z-coord)
-	wpt_distance = (pEdict->v.origin - pBot->wpt_origin).Length();
-
-	// 2D distance (planar - ie we ignore z-coord)
-	wpt_distance2D = (pEdict->v.origin - pBot->wpt_origin).Length2D();
-
-	// get this waypoint range
-	wpt_range = waypoints[pBot->curr_wpt_index].range;
-
-	in_wpt_range = FALSE;
-	past_the_wpt = FALSE;
-	
-	// did the bot run past the waypoint? (prevent the loop-the-loop problem)
-	if ((pBot->prev_wpt_distance > 1.0) &&
-		(wpt_distance > pBot->prev_wpt_distance))
+	// the bot already reached his current waypoint where he already finished given action (e.g. waiting)
+	// so we must skip standard position checks in order to prevent doing unwanted turn backs in case
+	// when he actually ran slightly past the waypoint (for example when he went prone, because going prone
+	// isn't instant stop, but the body still has some forward motion, then it looks really weird if the bot
+	// does 180 degree turn to crawl back to his waypoint followed by another 180 degree turn
+	// to move forward to his next waypoint)
+	if (pBot->IsNeed(NEED_NEXTWPT))
 	{
+		// we just tell him he is exactly in waypoint range
 		in_wpt_range = TRUE;
-		
-		past_the_wpt = TRUE;	// bot just run past his current waypoint
+		past_the_wpt = FALSE;
+
+		// and that he is facing his current waypoint by resetting the time
+		pBot->f_face_wpt = gpGlobals->time - 1.0;
 	}
-
-	// are we close enough to a target waypoint (ie are we in current waypoint range)
-	else if (wpt_distance < wpt_range)
+	// otherwise the bot is still heading towards his waypoint so he must keep checking his current position and
+	// compare it to waypoint position
+	else
 	{
-		in_wpt_range = TRUE;
-	}
+		// 3D distance (space - ie we check also z-coord)
+		wpt_distance = (pEdict->v.origin - pBot->wpt_origin).Length();
 
-	// we are NOT in 3D range, but only in 2D/planar range
-	else if ((wpt_distance > wpt_range) && (wpt_distance2D < wpt_range))
-	{
-		// if it is a ladder waypoint we are NOT in range yet
-		if (waypoints[pBot->curr_wpt_index].flags & W_FL_LADDER)
-			in_wpt_range = FALSE;
+		// 2D distance (planar - ie we ignore z-coord)
+		wpt_distance2D = (pEdict->v.origin - pBot->wpt_origin).Length2D();
 
-		//NOTE: This code below may cause problems with ladders
-		//		Because it probably tells the bot he reached the ladder already even if it didn't
-		//		(our ladder range is 20 units the code below checks for 45 units)
-		//		It needs to be tested and eventually put it in an else statement
-		//		if ladder
-		//		{}
-		//		else
-		//		{ this whole section from below }
+		// get this waypoint range
+		wpt_range = waypoints[pBot->curr_wpt_index].range;
 
-		// check if waypoint z origin (up/down) is in some limits (45 is jump limit)
-
-		// is waypoint higher than jump limit (bot is under waypoint and can't jump to it) OR
-		// lower (bot is above the waypoint and must fall to it - a ditch for example)
-		if ((waypoints[pBot->curr_wpt_index].origin.z > (pEdict->v.origin.z + 45.0)) ||
-			(waypoints[pBot->curr_wpt_index].origin.z < (pEdict->v.origin.z - 45.0)))
+		//																																	NEW CODE 094
+		// if the waypoint range is really small then make it little bigger for the test
+		// and use only planar distance to test whether the bot is in range or not
+		// this trick handles the unwanted dancing around waypoints with range of 5 units
+		if (wpt_range <= 10.0f)
 		{
-			in_wpt_range = FALSE;
+			wpt_range = 10.0f;
+			use_only_planar = true;
 		}
-		// otherwise bot already is inside those limits
 		else
+			use_only_planar = false;
+
+		// if the bot is jumping over the claymore mine then use only planar distance to waypoint
+		// to prevent returning to the waypoints the bot may have passed while in jump
+		if ((pBot->f_duckjump_time >= gpGlobals->time) && pBot->IsTask(TASK_CLAY_EVADE))
+			use_only_planar = true;
+		//	***************************************************************************************************************************		NEW CODE 094 END
+
+		in_wpt_range = FALSE;
+		past_the_wpt = FALSE;
+
+		// are we close enough to a target waypoint (ie are we in current waypoint range)
+		if (wpt_distance < wpt_range)//																										NEW CODE 094
 		{
 			in_wpt_range = TRUE;
-		}
 
-	}
 
-	// save current distance as previous
-	pBot->prev_wpt_distance = wpt_distance;
-
-	// bot reached his wpt but still have time to turn
-	if ((pBot->f_face_wpt > gpGlobals->time) && (wpt_distance2D <= wpt_range))
-	{
-		// "reset" it
-		pBot->f_face_wpt = gpGlobals->time - 1.0;
 
 #ifdef _DEBUG
-		//@@@@@@@@@@@
-		if ((debug_waypoints) || (debug_paths))
-			ALERT(at_console, "***Reached the wpt & Turn time cleared at wpt %d\n", pBot->curr_wpt_index + 1);
+			// this isn't meant to be public message
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+			{
+				sprintf(dbgmsg, "***SET bot IS IN RANGE for wpt #%d disttowpt=%.2f ?<=? (wptrange=%.2f)@@@ CORRECT RANGE @@@\n",
+					pBot->curr_wpt_index + 1, wpt_distance, wpt_range);
+				//HudNotify(dbgmsg);
+			}
 #endif
 
+
+		}
+
+		// did the bot run past the waypoint? (prevent the loop-the-loop problem)
+		//if ((pBot->prev_wpt_distance > 1.0) && (wpt_distance > pBot->prev_wpt_distance))														NEW CODE 094 (prev code)
+		else if ((pBot->prev_wpt_distance > 1.0f) && (wpt_distance > pBot->prev_wpt_distance)
+			&& (pBot->move_speed == SPEED_MAX))//																								NEW CODE 094
+		{
+			in_wpt_range = TRUE;
+
+			past_the_wpt = TRUE;	// bot just run past his current waypoint
+
+
+#ifdef _DEBUG
+			// this isn't meant to be public message
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+			{
+				sprintf(dbgmsg, "***SET bot run PAST THE WPT for wpt #%d disttowpt=%.2f ?>? (prevWptDist=%.2f)$$$$$$$$$$$$$$$$$$$$\n",
+					pBot->curr_wpt_index + 1, wpt_distance, pBot->prev_wpt_distance);
+				//HudNotify(dbgmsg);
+			}
+#endif
+
+
+
+		}
+
+		/*																																		NEW CODE 094 (prev code)
+		// are we close enough to a target waypoint (ie are we in current waypoint range)
+		else if (wpt_distance < wpt_range)
+		{
+			in_wpt_range = TRUE;
+
+
+
+#ifdef _DEBUG
+			// this isn't meant to be public message
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+			{
+				sprintf(dbgmsg, "***SET bot IS IN RANGE for wpt #%d disttowpt=%.2f ?<=? (wptrange=%.2f)@@@ CORRECT RANGE @@@\n",
+					pBot->curr_wpt_index + 1, wpt_distance, wpt_range);
+				HudNotify(dbgmsg);
+			}
+#endif
+
+
+		}
+		*/
+
+		// we are NOT in 3D range, but only in 2D/planar range
+		else if ((wpt_distance > wpt_range) && (wpt_distance2D < wpt_range))
+		{
+			// if it is a ladder waypoint we are NOT in range yet
+			if (waypoints[pBot->curr_wpt_index].flags & W_FL_LADDER)
+				in_wpt_range = FALSE;
+
+			//NOTE: This code below may cause problems with ladders
+			//		Because it probably tells the bot he reached the ladder already even if it didn't
+			//		(our ladder range is 20 units the code below checks for 45 units)
+			//		It needs to be tested and eventually put it in an else statement
+			//		if ladder
+			//		{}
+			//		else
+			//		{ this whole section from below }
+
+			// check if waypoint z origin (up/down) is in some limits (45 is jump limit)
+
+			// is waypoint higher than jump limit (bot is under waypoint and can't jump to it) OR
+			// lower (bot is above the waypoint and must fall to it - a ditch for example)
+			if (((waypoints[pBot->curr_wpt_index].origin.z > (pEdict->v.origin.z + 45.0)) ||
+				(waypoints[pBot->curr_wpt_index].origin.z < (pEdict->v.origin.z - 45.0))) &&
+				use_only_planar == false)//																									NEW CODE 094
+			{
+				in_wpt_range = FALSE;
+
+
+#ifdef _DEBUG
+				// this isn't meant to be public message
+				if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+				{
+					sprintf(dbgmsg, "***IN PLANAR RANGE -> RESET IN RANGE for wpt #%d disttowpt=%.2f ?<=? (wptrange=%.2f)@@@@@@\n",
+						pBot->curr_wpt_index + 1, wpt_distance, wpt_range);
+					//HudNotify(dbgmsg);
+				}
+#endif
+
+
+
+			}
+			// otherwise bot already is inside those limits
+			else
+			{
+				in_wpt_range = TRUE;
+
+
+
+#ifdef _DEBUG
+				// this isn't meant to be public message
+				if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+				{
+					sprintf(dbgmsg, "***IN PLANAR RANGE -> SET IN RANGE for wpt #%d disttowpt=%.2f ?<=? (wptrange=%.2f)@@@ PLANAR RANGE @@@\n",
+						pBot->curr_wpt_index + 1, wpt_distance, wpt_range);
+					//HudNotify(dbgmsg);
+				}
+#endif
+
+
+			}
+
+		}
+
+		// save current distance as previous unless it's a cross waypoint
+		// for cross waypoint we must reset it, because that one has no true range
+		if (waypoints[pBot->curr_wpt_index].flags & W_FL_CROSS)//															NEW CODE 094
+			pBot->prev_wpt_distance = 0.0;
+		else
+			pBot->prev_wpt_distance = wpt_distance;
+
+		// bot reached his wpt but still have time to turn
+		if ((pBot->f_face_wpt > gpGlobals->time) && (wpt_distance2D <= wpt_range))
+		{
+			// "reset" it
+			pBot->f_face_wpt = gpGlobals->time - 1.0;
+
+#ifdef _DEBUG
+			// this isn't meant to be public message
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+			{
+				sprintf(dbgmsg, "***Reached the wpt & Turn time cleared on waypoint %d\n", pBot->curr_wpt_index + 1);
+				HudNotify(dbgmsg, pBot);
+			}
+#endif
+
+		}
 	}
 
-	if ((in_wpt_range) && (pBot->f_face_wpt < gpGlobals->time))
+	if (in_wpt_range && (pBot->f_face_wpt < gpGlobals->time))
 	{
 		bool waypoint_found = FALSE;
 
@@ -1324,26 +1349,51 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 
 		if (past_the_wpt)
 		{
-			if ((pEdict->v.origin - pBot->wpt_origin).Length() >
-				waypoints[pBot->curr_wpt_index].range)
+			//if ((pEdict->v.origin - pBot->wpt_origin).Length() > waypoints[pBot->curr_wpt_index].range)																NEW CODE 094 (prev code)
+			
+			// if this waypoint range is quite small and the bot was moving too fast and
+			// ran through the range and is past it now then give him next game frame so he can try it again
+			// sadly this will increase the number of cases when the bot is "dancing" around the waypoint
+			// but small range has a purpose so we must ensure the bot is careful there
+			if ((wpt_distance > wpt_range) && (wpt_range < WPT_RANGE))//																								NEW CODE 094
 			{
+				/*
 				if (pBot->f_waypoint_time + 5.0 < gpGlobals->time)
 				{
+					//																													NEW CODE 094
+					if ((pBot->f_stuck_time + 5.0f >= gpGlobals->time) &&
+						(pBot->f_bot_see_enemy_time + 8.0f < gpGlobals->time) &&
+						(pBot->f_bot_wait_for_enemy_time + 8.0f < gpGlobals->time))
+					{
+						pBot->f_waypoint_time = gpGlobals->time;
 
-					pBot->curr_wpt_index = -1;
+						if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+						{
+							sprintf(dbgmsg, "<<WARNING>>%s was stuck while heading to waypoint #%d -> setting new time to reach it!\n",
+								pBot->name, pBot->curr_wpt_index + 1);
+							HudNotify(dbgmsg);
+						}
+					}
+					else
+					{
+						//																												NEW CODE 094 END
+						// this must go first before we reset the waypoint index
+						if (botdebugger.IsDebugPaths() || botdebugger.IsDebugStuck() || botdebugger.IsDebugWaypoints())
+						{
+							sprintf(dbgmsg, "<<WARNING>>Navigation reset for %s cause is stuck on waypoint #%d -> can't reach its range!\n",
+								pBot->name, pBot->curr_wpt_index + 1);
+							HudNotify(dbgmsg);
+						}
 
-					// update path history
-					pBot->prev_path_index = pBot->curr_path_index;
-					pBot->curr_path_index = -1;
+						pBot->curr_wpt_index = -1;
 
-
-#ifdef _DEBUG
-					//@@@@@@@@@@
-					if ((debug_waypoints) || (debug_paths))
-						ALERT(at_console, "***Navig reset (bot was stuck at wpt - couldn't reach its range)\n");
-#endif
+						// update path history
+						pBot->prev_path_index = pBot->curr_path_index;
+						pBot->curr_path_index = -1;
+					}
 				}
-
+				
+				*/
 				// TRUE, because bot has waypoint, but he isn't in wpt range yet
 				return TRUE;
 			}
@@ -1360,11 +1410,13 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				float total_time = 0.0;
 
 				// check if we need any additional ammo/mags
-				UTIL_CheckAmmoReserves(pBot);
+				UTIL_CheckAmmoReserves(pBot, "HeadTowardWpt() -> current wpt is AMMOBOX");
 
 				// estimated delay to take both mags (main+backup)
 				// is multiplied by the amount of needed mags
-				total_time = 1.7 * (pBot->take_main_mags + pBot->take_backup_mags);
+				//total_time = 1.7 * (pBot->take_main_mags + pBot->take_backup_mags);
+				total_time = (float) pBot->take_main_mags + (float) pBot->take_backup_mags;
+				total_time *= 1.7;
 
 				// if total_time is 0 then the bot is carrying all mags he can
 				if (total_time == 0.0)
@@ -1376,7 +1428,12 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				{
 					pBot->SetTask(TASK_WPTACTION);
 					pBot->wpt_action_time = gpGlobals->time + total_time;
-					waypoint_found = TRUE;		// prevent finding new waypoint
+
+					// here we won't set the need for next waypoint, because if we did, the bot won't be able to
+					// use the ammobox again after he reloaded weapon or merged magazines while standing
+					// next to it (wptaction task gets reset pretty fast ... while doing either of those actions) so
+					// we just prevent finding new waypoint in this game frame
+					waypoint_found = TRUE;
 				}
 			}
 		}
@@ -1410,7 +1467,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 					if ((pBot->curr_path_index == -1) && (num_w_paths > 0))
 						CheckPossiblePath(pBot, pBot->curr_wpt_index);
 					// there are no paths or current path isn't two-way path (or doesn't match)
-					// so wait by this waypoint
+					// so wait at this waypoint
 					else
 						pBot->wpt_wait_time = gpGlobals->time + RANDOM_FLOAT(2.0, 5.0);
 					
@@ -1424,36 +1481,39 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			else
 			{
 				//@@@@@@@@@@@
-				ALERT(at_console, "HEY >>>>>>>>>>>>>>>>>>> PARACHUTE flag Else\n");
+				HudNotify("HEY >>>>>>>>>>>>>>>>>>> PARACHUTE flag Else\n");
 			}
 #endif
 		}
 
 		// is bot at door/dooruse waypoint
-		if (waypoints[pBot->curr_wpt_index].flags & (W_FL_DOOR | W_FL_DOORUSE))
+		if ((pBot->IsNeed(NEED_NEXTWPT) == FALSE) && (waypoints[pBot->curr_wpt_index].flags & (W_FL_DOOR | W_FL_DOORUSE)))
 		{
-			// should prevent calling over and over again at the same door waypoint
-			if ((pBot->wpt_wait_time + 0.5 < gpGlobals->time) &&
-				(pBot->v_door == Vector(0, 0, 0)))
+			// get the end vector to allow bot facing correct direction
+			//if (pBot->v_door == Vector(0, 0, 0))
+			if (pBot->v_door == g_vecZero)
 			{
 				edict_t *pent = NULL;
 				char door_types[64];
 				
 				//@@@@@@@@@@@@@@@
-				//#ifdef _DEBUG
-				//ALERT(at_console, "BotNav -> wpts -> DOOR wpt called | NextWpt is #%d\n",
-				//	pBot->GetNextWaypoint()+1);
-				//#endif
+#ifdef _DEBUG
+				char dm[256];
+				sprintf(dm, "HeadTowardWpt() -> DOOR wpt #%d called | NextWpt is #%d\n",pBot->curr_wpt_index + 1,
+					pBot->GetNextWaypoint() + 1);
+				HudNotify(dm);
+#endif
 				
-				pBot->f_dont_avoid_wall_time = gpGlobals->time + 5.0;
+				pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0;// 5.0; <- prev code
 				pBot->RemoveSubTask(ST_DOOR_OPEN);
 				
-				// is the bot at first door wpt (i.e. not pass through them)
-				// this is because of the possibility of two dor waypoints
-				// in row (ie. both-team two-way paths will probably have door wpts
-				// from both sides of the doors) and we don't want to do things while
-				// the bot is passing the second door wpt (ie. when he's already behind the doors)
-				if (!(waypoints[pBot->prev_wpt_index.get()].flags & (W_FL_DOOR | W_FL_DOORUSE)))
+				// is the bot at first door wpt (i.e. not past door yet)?
+				// it's done this way because of the possibility of a sequence of two 'door' waypoints
+				// (way_two + team_no paths a.k.a. default paths will probably have 'door' wpts on both sides of the doors)
+				// and we don't want to do anything while the bot is passing the second 'door' wpt
+				// (i.e. when he's already behind the doors)
+				// therefore we are checking if previous wpt was NOT a 'door' wpt
+				if ((waypoints[pBot->prev_wpt_index.get()].flags & (W_FL_DOOR | W_FL_DOORUSE)) == FALSE)
 				{
 					while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
 					{
@@ -1466,13 +1526,13 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 							Vector door_entity;
 
 							// if the bot is able to get his next waypoint then
-							// use the next waypoint as the door origin otherwise use the
-							// real door origin
+							// use the next waypoint as the door origin otherwise use the real door origin
 							// this system allows the bot to successfully pass even doors
 							// that are partially open or are closing at the moment
 							// (using the real door origin in this case would cause that
 							// the bot will try facing the doors and will get stuck there)
 							int next_waypoint = pBot->GetNextWaypoint();
+							
 							if (next_waypoint != -1)
 								door_entity = waypoints[next_waypoint].origin;
 							else
@@ -1486,8 +1546,9 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 							pEdict->v.ideal_yaw = bot_angles.y;
 							BotFixIdealYaw(pEdict);
 
-							// don't look for another waypoint now
+							// don't look for next waypoint now
 							waypoint_found = TRUE;
+							pBot->SetNeed(NEED_NEXTWPT);
 
 							pBot->wpt_wait_time = gpGlobals->time + 1.0;
 							pBot->SetSubTask(ST_DOOR_OPEN);
@@ -1496,44 +1557,58 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 						}
 					}
 				}
+#ifdef DEBUG
+				else
+				{
+					char dm[256];
+					sprintf(dm, "HeadTowardWpt() -> DOOR wpt #%d called, BUT PREV wpt #%d was also door wpt so IGNORING (because already past the door)\n",
+						pBot->curr_wpt_index + 1, pBot->prev_wpt_index.get() + 1);
+					HudNotify(dm);
+				}
+#endif // DEBUG
 			}
 		}
 
-		// is current waypoint a shoot waypoint
-		// we store time of last shoot even when we shoot at anything else than enemy
-		// (ie. out of combat) so if we know that we didn't shoot lately
-		// we most probably didn't "use" this waypoint yet
-		// the same applies for the wait time
-		else if ((waypoints[pBot->curr_wpt_index].flags & W_FL_FIRE) && (gpGlobals->time - 0.3 > pBot->f_shoot_time) && 
-			(gpGlobals->time - 0.3 > pBot->wpt_wait_time))
+		// is current waypoint a shoot waypoint AND hasn't been "used" yet?
+		else if ((pBot->IsNeed(NEED_NEXTWPT) == FALSE) && (waypoints[pBot->curr_wpt_index].flags & W_FL_FIRE))
 		{
-			UTIL_CheckAmmoReserves(pBot);
+			UTIL_CheckAmmoReserves(pBot, "HeadTowardWpt() -> current wpt is SHOOT");
+			
+			pBot->ResetAims("HeadTowardWpt() -> SHOOT wpt");
 
 			// if this waypoint has some priority then "use" it
-			if (WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
+			if (WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 			{
-				pBot->ResetAims();
-
 				// force the bot get the aim waypoint "exactly" in the middle of FOV
-				// (ie. in very tight view cone)
+				// (i.e. in very tight view cone)
 				pBot->SetTask(TASK_PRECISEAIM);
 
 				// run the fire task only if there's no wait time on this waypoint
-				// otherwise we have different code for that case
-				// (ie. the wait time code will catch it)
-				if (((waypoints[pBot->curr_wpt_index].red_time <= 0.0) && (pBot->bot_team == TEAM_RED)) ||
-					((waypoints[pBot->curr_wpt_index].blue_time <= 0.0) && (pBot->bot_team == TEAM_BLUE)))
+				// otherwise we have different code for that case ... the wait time code will catch it
+				if (WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team) == 0.0)
+				{
 					pBot->SetTask(TASK_FIRE);
-			}
+					pBot->SetNeed(NEED_NEXTWPT);
 
-			waypoint_found = TRUE;		// prevent finding new waypoint
+
+					//@@@@@@@@@@@@@@@@@@@@@@@												NEW CODE 094 Test
+#ifdef _DEBUG
+					//HudNotify("navigate.cpp -> SHOOT wpt -> Setting TASK FIRE!\n");
+#endif
+
+
+
+				}
+
+				waypoint_found = TRUE;		// prevent finding new waypoint
+			}
 
 
 			//@@@@@@@@@@@@@@@@@@@@@@@
-			#ifdef _DEBUG
-			if (debug_waypoints)
-				ALERT(at_console, "navigate.cpp -> SHOOT wpt called\n");
-			#endif
+#ifdef _DEBUG
+			if (botdebugger.IsDebugActions() || botdebugger.IsDebugWaypoints())
+				HudNotify("navigate.cpp -> SHOOT wpt called\n");
+#endif
 
 
 
@@ -1542,55 +1617,79 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		// check if bot is at jump waypoint
 		if (waypoints[pBot->curr_wpt_index].flags & (W_FL_JUMP | W_FL_DUCKJUMP))
 		{
-			pEdict->v.button |= IN_JUMP;  // jump here
-
-			if (waypoints[pBot->curr_wpt_index].flags & W_FL_DUCKJUMP)
+			// first we must check for prone because sending IN_JUMP would break it
+			if ((pBot->IsBehaviour(BOT_PRONED) == FALSE) && (pBot->IsGoingProne() == FALSE))	// NEW CODE 094
 			{
-				pEdict->v.button |= IN_DUCK;	// also press crouch
-				pBot->f_duckjump_time = gpGlobals->time + 1.0;
+				pEdict->v.button |= IN_JUMP;  // jump here
+				
+				if (waypoints[pBot->curr_wpt_index].flags & W_FL_DUCKJUMP)
+				{
+					// also press crouch
+					//pEdict->v.button |= IN_DUCK;												NEW CODE 094 (prev code)
+					SetStance(pBot, GOTO_CROUCH, "bot_navig.cpp|HeadToWpt() -> GOTO crouch @ DUCKJUMP WPT");//	NEW CODE 094
+
+					pBot->f_duckjump_time = gpGlobals->time + 1.0;
+				}
 			}
 		}
 
-		// does bot reached ladder wpt
+		// did the bot reach ladder waypoint
 		if (waypoints[pBot->curr_wpt_index].flags & W_FL_LADDER)
 		{
 			// prevent unwanted actions (like turn away from wall etc.)
 			pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0;
-			pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+			pBot->SetDontCheckStuck("Bot HeadTowardsWpt() -> LADDER waypoint", 0.5);
 		}
 
-		// is this wpt a claymore waypoint AND has the bot the claymore mine
-		// AND some time to prevent false behaviour AND NOT no priority for team bot's in
-		else if ((waypoints[pBot->curr_wpt_index].flags & W_FL_MINE) && (pBot->bot_weapons & (1<<fa_weapon_claymore)) &&
-			(pBot->clay_action == ALTW_NOTUSED) && (pBot->wpt_wait_time + 2.5 < gpGlobals->time) &&
-			(WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0))
+		// is this wpt a claymore waypoint AND have NOT been "used" yet AND
+		// has the bot a claymore mine AND NOT no priority for the team bot is in
+		else if ((pBot->IsNeed(NEED_NEXTWPT) == FALSE) && (waypoints[pBot->curr_wpt_index].flags & W_FL_MINE) &&
+			(pBot->bot_weapons & (1<<fa_weapon_claymore)) && (pBot->clay_action == ALTW_NOTUSED) &&
+			// (pBot->wpt_wait_time + 2.5 < gpGlobals->time) &&							NEW CODE 094 (prev code)
+			(WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0))
 		{
 			// if the bot is trying to evade a claymoree then we shouldn't force him to
-			// set his own claymore (ie. we'll do nothing here -> bot will ignore this waypoint)
+			// set his own claymore (i.e. we'll do nothing here -> bot will ignore this waypoint)
 			if (pBot->IsTask(TASK_CLAY_EVADE))
 			{
 				//@@@@@@@@@@@@@22
 				#ifdef _DEBUG
-				if (debug_waypoints)
-					ALERT(at_console, "CLAYMORE WPT called -> there's already a mine -> evading -> not placing my clay\n");
+				if (botdebugger.IsDebugWaypoints())
+					HudNotify("CLAYMORE WPT called -> there's already a mine -> evading -> not placing my clay\n", pBot);
 				#endif
+			}
+			// if the bot is crouched (or doing duck jump) then ignore this waypoint
+			// because FA doesn't allow placing claymore in such case
+			// duckjump doesn't set crouch behaviour (it's a temporary action)
+			// so we must check even for the ducking flag here
+			else if (pBot->IsBehaviour(BOT_CROUCHED) || (pEdict->v.flags & FL_DUCKING))
+			{
+				if (botdebugger.IsDebugWaypoints() || botdebugger.IsDebugActions())
+					HudNotify("***Can't place my claymore mine due to being in crouch stance -> ignoring this waypoint action!\n", pBot);
 			}
 			else
 			{
-				// set things only if the bot is allowed to use the claymore ie.
-				// the waypoint is a goal claymore or the bot decided to place the mine here
-				if ((WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) == 1) || (RANDOM_LONG(1, 100) > 50))
+				// set things only if the bot is allowed to use the claymore
+				// (the waypoint is a goal claymore on sd_ maps or the bot decided to place the mine here)
+				if ((WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) == 1) || (RANDOM_LONG(1, 100) > 50))
 				{
 					// set some wait time
 					pBot->wpt_wait_time = gpGlobals->time +	5.0;
-					waypoint_found = TRUE;		// prevent finding new waypoint
+
+					// make the bot place the mine in correct direction 'Front Toward Enemy' :)
+					pBot->ResetAims("HeadTowardWpt() -> CLAYMORE wpt");
+					pBot->SetTask(TASK_PRECISEAIM);
+
+					// prevent finding new waypoint
+					pBot->SetNeed(NEED_NEXTWPT);
+					waypoint_found = TRUE;
 				}
 			}
 		}
 
 		// is bot at sprint waypoint AND can he use it
 		else if ((waypoints[pBot->curr_wpt_index].flags & W_FL_SPRINT) &&
-			(WaypointReturnPriority(pBot->curr_wpt_index, pBot->bot_team) != 0))
+			(WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0))
 		{
 			// the bot is already sprinting so stop it (ie. he got to 2nd sprint waypoint)
 			if (pBot->IsTask(TASK_SPRINT))
@@ -1606,51 +1705,29 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		}
 
 		// check if bot reached sniper waypoint AND don't move flag is NOT set yet
-		if ((waypoints[pBot->curr_wpt_index].flags & W_FL_SNIPER) && !pBot->IsTask(TASK_DONTMOVE))
+		if ((waypoints[pBot->curr_wpt_index].flags & W_FL_SNIPER) &&
+			!pBot->IsTask(TASK_DONTMOVEINCOMBAT))
 		{
-			pBot->SetTask(TASK_DONTMOVE);		// don't move in combat
+			pBot->SetTask(TASK_DONTMOVEINCOMBAT);		// don't move in combat
 		}
 
-		// is this waypoint an use wpt
+		// is the bot at use waypoint?
 		if (waypoints[pBot->curr_wpt_index].flags & W_FL_USE)
 		{
-
-			//@@@@@@@@@@@@@@@@@@@@@@@ TEMP - remove it
-#ifdef _DEBUG
-			
-			if (debug_waypoints)
-				ALERT(at_console, "navigate.cpp -> USE wpt called\n");
-
-			// TEST - is the bot still doing a action when a "Find New wpt" been called ???
-			if (pBot->IsTask(TASK_WPTACTION) && (pBot->wpt_action_time > gpGlobals->time))
-			{
-				ALERT(at_console, "navigate.cpp -> USE wpt called -> TEST - remove it then\n");
-				UTIL_DebugDev("navigate.cpp -> USE wpt called -> TEST - remove it then\n",
-					pBot->curr_wpt_index, pBot->curr_path_index);
-			}
-#endif
-			//@@@@@@@@@@@@@ TEMP - end
-
-
-
-
-
 			// first time the bot got to this waypoint?
-			if (!pBot->IsTask(TASK_WPTACTION) && (pBot->wpt_action_time < gpGlobals->time) &&
-				(gpGlobals->time - 0.5 > pBot->wpt_action_time))
+			if (!pBot->IsTask(TASK_WPTACTION) && (pBot->IsNeed(NEED_NEXTWPT) == FALSE))
+				//(pBot->wpt_action_time < gpGlobals->time) &&								NEW CODE 094 (prev code)
+				//(gpGlobals->time - 0.5 > pBot->wpt_action_time))
 			{
 				float total_time = 0.0;
 
-				// set wpt_wait_time as a action time
-				if (pBot->bot_team == TEAM_RED)
-					total_time = waypoints[pBot->curr_wpt_index].red_time;
-				else
-					total_time = waypoints[pBot->curr_wpt_index].blue_time;
+				// use wait time from this waypoint as the action time
+				total_time = WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
 
-				// if total_time is 0 then set some time randomly
+				// if total_time is 0 then generate some time randomly
 				if (total_time == 0.0)
 					pBot->wpt_action_time = gpGlobals->time + RANDOM_FLOAT(1.0, 2.2);
-				// otherwise use wpt_wait_time
+				// otherwise use it
 				else
 				{
 					pBot->wpt_action_time = gpGlobals->time + total_time;
@@ -1659,17 +1736,30 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 
 				pBot->SetTask(TASK_WPTACTION);
 				waypoint_found = TRUE;		// prevent finding new waypoint
+				pBot->SetNeed(NEED_NEXTWPT);
+
+
+
+				//@@@@@@@@@@@@@@@
+#ifdef _DEBUG
+				char dm[256];
+				sprintf(dm, "HeadTowardWpt() -> USE wpt #%d called\n", pBot->curr_wpt_index + 1);
+				HudNotify(dm);
+#endif
+
+
 			}
 		}
 
 		// check if this waypoint is a prone waypoint AND bot is NOT in prone so go prone
-		if ((waypoints[pBot->curr_wpt_index].flags & W_FL_PRONE) && !(pEdict->v.flags & FL_PRONED))
-			pBot->SetTask(TASK_GOPRONE);
+		if ((waypoints[pBot->curr_wpt_index].flags & W_FL_PRONE) && !pBot->IsBehaviour(BOT_PRONED))
+		{
+			UTIL_GoProne(pBot, "bot_navigate.cpp|HeadTowardWpt() -> At PRONE WPT but not in prone");
+		}
 
-		// is there some wait_time on this waypoint AND bot is RED team bot AND
-		// safety statement (we won't keep waiting)
-		if ((waypoints[pBot->curr_wpt_index].red_time > 0.0) && (pBot->bot_team == TEAM_RED) &&
-			(gpGlobals->time - 0.5 > pBot->wpt_wait_time) && (gpGlobals->time - 0.2 > pBot->wpt_action_time))
+		// is there some wait_time on this waypoint AND safety statement (we won't keep waiting)
+		if ((WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team, "waitT check") > 0.0) &&
+			(pBot->IsNeed(NEED_NEXTWPT) == FALSE))
 		{
 			// handles the cases when the 'wait-timed' waypoint is the first waypoint in a path
 			// (eg. there is a cross waypoint and the next waypoint is this current waypoint)
@@ -1683,168 +1773,96 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			}
 
 			// set wait time only if path class restriction and bot "class" do match
-			if ((pBot->curr_path_index != -1) && (w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_SNIPER))
+			// otherwise even the sniper/mgunner chasing bots would camp there, but they should just
+			// scout the paths and kill the sniper/mgunner
+			if ((pBot->curr_path_index != -1) &&
+				(w_paths[pBot->curr_path_index]->flags & (P_FL_CLASS_SNIPER | P_FL_CLASS_MGUNNER)))
 			{
-				// set the wait time only if the bot is a sniper
-				// we have to keep this "double ifs" code to prevent the sniper/mgunner chasing bots in waiting at these
-				// waypoints ... they only have to scout the paths not camp there
-				if (pBot->bot_behaviour & SNIPER)
+				if ((w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_SNIPER) && (pBot->bot_behaviour & SNIPER))
 				{
-					pBot->wpt_wait_time = gpGlobals->time + waypoints[pBot->curr_wpt_index].red_time;
+					pBot->wpt_wait_time = gpGlobals->time + WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
 					waypoint_found = TRUE;
+
+					if (botdebugger.IsDebugWaypoints())
+						ALERT(at_console, "Bot SNIPER - on sniper path -> going to camp here\n");
 				}
-			}
-			else if ((pBot->curr_path_index != -1) && (w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_MGUNNER))
-			{
-				// is the bot machinegunner set wait time
-				if (pBot->bot_behaviour & MGUNNER)
+
+				if ((w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_MGUNNER) &&	(pBot->bot_behaviour & MGUNNER))
 				{
-					pBot->wpt_wait_time = gpGlobals->time + waypoints[pBot->curr_wpt_index].red_time;
+					pBot->wpt_wait_time = gpGlobals->time + WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
 					waypoint_found = TRUE;
+
+					if (botdebugger.IsDebugWaypoints())
+						ALERT(at_console, "Bot MGUNNER - on mgunner path -> going to camp here\n");
 				}
 			}
 			// if no path class restriction or no path at all set wait time
 			else
 			{
-				pBot->wpt_wait_time = gpGlobals->time +	waypoints[pBot->curr_wpt_index].red_time;
+				pBot->wpt_wait_time = gpGlobals->time + WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
 				waypoint_found = TRUE;
+
+				if (botdebugger.IsDebugWaypoints())
+					ALERT(at_console, "Reached 'wait' time wpt -> going to camp here\n");
 			}
 
+			// this waypoint is usable for this bot so ...
 			if (waypoint_found)
 			{
-				// clear the aim waypoint array and stuff if the bot is going to wait by this waypoint
-				pBot->ResetAims();
+				// clear the aim waypoint array and stuff
+				pBot->ResetAims("HeadTowardWpt() -> Reached wpt with WAIT TIME");
 
 				// tweak the time based on bot behaviour
-				if (pBot->bot_behaviour & ATTACKER)
+				// unless it's a priority == 1 waypoint
+				// (i.e. a goal waypoint where we must use the exact time that is set on the waypoint,
+				// otherwise things may not work correctly - for example the explosives on obj_bocage
+				// that need specific time value to appear and become active)
+				if (WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 1)//														NEW CODE 094
 				{
-					pBot->wpt_wait_time -= gpGlobals->time;
-					pBot->wpt_wait_time *= (float) 0.65;
-					pBot->wpt_wait_time += gpGlobals->time;
+					if (pBot->bot_behaviour & ATTACKER)
+					{
+						pBot->wpt_wait_time -= gpGlobals->time;
+						pBot->wpt_wait_time *= (float)0.65;
+						pBot->wpt_wait_time += gpGlobals->time;
+					}
+					else if (pBot->bot_behaviour & DEFENDER)
+					{
+						pBot->wpt_wait_time -= gpGlobals->time;
+						pBot->wpt_wait_time *= (float)1.35;
+						pBot->wpt_wait_time += gpGlobals->time;
+					}
 				}
-				else if (pBot->bot_behaviour & DEFENDER)
-				{
-					pBot->wpt_wait_time -= gpGlobals->time;
-					pBot->wpt_wait_time *= (float) 1.35;
-					pBot->wpt_wait_time += gpGlobals->time;
-				}
-			}
-		}
-		
-		// the same as above but for the BLUE team
-		if ((waypoints[pBot->curr_wpt_index].blue_time > 0.0) && (pBot->bot_team == TEAM_BLUE) &&
-			(gpGlobals->time - 0.5 > pBot->wpt_wait_time) && (gpGlobals->time - 0.2 > pBot->wpt_action_time))
-		{
-			if (pBot->curr_path_index == -1)
-			{
-				if (CheckPossiblePath(pBot, pBot->curr_wpt_index))
-					AssignPathBasedBehaviour(pBot, pBot->curr_wpt_index);
-			}
 
-			if ((pBot->curr_path_index != -1) && (w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_SNIPER))
-			{
-				if (pBot->bot_behaviour & SNIPER)
-				{
-					pBot->wpt_wait_time = gpGlobals->time + waypoints[pBot->curr_wpt_index].blue_time;
-					waypoint_found = TRUE;
-				}
-			}
-			else if ((pBot->curr_path_index != -1) && (w_paths[pBot->curr_path_index]->flags & P_FL_CLASS_MGUNNER))
-			{
-				if (pBot->bot_behaviour & MGUNNER)
-				{
-					pBot->wpt_wait_time = gpGlobals->time + waypoints[pBot->curr_wpt_index].blue_time;
-					waypoint_found = TRUE;
-				}
-			}
-			else
-			{
-				pBot->wpt_wait_time = gpGlobals->time +	waypoints[pBot->curr_wpt_index].blue_time;
-				waypoint_found = TRUE;
-			}
-
-			if (waypoint_found)
-			{
-				pBot->ResetAims();
-				
-				if (pBot->bot_behaviour & ATTACKER)
-				{
-					pBot->wpt_wait_time -= gpGlobals->time;
-					pBot->wpt_wait_time *= (float) 0.65;
-					pBot->wpt_wait_time += gpGlobals->time;
-				}
-				else if (pBot->bot_behaviour & DEFENDER)
-				{
-					pBot->wpt_wait_time -= gpGlobals->time;
-					pBot->wpt_wait_time *= (float) 1.35;
-					pBot->wpt_wait_time += gpGlobals->time;
-				}
+				// and set the need for next waypoint to prevent repeating this action again
+				pBot->SetNeed(NEED_NEXTWPT);
 			}
 		}
 
 		// is time to look for a new waypoint
 		if (waypoint_found == FALSE)
 		{
+			// we are going to call for next waypoint so we must reset these needs
+			pBot->RemoveNeed(NEED_NEXTWPT);
+			pBot->RemoveNeed(NEED_RESETNAVIG);
+
+
+#ifdef DEBUG
+			//HudNotify("Need for NEXTWPT & RESETNAVIG have been removed -> going to find next waypoint NOW!!!!!!!\n");
+#endif // DEBUG
+
+
+
+
 			//kota@ the bot reaches the next wpt
             //It is the best place update wpt history
 			UpdateWptHistory(pBot);
 
 			// init it first
 			is_next_wpt = FALSE;
-
-//=============== kota change path navigation ========================
-/*/
-			int my_next_wpt;
-			bool status_findpath = false;
-			do {
-				my_next_wpt = getNextWptInPath(pBot);
-				
-				if (my_next_wpt != -1) 
-				{
-					is_next_wpt = true;
-					//wpt history update move some lines above.
-					//UpdateWptHistory(pBot);
-					
-					pBot->curr_wpt_index = my_next_wpt;
-					pBot->wpt_origin = GenerateOrigin(my_next_wpt);
-					pBot->f_waypoint_time = gpGlobals->time;
-
-					// set this time to prevent unwanted search for different waypoint
-					// while bot need to do bigger turning at current waypoint
-					// (ie if new waypoint is NOT in view cone)
-					if (FInViewCone(&pBot->wpt_origin, pBot->pEdict) == FALSE)
-					{
-						pBot->f_face_wpt = gpGlobals->time + 0.6;
-					}
-					status_findpath = true;
-					break;
-				}
-
-				//We will ask each navigation systems while don't get true.
-				//In future it will be configurable in config file
-				//for advanced users of course,
-				//and users can choose methods order like they want
-				//or ignore some unstable methods :)
-				//But now we really have only one BotOnPath1 method.
-				//That is why the one line above this comment ;)
-				status_findpath = false;
-				for (NavigationList::iterator nl_i = NMethodsList.begin();
-					nl_i != NMethodsList.end(); ++nl_i)
-				{
-					if (nl_i->ptr != NULL && (status_findpath = (*(nl_i->ptr))(pBot)) == true)
-					{
-							break;
-					}
-				}
-
-			} while (status_findpath == true);
-/**/
-//==================================================================== 			
+		
 			// are there any paths for this map
-			//if (num_w_paths > 0 && NMethodsList.size()==0)
 			if (num_w_paths > 0)
 			{
-				//use Frank's path navigation.
 				int result;
 
 				result = BotOnPath(pBot);
@@ -1896,10 +1914,10 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				pBot->prev_wpt_index.clear();
 
 				// clear also previous waypoint origin
-				pBot->prev_wpt_origin = Vector(0, 0, 0);
+				pBot->prev_wpt_origin = g_vecZero;//Vector(0, 0, 0);
 
-				if (debug_waypoints)
-					ALERT(at_console, "<<BUG IN WAYPOINTS>>***No waypoint to head to - clearing previous wpt history!\n");
+				if (botdebugger.IsDebugWaypoints() || botdebugger.IsDebugStuck())
+					HudNotify("<<BUG IN WAYPOINTS>>***No waypoint to head to - clearing previous waypoints history!\n", pBot);
 
 				return FALSE;
 			}
@@ -1907,7 +1925,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	}
 
 	// is cross wpt near wpt/wpts with very small range so slow down too
-	if ((pBot->crowded_wpt_index != -1) && (waypoints[pBot->curr_wpt_index].flags & W_FL_CROSS | W_FL_GOBACK))
+	if ((pBot->crowded_wpt_index != -1) && (waypoints[pBot->curr_wpt_index].flags & (W_FL_CROSS | W_FL_GOBACK)))
 		pBot->crowded_wpt_index = pBot->curr_wpt_index;
 
 	// has current waypoint very small range remember it (to slow down when close to it)
@@ -1916,14 +1934,19 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 
 	// check if the bot is proned AND current waypoint is NOT prone waypoint
 	// prevent false prone (the only exception to this is claymore evasion)
-	if ((pEdict->v.flags & FL_PRONED) && !pBot->IsTask(TASK_CLAY_EVADE) &&
+	if (pBot->IsBehaviour(BOT_PRONED) && !pBot->IsTask(TASK_CLAY_EVADE) &&
 		!(waypoints[pBot->curr_wpt_index].flags & (W_FL_PRONE | W_FL_CROSS)))
 	{
-		pEdict->v.button |= IN_JUMP;	// stand up
-		pBot->RemoveTask(TASK_GOPRONE);
+		UTIL_GoProne(pBot, "bot_navigate.cpp|HeadTowardWpt() -> Bot in prone but NOT at PRONE WPT");
+	}
+	// check if the bot is crouched AND current waypoint is NOT crouch waypoint
+	if (pBot->IsBehaviour(BOT_CROUCHED) && !(waypoints[pBot->curr_wpt_index].flags & (W_FL_CROUCH | W_FL_CROSS)))
+	{
+		SetStance(pBot, GOTO_STANDING, "bot_navigate.cpp|HeadTowardWpt() -> GOTO standing because NOT at crouch wpt");
 	}
 	// is bot heading towards the ammobox and have NOT all mags
-	if ((waypoints[pBot->curr_wpt_index].flags & W_FL_AMMOBOX) && ((pBot->take_main_mags > 0) || (pBot->take_backup_mags > 0)))
+	if ((waypoints[pBot->curr_wpt_index].flags & W_FL_AMMOBOX) &&
+		((pBot->take_main_mags > 0) || (pBot->take_backup_mags > 0)))
 	{
 		// is the bot quite close so slow down
 		if ((pBot->move_speed > SPEED_SLOW) &&
@@ -1942,7 +1965,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 
 	// is bot heading to mine wpt AND did this bot spawned with any claymore AND
 	// didn't use it yet AND isn't evading another claymore AND is quite close to the wpt so slow down a bit
-	if ((waypoints[pBot->curr_wpt_index].flags & W_FL_MINE) && (pBot->claymore_slot != -1) &&
+	if ((waypoints[pBot->curr_wpt_index].flags & W_FL_MINE) && (pBot->claymore_slot != NO_VAL) &&
 		(pBot->clay_action == ALTW_NOTUSED) && !pBot->IsTask(TASK_CLAY_EVADE) && (pBot->move_speed > SPEED_SLOW) &&
 		((pEdict->v.origin - waypoints[pBot->curr_wpt_index].origin).Length() < (WPT_RANGE * (float) 2)))
 		pBot->move_speed = SPEED_SLOW;
@@ -2015,12 +2038,11 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 		// otherwise use the ladder origin to tell the bot the right direction
 		else
 		{
-			while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin,
-				PLAYER_SEARCH_RADIUS)) != NULL)
+			while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
 			{
 				if (strcmp("func_ladder", STRING(pent->v.classname)) == 0)
 				{
-					Vector ladder_origin = Vector(0, 0, 0);
+					Vector ladder_origin = g_vecZero;//Vector(0, 0, 0);
 					ladder_origin = VecBModelOrigin(pent);
 					
 					if (ladder_origin.z < pEdict->v.origin.z)
@@ -2069,8 +2091,7 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 			v_src = pEdict->v.origin + pEdict->v.view_ofs;
 			v_dest = v_src + gpGlobals->v_forward * 30;
 
-			UTIL_TraceLine( v_src, v_dest, dont_ignore_monsters,
-				pEdict->v.pContainingEntity, &tr);
+			UTIL_TraceLine( v_src, v_dest, dont_ignore_monsters, pEdict->v.pContainingEntity, &tr);
 
 			if (tr.flFraction < 1.0)  // hit something?
 			{
@@ -2347,7 +2368,7 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 	// did the bot find the end of ladder if so get the distance to the end
 	if (pBot->end_wpt_index != -1)
 	{
-		end_wpt_distance = fabs(pEdict->v.origin.z - waypoints[pBot->end_wpt_index].origin.z);
+		end_wpt_distance = fabs((double) pEdict->v.origin.z - waypoints[pBot->end_wpt_index].origin.z);
 	}
 	// otherwise try get back to prev wpt
 	else
@@ -2552,7 +2573,7 @@ bool BotFollowTeammate(bot_t *pBot)
 		if (f_distance < 115)
 		{
 			pBot->move_speed = SPEED_NO;
-			pBot->f_dont_check_stuck = gpGlobals->time + 1.0;
+			pBot->SetDontCheckStuck("bot_navigate.cpp|Bot FollowTeammate() -> close enough to him so stop moving");
 		}
 		// walk if not too far from user
 		else if (f_distance < 150)
@@ -2797,26 +2818,27 @@ void BotEvadeClaymore(bot_t *pBot)
 {
 	edict_t *pEdict = pBot->pEdict;
 	Vector vecClay;
-	float distance = 9999;
+	float distance_to_mine = 9999;
 
 	vecClay = pBot->v_ground_item - pEdict->v.origin;
 
 	// get the distance to claymore
-	distance = vecClay.Length();
+	distance_to_mine = vecClay.Length();
 
 	// the bot is quite far from the claymore so we can use standard navigation
-	// distance value is based on botfinditem() search radius
-	if (distance > 200)
+	// needs to be a bit bigger than botfinditem() search radius to prevent 
+	// immediate canceling
+	if (distance_to_mine > (FIND_ITEM_RADIUS + 20.0))
 	{
-		extern bool debug_actions;
+		if (botdebugger.IsDebugActions())
+			ALERT(at_console, "***EvadeClaymore() - in safe distance now -> evasion behaviour canceled!\n");
 
-		if (debug_actions)
-			ALERT(at_console, "***BotEvadeClaymore() - breaking evasion behaviour - bot is in safe distance\n");
-
-		// the bot can't blow this mine so clear all the evasion behaviour
+		// the bot can't blow this mine so reset all evasion behaviour
 		pBot->RemoveTask(TASK_CLAY_EVADE);
 		pBot->RemoveTask(TASK_CLAY_IGNORE);
-		pBot->v_ground_item = Vector(0, 0, 0);
+		pBot->RemoveSubTask(ST_EVASIONSTARTED);//																	NEW CODE 094
+		pBot->v_ground_item = g_vecZero;//Vector(0, 0, 0);
+
 		return;
 	}
 
@@ -2825,113 +2847,155 @@ void BotEvadeClaymore(bot_t *pBot)
 		return;
 
 	// we can crawl through claymores in FA so let the bot continue
-	if (pEdict->v.flags & FL_PRONED)
+	if (pBot->IsBehaviour(BOT_PRONED))
 		return;
 
 	// if the bot is in safe distance or not heading directly to claymore
 	// break it (ie. bot doesn't need to evade this claymore)
-	if ((distance > 120) || (InFieldOfView(pEdict, vecClay) > 45))
+	//if ((distance_to_mine > 120) || (InFieldOfView(pEdict, vecClay) > 45))//										NEW CODE 094 (prev code)
+	if (distance_to_mine > 120)
 	{
 
 		#ifdef _DEBUG
 		//@@@@@@@@@@@@@
-		//ALERT(at_console, "***BotEvadeClaymore() - bot doesn't head directly to the claymore\n");
+		//ALERT(at_console, "***evadeclaymore() - bot ISN'T that CLOSE to the claymore -> do nothing (gTime=%0.3f)\n", gpGlobals->time);
 		#endif
 
 
 
 		return;
 	}
+	//																												NEW CODE 094
+	// the bot cannot cheat so if the mine is out of field of view then do nothing
+	else if (InFieldOfView(pEdict, vecClay) > 45)
+	{
+
+
+#ifdef _DEBUG
+		//@@@@@@@@@@@@@
+		//ALERT(at_console, "***evadeclaymore() - claymore ISN'T in FOV -> do nothing (gTime=%0.3f)\n", gpGlobals->time);
+#endif
+
+
+		return;
+	}
+	// *********************************************************************************************************	NEW CODE 094 END
+
 	// the bot must really head directly to it so do some action so he won't blow it
 	else
 	{
-		// there's nearly no chance to jump over a claymore with broken leg so try to
-		// go prone to avoid this mine
-		if (pEdict->v.flags & FL_BROKENLEG)
-		{
-			// try to go prone now
-			UTIL_GoProne(pBot);
-			// in case the bot can't do it right now, he'll keep trying it in next few moments
-			pBot->SetTask(TASK_GOPRONE);
-
-			return;
-		}
-
-
-		//NOTE: currently only jump over it
+		
 		//TODO: add a code to allow bot to go around this mine
 		//		ie. check both sides for enough space to slip around it in safe distance
 		//		once this is done add a randomly generated action ie. some percentages for
 		//		jumping over it, evading it from left and evading it from right
 
+
+
 		
-		float range = waypoints[pBot->curr_wpt_index].range;
-			
-		// see if the current waypoint range is quite small
-		if (range < 50)
-		{
-			edict_t *pent = NULL;
-			Vector origin = waypoints[pBot->curr_wpt_index].origin;
-				
-			// check if the claymore is in the range of this waypoint
-			while ((pent = UTIL_FindEntityInSphere( pent, origin, range )) != NULL)
-			{
-				// did we find our claymore?
-				if (pBot->v_ground_item == pent->v.origin)
-				{
-
-					//@@@@@@@@@@@@@
-					#ifdef _DEBUG
-					ALERT(at_console, "BotEvadeClaymore() - small wpt range - targetting next wpt\n");
-					#endif
-						
-
-					// in this case we should target the next waypoint to prevent the bot
-					// to blow the mine when he's trying to reach the waypoint
-					// (ie. be in its range)
-					// basically we will just skip current waypoint and we'll go for
-					// the next waypoint
-					BotOnPath(pBot);
-				}
-			}
-		}
-
-
 
 		// TEMP: only now, it'll go to .h file once the code is finished
 		extern bool UTIL_TraceObjectsSides(edict_t *pEdict, int side, const Vector &obj_origin);
 
 
 		// try to run around its left side if possible
-		if (UTIL_TraceObjectsSides(pEdict, SIDE_LEFT, pBot->v_ground_item))
+		if (!pBot->IsSubTask(ST_EVASIONSTARTED) && UTIL_TraceObjectsSides(pEdict, SIDE_LEFT, pBot->v_ground_item))
 		{
 			#ifdef _DEBUG
 			//@@@@@@@@@@@@@
 			//ALERT(at_console, "***BotEvadeClaymore() - bot CAN evade this claymore from LEFT!!!\n");
 			#endif
+
+			pBot->SetSubTask(ST_EVASIONSTARTED);
 		}
 		// try the right side if possible
-		else if (UTIL_TraceObjectsSides(pEdict, SIDE_RIGHT, pBot->v_ground_item))
+		else if (!pBot->IsSubTask(ST_EVASIONSTARTED) && UTIL_TraceObjectsSides(pEdict, SIDE_RIGHT, pBot->v_ground_item))
 		{
 
 			#ifdef _DEBUG
 			//@@@@@@@@@@@@@
 			//ALERT(at_console, "***BotEvadeClaymore() - bot CAN evade this claymore from RIGHT!!!\n");
 			#endif
+
+			pBot->SetSubTask(ST_EVASIONSTARTED);
+		}
+		//																											NEW CODE 094
+		// if NOT moving at full speed then crawl through it
+		// move speed will be accurate at the end of current botthink() frame, but it isn't now
+		// so we must use previous speed, because that one holds accurate value
+		// (ie. how fast was the bot moving in last frame)
+		else if (!pBot->IsSubTask(ST_EVASIONSTARTED) && (pBot->prev_speed < SPEED_MAX) &&
+			!pBot->IsSubTask(ST_CANTPRONE))
+		{
+
+#ifdef _DEBUG
+			//@@@@@@@@@@@@@
+			if (botdebugger.IsDebugActions())
+				ALERT(at_console, "***EvadeClaymore() -> move speed (curr speed=%d) < MAX SPEED (=%d) so have to prone through it (curr_wpt=%d) gTime=%0.3f\n",
+					pBot->prev_speed, SPEED_MAX, pBot->curr_wpt_index + 1, gpGlobals->time);
+#endif
+
+
+			if (UTIL_GoProne(pBot, "bot_navigate.cpp|EvadeClaymore() -> move speed < MAX SPEED so have to prone through it"))
+				pBot->SetSubTask(ST_EVASIONSTARTED);
 		}
 		else
 		{
-			
-			#ifdef _DEBUG
-			//@@@@@@@@@@@@@
-			//ALERT(at_console, "***BotEvadeClaymore() - bot should duckjump this claymore NOW!!!\n");
-			#endif
-			
-			
-			
-			pEdict->v.button |= IN_JUMP;
-			pBot->f_duckjump_time = gpGlobals->time + 0.5;	// duckjump is the safer way over it
+
+			// TODO: There needs to be test if the bot is moving towards steep hill or stairway
+			//		because that case often ends up landing right on the claymore and detonating it
+			//		(perhaps testing current wpt z-coor and the next wpt z-coor would work)		<<<<---------------------------------<<<<<--------------------------<<<<<
+
+
+
+			// don't jump until quite close to the claymore AND is the bot on ground AND
+			// has enough stamina (otherwise the jump won't be allowed)
+			if (!pBot->IsSubTask(ST_EVASIONSTARTED) && (distance_to_mine < 100) &&
+				(pEdict->v.flags & FL_ONGROUND) && !pBot->IsTask(TASK_NOJUMP))
+			{
+#ifdef _DEBUG
+				//@@@@@@@@@@@@@
+				if (botdebugger.IsDebugActions())
+					ALERT(at_console, "***EvadeClaymore() -> going to duckjump over the claymore (curr_wpt=%d gTime=%0.3f)\n",
+						pBot->curr_wpt_index + 1, gpGlobals->time);
+#endif
+
+				pEdict->v.button |= IN_JUMP;
+				pBot->f_duckjump_time = gpGlobals->time + 0.5;	// duckjump is the safer way over it
+				pBot->SetSubTask(ST_EVASIONSTARTED);
+
+				float curr_wpt_range = 9999.0;
+
+				if (pBot->curr_wpt_index != -1)
+					curr_wpt_range = waypoints[pBot->curr_wpt_index].range;
+
+				// see if current waypoint range is quite small
+				if (curr_wpt_range < 50)
+				{
+
+#ifdef _DEBUG
+					//@@@@@@@@@@@@@
+					//if (botdebugger.IsDebugActions())
+
+					char cemsg[128];
+					sprintf(cemsg, "***EvadeClaymore() - small wpt range (#%d<%0.2f>) -> targetting next wpt\n",
+							pBot->curr_wpt_index + 1, curr_wpt_range);
+					HudNotify(cemsg, pBot);
+#endif
+
+
+					// in this case we should target the next waypoint to prevent the bot
+					// to blow the mine when he's trying to reach the waypoint
+					// (ie. be in its range)
+					// basically we will just skip current waypoint and we'll go for
+					// the next waypoint
+					pBot->SetNeed(NEED_NEXTWPT);
+				}
+			}
 		}
+
+		// *****************************************************************************************************	NEW CODE 094 END
+
 	}
 }
 
@@ -3359,10 +3423,10 @@ void BotTurnAtWall( bot_t *pBot, TraceResult *tr )
    // D1 and D2 are the difference (in degrees) between the bot's current
    // angle and Y1 or Y2 (respectively).
 
-   D1 = fabs(Y - Y1);
-   if (D1 > 179) D1 = fabs(D1 - 360);
-   D2 = fabs(Y - Y2);
-   if (D2 > 179) D2 = fabs(D2 - 360);
+   D1 = fabs((double) Y - Y1);
+   if (D1 > 179) D1 = fabs((double) D1 - 360);
+   D2 = fabs((double) Y - Y2);
+   if (D2 > 179) D2 = fabs((double) D2 - 360);
 
    // If difference 1 (D1) is more than difference 2 (D2) then the bot will
    // have to turn LESS if it heads in direction Y1 otherwise, head in

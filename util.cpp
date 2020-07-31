@@ -30,12 +30,16 @@
 //
 // Marine Bot - code by Frank McNeil, Kota@, Mav, Shrike.
 //
-// (http://www.marinebot.tk)
+// (http://marinebot.xf.cz)
 //
 //
 // util.cpp
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WIN32)
+#pragma warning(disable: 4005 91 4996)
+#endif
 
 #include "defines.h"
 
@@ -45,13 +49,10 @@
 
 #include "bot.h"
 #include "bot_func.h"
+#include "bot_manager.h"
 #include "bot_weapons.h"
 #include "waypoint.h"
 
-#ifdef _WIN32
-#define strrev _strrev
-#define strlwr _strlwr
-#endif
 
 int gmsgTextMsg = 0;
 int gmsgSayText = 0;
@@ -117,8 +118,7 @@ edict_t *UTIL_FindEntityInSphere(edict_t *pCallerEdict, const char *ent_name)
 {
 	edict_t *pEntity = NULL;
 	
-	while ((pEntity = UTIL_FindEntityInSphere(pEntity, pCallerEdict->v.origin,
-		PLAYER_SEARCH_RADIUS)) != NULL)
+	while ((pEntity = UTIL_FindEntityInSphere(pEntity, pCallerEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
 	{
 		if (strcmp(STRING(pEntity->v.classname), ent_name) == 0)
 			return pEntity;
@@ -299,8 +299,8 @@ int UTIL_GetTeam(edict_t *pEntity)
 #ifdef _DEBUG
 		char msg[256];
 		sprintf(msg, "<FATAL ERROR>(util.cpp|GetTeam()) pEntity is NULL\n");
-		ALERT(at_console, msg);
 		UTIL_DebugDev(msg, -100, -100);
+		HudNotify(msg);
 #endif
 
 		return TEAM_NONE;
@@ -336,7 +336,7 @@ int UTIL_GetTeam(edict_t *pEntity)
 		/*/
 #ifdef _DEBUG
 		if (UTIL_IsOldVersion() == FALSE)
-			ALERT(at_console, "***Can't get team from edict.team using edict.model\n");
+			HudNotify("***Can't get team from edict.team using edict.model\n");
 #endif
 		/**/
 
@@ -369,7 +369,7 @@ int UTIL_GetTeam(edict_t *pEntity)
 		//okay = FALSE;
 	}
 
-	if (!(pEntity->v.flags & (FL_CLIENT & FL_NOTARGET)) && okay)
+	if (!(pEntity->v.flags & (FL_CLIENT & FL_NOTARGET & FL_SPECTATOR)) && okay)
 	{
 		char msg[256];
 		if ((pEntity->v.netname != NULL) && (pEntity->v.classname != NULL))
@@ -388,8 +388,7 @@ int UTIL_GetTeam(edict_t *pEntity)
 		if ((pEntity->v.solid == SOLID_TRIGGER) && (pEntity->v.movetype == MOVETYPE_TOSS))
 			return TEAM_NONE;
 
-		UTIL_DebugDev(msg, -100, -100);
-		ALERT(at_console, msg);
+		HudNotify(msg, true);
 	}
 #endif
 
@@ -482,11 +481,13 @@ bool FInNarrowViewCone(Vector *pOrigin, edict_t *pEdict, float cone)
 
 
 	//@@@@@@@@@@@@@@@@@@@@@@@
-	/*
+	/*/
 	#ifdef _DEBUG
-	ALERT(at_console, "(util.cpp) NarrowViewCone() - dot result %.2f\n", flDot);
+	char m[256];
+	sprintf(m, "(util.cpp) NarrowViewCone() - dot result %.2f\n", flDot);
+	HudNotify(m);
 	#endif
-	*/
+	/**/
 
 
 
@@ -554,10 +555,9 @@ bool FVisible( const Vector &vecOrigin, edict_t *pEdict )
    //@@@@@@@@@@@@@
 	/*/
 #ifdef _DEBUG
-	extern edict_t *listenserver_edict;
-	char str[80];
+	char str[126];
 	sprintf(str, "(Original VisibleTest)Result=%.2f | entity=%s\n", tr.flFraction, STRING(tr.pHit->v.classname));
-	ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, str);
+	HudNotify(str);
 #endif
 	/**/
 	
@@ -572,291 +572,72 @@ bool FVisible( const Vector &vecOrigin, edict_t *pEdict )
 	}
 }
 
-/*/ //ORIGINAL METHOD
-// we need this method to check if there isn't another player (teammate) in the line of fire
-bool FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edict_t *pEdict )
-{
-	TraceResult tr;
-	
-	int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
-	
-	// don't look through water
-	if (bInWater != bLookerInWater)
-		return FALSE;
-
-	// trace to see if the enemy is visible
-	UTIL_TraceLine(vecLookerOrigin, vecOrigin, ignore_monsters, ignore_glass, pEdict, &tr);
-
-
-	//@@@@@@@@@@@@@
-#ifdef _DEBUG
-	extern edict_t *listenserver_edict;
-	char strs[80];
-	sprintf(strs, "(PlayerVisible - FIRST TEST)Result=%.2f | entity=%s\n", tr.flFraction, STRING(tr.pHit->v.classname));
-	ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, strs);
-#endif
-
-
-
-
-
-	// Line of sight is not established break it right now
-	if (tr.flFraction != 1.0)
-		return FALSE;
-	
-	// second trace will handle possible teammates in the line of fire
-	UTIL_TraceLine(vecLookerOrigin, vecOrigin, dont_ignore_monsters, dont_ignore_glass, pEdict, &tr);
-
-
-
-
-	//@@@@@@@@@@@@@
-#ifdef _DEBUG
-	extern edict_t *listenserver_edict;
-	char str[80];
-	sprintf(str, "(PlayerVisible - 2nd TEST)Result=%.2f | entity=%s\n", tr.flFraction, STRING(tr.pHit->v.classname));
-	ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, str);
-#endif
-
-
-
-
-	
-	// we hit a player entity so we need to check if it isn't our teammate
-	// (ie. teammate standing between the bot and bot's enemy)
-	if (strcmp(STRING(tr.pHit->v.classname), "player") == 0)
-	{
-		int pEdict_team = UTIL_GetTeam(pEdict);
-		int pHit_team = UTIL_GetTeam(tr.pHit);
-
-		// we hit a teammate so don't shoot ie. don't TK
-		if (pEdict_team == pHit_team)
-			return FALSE;
-
-		// it must be enemy so bot is clear to fire
-		return TRUE;
-	}
-
-	// the traceline reached the enemy without hitting anything else -> bot can fire
-	if ((strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0) && (tr.flFraction >= 0.98))
-		return TRUE;
-
-	// the traceline reached breakable entity, all we need to do is check if the
-	// entity is done in a way players can see through
-	// (ie. some transparency and not rendered as normal or solid)
-	if ((strcmp(STRING(tr.pHit->v.classname), "func_breakable") == 0) &&
-		((tr.pHit->v.rendermode != kRenderNormal) ||
-		(tr.pHit->v.rendermode != kRenderTransAlpha)) &&
-		(tr.pHit->v.renderamt <= 150))
-		return TRUE;
-
-	// line of sight is not established
-	// (the enemy must be behind some object like truck, tank or something)
-	return FALSE;
-}
-/**/
-
 
 /*
 * tests direct visibility between the bot and the target
 * includes tests for teammate, fence etc.
 * returns TRUE if line of sight can be established
 */
-/*				ORIG NEW CODE
-bool FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edict_t *pEdict )
+int FPlayerVisible(const Vector &vecOrigin, const Vector &vecLookerOrigin, edict_t *pEdict)
 {
 	TraceResult tr;
-	
-	int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
-	
-	// don't look through water
-	if (bInWater != bLookerInWater)
-		return FALSE;
 
-	// trace to see if the enemy is visible
-	UTIL_TraceLine(vecLookerOrigin, vecOrigin, ignore_monsters, ignore_glass, pEdict, &tr);
+	int bInWater = (UTIL_PointContents(vecOrigin) == CONTENTS_WATER);
+	int bLookerInWater = (UTIL_PointContents(vecLookerOrigin) == CONTENTS_WATER);
 
-
-	//@@@@@@@@@@@@@
-#ifdef _DEBUG
-	extern edict_t *listenserver_edict;
-	char strs[128];
-	sprintf(strs, "(PlayerVisible - FIRST TEST)Result=%.2f | entity=%s\n", tr.flFraction, STRING(tr.pHit->v.classname));
-	//ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, strs);
-#endif
-	
-
-	// we have clear view
-	if (tr.flFraction == 1.0)
-		return TRUE;
-
-	// we don't have another entity in the way (ie. it's a solid world that blocks the direct visibility)
-	// therefore we don't need any other tests
-	if (strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0)
-		return FALSE;
-
-	// first backup the entity that blocks the direct visibility for later use
-	edict_t *obstacle = tr.pHit;
-	
-	// now we have to ignore the previous obstacle in order to see if the trace line can finally reach the target
-	// ie. virtually remove the obstacle and check direct visibility
-	UTIL_TraceLine(vecLookerOrigin, vecOrigin, ignore_monsters, dont_ignore_glass, obstacle, &tr);
-
-
-
-
-	//@@@@@@@@@@@@@
-#ifdef _DEBUG
-	extern edict_t *listenserver_edict;
-	char str[256];
-	sprintf(str, "(PlayerVisible - 2nd TEST)Result=%.2f | entity=%s(name=%s)\n",
-		tr.flFraction, STRING(tr.pHit->v.classname), STRING(tr.pHit->v.netname));
-	//ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, str);
-#endif
-
-	// Line of sight still isn't established break it right now because the entity we are trying to look at must really be
-	// behind solid world object
-	if (tr.flFraction != 1.0)
-		return FALSE;
-
-	// if we can hit worldspawn now ie. flFraction == 1.0 && pHit->v.classname is worldspawn
-	// then we can establish a line of sight through the entity we ignored in the 2nd traceline
-	// so now just decide if we can really see through the ignored entity and if we can open fire (ie. don't FF)
-
-	// the traceline reached the enemy without hitting anything else -> bot may eventually open fire
-	if ((strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0) && tr.flFraction == 1.0)
-	{
-		// there was a player entity so we need to check if it isn't our teammate
-		// (ie. teammate standing between the bot and the enemy)
-		if (strcmp(STRING(obstacle->v.classname), "player") == 0)
-		{
-			int pEdict_team = UTIL_GetTeam(pEdict);
-			int obstacle_team = UTIL_GetTeam(obstacle);
-
-			// we would hit a teammate so don't shoot and risk a team kill
-			if (pEdict_team == obstacle_team)
-				return FALSE;
-			
-			// it must be enemy so the bot can open fire
-			return TRUE;
-		}
-		
-		// there was a breakable entity, all we need to do is check if the
-		// entity is done in a way players can see through
-		// (ie. some transparency and not rendered as normal or solid)
-		if ((strcmp(STRING(obstacle->v.classname), "func_breakable") == 0) &&	// PROBABLY USELESS - 1st traceline
-			((obstacle->v.rendermode != kRenderNormal) ||					// handles it through ignore_glass switch
-			(obstacle->v.rendermode != kRenderTransAlpha)) && (obstacle->v.renderamt <= 150))	// NEEDS more tests
-			return TRUE;
-		
-		// there was an entity that is meant to be part of the world, but it's done so that you can see through it
-		// you can't pass through it of course ... a fence for example
-		if (strcmp(STRING(obstacle->v.classname), "func_wall") == 0)
-		{
-			
-			//@@@@@
-#ifdef DEBUG
-			//ALERT(at_console, "*** I see func wall!\n");
-#endif // DEBUG
-			
-			// a transparent alpha texture case (ie. a fence, barbed wire etc.)
-			if (obstacle->v.rendermode == kRenderTransAlpha && obstacle->v.renderamt == 255 && obstacle->v.flags & FL_WORLDBRUSH)
-			{
-				//@@@@@
-#ifdef DEBUG
-				//ALERT(at_console, "*** I see you! (func wall -> fence/barbed wire)\n");
-#endif // DEBUG
-				return TRUE;
-			}
-			// a transparent texture case (ie. a window, glass wall etc.)
-			if (obstacle->v.rendermode == kRenderTransTexture && obstacle->v.renderamt <= 150 && obstacle->v.flags & FL_WORLDBRUSH)
-			{
-				//@@@@@
-#ifdef DEBUG
-				//ALERT(at_console, "*** I see you! (func wall -> window/glass)\n");
-#endif // DEBUG
-				return TRUE;
-			}
-		}
-	}
-
-
-	// line of sight is not established
-	// (the enemy must be behind something like a truck or tank and like models)
-	// basically something that we cannot and should not see through
-	return FALSE;
-}
-/**/
-
-int FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edict_t *pEdict )
-{
-	TraceResult tr;
-	
-	int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
-	
 	// don't look through water
 	if (bInWater != bLookerInWater)
 		return VIS_NO;
 
-	// trace to see if the enemy is visible
-	UTIL_TraceLine(vecLookerOrigin, vecOrigin, dont_ignore_monsters, ignore_glass, pEdict, &tr);
+	// trace to see if there is a direct visibility at the enemy
+	// we can't ignore monters, because if we did we would not see teammates and we would do team kills all the time
+	UTIL_TraceLine(vecLookerOrigin, vecOrigin, dont_ignore_monsters, dont_ignore_glass, pEdict, &tr);
 
 
 	//@@@@@@@@@@@@@
-	/**/
 #ifdef _DEBUG
-	extern edict_t *listenserver_edict;
 	char strs[128];
 	sprintf(strs, "(PlayerVisible - FIRST test)Result=%.2f | entity=%s(name=%s)\n",
 		tr.flFraction, STRING(tr.pHit->v.classname), STRING(tr.pHit->v.netname));
-	//ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, strs);
+	//HudNotify(strs);
 #endif
-	/**/
 
-	// we have clear view
-	if (tr.flFraction == 1.0)		// when we don't ignore monsters then this won't happen offen
-		return VIS_YES;				// because the player entity has a size and the origin is "deep" inside
+	// do we have clear view?
+	// when we don't ignore monsters then this won't happen offen, because the player entity has a size
+	// and if the bot and his enemy are face to face then enemy origin is "hidden behind" the player entity
+	if (tr.flFraction == 1.0)
+		return VIS_YES;
 
-	// we don't have another entity in the way (ie. it's a solid world that blocks the direct visibility)
+	// we don't have another entity in the way (i.e. it's a solid world that blocks the direct visibility)
 	// therefore we don't need any other tests
 	if (strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0)
 		return VIS_NO;
 
 	// first backup the entity that blocks the direct visibility for later use
 	edict_t *obstacle = tr.pHit;
-	
+
 	// now we have to ignore the previous obstacle in order to see if the trace line can finally reach the target
-	// ie. virtually remove the obstacle and check direct visibility
+	// i.e. virtually remove the obstacle and check direct visibility
 	UTIL_TraceLine(vecLookerOrigin, vecOrigin, ignore_monsters, dont_ignore_glass, obstacle, &tr);
 
+
 	//@@@@@@@@@@@@@
-	/**/
 #ifdef _DEBUG
-	extern edict_t *listenserver_edict;
 	char str[256];
 	sprintf(str, "(PlayerVisible - 2nd test)Result=%.2f | entity=%s(name=%s)\n",
 		tr.flFraction, STRING(tr.pHit->v.classname), STRING(tr.pHit->v.netname));
-	//ClientPrint(listenserver_edict, HUD_PRINTCONSOLE, str);
+	//HudNotify(str);
 #endif
-	/**/
 
-	// Line of sight still isn't established break it right now because the entity we are trying to look at must really be
-	// behind solid world object
-	if (tr.flFraction != 1.0)
-		return VIS_NO;
-
-	// if we can hit worldspawn now ie. flFraction == 1.0 && pHit->v.classname is worldspawn
+	// if we can hit worldspawn now i.e. flFraction == 1.0 && pHit->v.classname is worldspawn
 	// then we can establish a line of sight through the entity we ignored in the 2nd traceline
-	// so now just decide if we can really see through the ignored entity and if we can open fire (ie. don't FF)
+	// so now just decide if we can really see through the ignored entity and if we can open fire (i.e. don't do a TK)
 
 	// the traceline reached the enemy without hitting anything else -> bot may eventually open fire
-	if ((strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0) && tr.flFraction == 1.0)
+	if ((strcmp(STRING(tr.pHit->v.classname), "worldspawn") == 0) && (tr.flFraction == 1.0))
 	{
 		// there was a player entity so we need to check if it isn't our teammate
-		// (ie. teammate standing between the bot and the enemy)
+		// (i.e. teammate standing between the bot and the enemy)
 		if (strcmp(STRING(obstacle->v.classname), "player") == 0)
 		{
 			int pEdict_team = UTIL_GetTeam(pEdict);
@@ -866,59 +647,86 @@ int FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edic
 			if (pEdict_team == obstacle_team)
 			{
 
-//@@@@@
+				//@@@@@
 #ifdef DEBUG
-			ALERT(at_console, "*** BREAKING MY TEAMMATE IS IN THE WAY!!!\n");
+				//HudNotify("*** BREAKING MY TEAMMATE IS IN THE WAY!!!\n");
 #endif // DEBUG
 
 				return VIS_NO;
 			}
-			
+
 			// it must be enemy so the bot can open fire
 			return VIS_YES;
 		}
-		
+
 		// there was a breakable entity, all we need to do is check if the
 		// entity is done in a way players can see through
 		// (ie. some transparency and not rendered as normal or solid)
-		if ((strcmp(STRING(obstacle->v.classname), "func_breakable") == 0) &&	// PROBABLY USELESS - 1st traceline
-			((obstacle->v.rendermode != kRenderNormal) ||					// handles it through ignore_glass switch
+		if ((strcmp(STRING(obstacle->v.classname), "func_breakable") == 0) &&
+			((obstacle->v.rendermode != kRenderNormal) ||
 			(obstacle->v.rendermode != kRenderTransAlpha)) && (obstacle->v.renderamt <= 150))	// NEEDS more tests
-			return TRUE;
-		
+		{
+
+			//@@@@@
+#ifdef DEBUG
+			//HudNotify("*** I see through func breakable!\n");
+#endif // DEBUG
+
+
+			return VIS_YES;
+		}
+
 		// there was an entity that is meant to be part of the world, but it's done so that you can see through it
 		// you can't pass through it of course ... a fence for example
 		if (strcmp(STRING(obstacle->v.classname), "func_wall") == 0)
 		{
-			
+
 			//@@@@@
 #ifdef DEBUG
-			ALERT(at_console, "*** I see func wall!\n");
+			char str[256];
+			sprintf(str, "(%s)*** I see func wall!\n", STRING(pEdict->v.netname));
+			//HudNotify(str);
 #endif // DEBUG
 
 			// this is ugly solution, but the central alley causes real problems
-			// as long as there isn't better way how to deal with it we have to return not visible
+			// as long as there isn't better way how to deal with it we have to use texture names
+			// to figure out if it's a see through object or not
 			if (strcmp(STRING(gpGlobals->mapname), "obj_armory") == 0)
 			{
+				const char *texture = NULL;
+				texture = g_engfuncs.pfnTraceTexture(obstacle, vecLookerOrigin, vecOrigin);
+
+				if ((texture != NULL) && ((strcmp(texture, "{nm_leaves3") == 0) || (strcmp(texture, "{artrellis") == 0)))
+				{
+
+#ifdef DEBUG
+					//HudNotify("*** I see enemy! (func wall -> fence/bush on obj_armory)\n");
+#endif // DEBUG
+
+
+					return VIS_FENCE;
+				}
+
 				return VIS_NO;
 			}
-			
+
 			// a transparent alpha texture case (ie. a fence, barbed wire etc.)
-			if (obstacle->v.rendermode == kRenderTransAlpha && obstacle->v.renderamt == 255 && obstacle->v.flags & FL_WORLDBRUSH)
+			if ((obstacle->v.rendermode == kRenderTransAlpha) && (obstacle->v.renderamt == 255) &&
+				(obstacle->v.flags & FL_WORLDBRUSH))
 			{
 				//@@@@@
 #ifdef DEBUG
-				ALERT(at_console, "*** I see you! (func wall -> fence/barbed wire)\n");
+				//HudNotify("*** I see enemy! (func wall -> fence/barbed wire)\n");
 #endif // DEBUG
 				return VIS_FENCE;
 			}
 			// a transparent texture case (ie. a window, glass wall etc.)
-			else if (obstacle->v.rendermode == kRenderTransTexture && obstacle->v.renderamt <= 150 &&
-				obstacle->v.flags & FL_WORLDBRUSH)
+			else if ((obstacle->v.rendermode == kRenderTransTexture) && (obstacle->v.renderamt <= 150) &&
+				(obstacle->v.flags & FL_WORLDBRUSH))
 			{
 				//@@@@@
 #ifdef DEBUG
-				ALERT(at_console, "*** I see you! (func wall -> window/glass)\n");
+				//HudNotify("*** I see enemy! (func wall -> window/glass)\n");
 #endif // DEBUG
 				return VIS_YES;
 			}
@@ -930,7 +738,6 @@ int FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edic
 	// basically something that we cannot and should not see through
 	return VIS_NO;
 }
-
 
 // same as above, but we use caller's eyes by default
 int FPlayerVisible( const Vector &vecOrigin, edict_t *pEdict )
@@ -1477,6 +1284,19 @@ bool UTIL_IsHandgun(int weapon)
 
 
 /*
+* checks if the weapon is a grenade
+*/
+bool UTIL_IsGrenade(int weapon)
+{
+	if ((weapon == fa_weapon_concussion) || (weapon == fa_weapon_frag) ||
+		(weapon == fa_weapon_flashbang) || (weapon == fa_weapon_stg24))
+		return TRUE;
+
+	return FALSE;
+}
+
+
+/*
 * checks if the weapon has bipod
 */
 bool IsBipodWeapon(int weapon)
@@ -1497,24 +1317,21 @@ inline void SelectMainWeapon(bot_t *pBot)
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
 	bot_weapon_t bot_weapon;
 	char this_one[64];
-	float extra_delay = 0.0;	// default value that most weapons accepts
+	//float extra_delay = 0.0;
+	float extra_delay = 1.7f;	// default value that works with most weapons in FA 3.0											NEW CODE 094
 
 	strcpy(this_one, "weapon_knife");
 
+	// we need to access weapon data in order to...
 	bot_weapon = weapon_defs[pBot->main_weapon];
 
+	// get weapon name for the client command
 	strcpy(this_one, bot_weapon.szClassname);
-
-	// we need more time to change to this weapon
-	if (pBot->main_weapon == fa_weapon_ssg3000)
-		extra_delay += 0.5;
-	else if (pBot->main_weapon == fa_weapon_svd)
-		extra_delay += 0.2;
 
 	if (strcmp(this_one, "weapon_knife") == 0)
 	{
-		pBot->forced_usage = USE_KNIFE;
-		extra_delay = 1.0;
+		pBot->UseWeapon(USE_KNIFE);
+		extra_delay = 1.0f;
 
 #ifdef _DEBUG
 		UTIL_DebugDev("Utils|SelectMainWeapon()|no weapon found -- switched to knife\n",
@@ -1525,16 +1342,18 @@ inline void SelectMainWeapon(bot_t *pBot)
 
 	//@@@@@@@@@@@@@@@
 	#ifdef _DEBUG
-	extern bool g_debug_bot_on;
-	if (g_debug_bot_on)
-		ALERT(at_console, "SelectMainWeapon() - Changing to weapon %s\n", this_one);
+	//char swmsg[128];
+	//sprintf(swmsg, "SelectMainWeapon() - Changing to weapon %s\n", this_one);
+	//HudNotify(swmsg, pBot);
 	#endif
 
 
 
-
+	// calling the weapon name will select it
 	FakeClientCommand(pBot->pEdict, this_one, NULL, NULL);
-	// set some time to finish it
+	
+	// we must update shoot time to allow the engine to process it
+	// and prevent the bot from trying to use the weapon, because it isn't ready yet
 	pBot->f_shoot_time = gpGlobals->time + extra_delay;
 }
 
@@ -1547,7 +1366,7 @@ inline void SelectBackupWeapon(bot_t *pBot)
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
 	bot_weapon_t bot_weapon;
 	char this_one[64];
-	float extra_delay = 0.0;	// (was 1.0)
+	float extra_delay = 1.7f;	// (was 0.0)
 
 	strcpy(this_one, "weapon_knife");
 
@@ -1555,13 +1374,15 @@ inline void SelectBackupWeapon(bot_t *pBot)
 
 	strcpy(this_one, bot_weapon.szClassname);
 
-	if (pBot->backup_weapon == fa_weapon_anaconda)
-		extra_delay += 0.2;
+	//																							NEW CODE 094
+	// handguns have a little faster selection
+	if (UTIL_IsHandgun(pBot->backup_weapon))
+		extra_delay = 1.4;
 
 	if (strcmp(this_one, "weapon_knife") == 0)
 	{
-		pBot->forced_usage = USE_KNIFE;
-		extra_delay = 1.0;
+		pBot->UseWeapon(USE_KNIFE);
+		extra_delay = 1.0f;
 
 #ifdef _DEBUG
 		UTIL_DebugDev("Utils|SelectBackupWeapon()|no weapon found -- switched to knife\n",
@@ -1574,9 +1395,9 @@ inline void SelectBackupWeapon(bot_t *pBot)
 
 	//@@@@@@@@@@@@@@@
 	#ifdef _DEBUG
-	extern bool g_debug_bot_on;
-	if (g_debug_bot_on)
-		ALERT(at_console, "SelectBackupWeapon() - Changing to weapon %s\n", this_one);
+	//char swmsg[128];
+	//sprintf(swmsg, "SelectBackupWeapon() - Changing to weapon %s\n", this_one);
+	//HudNotify(swmsg, pBot);
 	#endif
 
 
@@ -1615,7 +1436,7 @@ inline void SelectGrenade(bot_t *pBot)
 
 	if (strcmp(this_one, "weapon_knife") == 0)
 	{
-		pBot->forced_usage = USE_KNIFE;
+		pBot->UseWeapon(USE_KNIFE);
 
 #ifdef _DEBUG
 		UTIL_DebugDev("Utils|SelectGrenade()|no grenade found -- switched to knife\n",
@@ -1627,9 +1448,9 @@ inline void SelectGrenade(bot_t *pBot)
 
 	//@@@@@@@@@@@@@@@
 	#ifdef _DEBUG
-	extern bool g_debug_bot_on;
-	if (g_debug_bot_on)
-		ALERT(at_console, "SelectGrenade() - Changing to weapon %s\n", this_one);
+	//char swmsg[128];
+	//sprintf(swmsg, "SelectGrenade() - Changing to weapon %s\n", this_one);
+	//HudNotify(swmsg, pBot);
 	#endif
 
 
@@ -1644,8 +1465,28 @@ inline void SelectGrenade(bot_t *pBot)
 */
 void UTIL_ChangeWeapon(bot_t *pBot)
 {
-	// do we need to change weapon
-	if (pBot->weapon_action == W_TAKEOTHER)
+	//																		NEW CODE 094
+	// has the weapon change been invalidated?
+	if (pBot->IsWeaponStatus(WS_INVALID))
+	{
+		// then select knife, because everyone has it by default...
+		pBot->UseWeapon(USE_KNIFE);
+
+		// clear the "resetting" bit...
+		pBot->RemoveWeaponStatus(WS_INVALID);
+
+		// and set weapon action back to ready to start anew in next frame
+		pBot->weapon_action = W_READY;
+
+		if (botdebugger.IsDebugActions())
+			HudNotify("ChangeWeapon() -> weapon change has been invalidated -> resetting the action!\n", pBot);
+
+		return;
+	}
+	// *******************************************************************	NEW CODE 094 END
+
+	// do we need to change weapon? Then wait until going to prone or resume from prone is finished
+	if ((pBot->weapon_action == W_TAKEOTHER) && !pBot->IsGoingProne())
 	{
 		// select the correct weapon
 		if (pBot->forced_usage == USE_MAIN)
@@ -1663,12 +1504,12 @@ void UTIL_ChangeWeapon(bot_t *pBot)
 		else if (pBot->forced_usage == USE_KNIFE)
 		{
 			FakeClientCommand(pBot->pEdict, "weapon_knife", NULL, NULL);
-			pBot->f_shoot_time = gpGlobals->time + 1.0;
+			pBot->f_shoot_time = gpGlobals->time + 1.0f;
 		}
 
 		// we have to clear this bit if we are changing weapons in FA25 and below
 		if (UTIL_IsOldVersion())
-			UTIL_ClearBit(WA_USEAKIMBO, pBot->weapon_status);
+			pBot->RemoveWeaponStatus(WS_USEAKIMBO);
 
 		// set appropriate weapon flag
 		pBot->weapon_action = W_INCHANGE;
@@ -1683,82 +1524,104 @@ void UTIL_ChangeWeapon(bot_t *pBot)
 	// are we still changing the weapon
 	if (pBot->weapon_action == W_INCHANGE)
 	{
-		extern bool debug_actions;
-
-		// has the bot changed to desired weapon yet
-		if ((pBot->forced_usage == USE_MAIN) &&
-			(pBot->current_weapon.iId == pBot->main_weapon))
+		// stop using bipod
+		if (pBot->IsTask(TASK_BIPOD))
 		{
-			// set the right weapon flag
-			pBot->weapon_action = W_READY;
-			// reset shoot time to allow the bot to shoot the weapon
-			pBot->f_shoot_time = gpGlobals->time;
-
-			if (debug_actions)
-				ALERT(at_console, "Successfully changed to MAIN weapon\n");
-
-			return;
-		}
-
-		if ((pBot->forced_usage == USE_BACKUP) &&
-			(pBot->current_weapon.iId == pBot->backup_weapon))
-		{
-			pBot->weapon_action = W_READY;
-			pBot->f_shoot_time = gpGlobals->time;
-
-			if (debug_actions)
-				ALERT(at_console, "Successfully changed to BACKUP weapon\n");
-
-			return;
-		}
-
-		if ((pBot->forced_usage == USE_GRENADE) &&
-			(pBot->current_weapon.iId == pBot->grenade_slot))
-		{
-			pBot->weapon_action = W_READY;
-			pBot->f_shoot_time = gpGlobals->time;
-
-			if (debug_actions)
-				ALERT(at_console, "Successfully changed to GRENADE\n");
-
-			return;
-		}
-
-		if ((pBot->forced_usage == USE_KNIFE) &&
-			(pBot->current_weapon.iId == fa_weapon_knife))
-		{
-			pBot->weapon_action = W_READY;
-			pBot->f_shoot_time = gpGlobals->time;
-
-			if (debug_actions)
-				ALERT(at_console, "Successfully changed to KNIFE\n");
-			
-			return;
-		}
-
-
-		// stop using bipod weapon if was used AND is time for handling it
-		if ((pBot->IsTask(TASK_BIPOD)) && (pBot->f_bipod_try_time < gpGlobals->time))
-		{
-			FakeClientCommand(pBot->pEdict, "bipod", NULL, NULL);
-			
-			// set some time for next try
-			pBot->f_bipod_try_time = gpGlobals->time + 3.0;
-
-			// it didn't react on the first weapon change,
-			// because with bipod down weapon cannot be changed
+			// it didn't react on the first weapon change, because with bipod down the weapon cannot be changed
 			// so return back to initial flag
 			pBot->weapon_action = W_READY;
 
-			if (debug_actions)
-				ALERT(at_console, "Removing BIPOD that is preventing a weapon change\n");
+			BotUseBipod(pBot, TRUE, "UtilChangeWeapon()");
+
+			if (botdebugger.IsDebugActions())
+				HudNotify("ChangeWeapon() -> removing BIPOD that is preventing a weapon change\n", pBot);
+
+			return;
 		}
 
-		// keep increasing the shoot time to prevent the bot to try to shoot the weapon
-		pBot->f_shoot_time = gpGlobals->time + 0.1;
+		// wait for the engine to finish the animations
+		if (pBot->f_shoot_time < gpGlobals->time)
+		{
+			// has the bot changed to desired weapon yet
+			if ((pBot->forced_usage == USE_MAIN) && (pBot->current_weapon.iId == pBot->main_weapon))
+			{
+				// set the right weapon flag
+				pBot->weapon_action = W_INHANDS;
+				
+				// update shoot time to prevent the bot to fire from the weapon
+				pBot->f_shoot_time = gpGlobals->time;
 
-		if (debug_actions)
+				// bot should also check if this weapons isn't almost empty after the switch
+				pBot->SetSubTask(ST_W_CLIP);
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("ChangeWeapon() -> changed to MAIN weapon\n", pBot);
+
+				return;
+			}
+
+			else if ((pBot->forced_usage == USE_BACKUP) && (pBot->current_weapon.iId == pBot->backup_weapon))
+			{
+				pBot->weapon_action = W_INHANDS;
+				pBot->f_shoot_time = gpGlobals->time;
+				pBot->SetSubTask(ST_W_CLIP);
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("ChangeWeapon() -> changed to BACKUP weapon\n", pBot);
+
+				return;
+			}
+
+			else if ((pBot->forced_usage == USE_GRENADE) && (pBot->current_weapon.iId == pBot->grenade_slot))
+			{
+				pBot->weapon_action = W_INHANDS;
+				pBot->f_shoot_time = gpGlobals->time;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("ChangeWeapon() -> changed to GRENADE\n", pBot);
+
+				return;
+			}
+
+			else if ((pBot->forced_usage == USE_KNIFE) && (pBot->current_weapon.iId == fa_weapon_knife))
+			{
+				pBot->weapon_action = W_INHANDS;
+				pBot->f_shoot_time = gpGlobals->time;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("ChangeWeapon() -> changed to KNIFE\n", pBot);
+
+				return;
+			}
+			else
+				// keep increasing the shoot time to prevent the bot in trying to use the weapon
+				pBot->f_shoot_time = gpGlobals->time + 0.1f;
+		}
+		
+		if (botdebugger.IsDebugActions())
+		{
+#ifdef DEBUG
+			extern edict_t* g_debug_bot;
+			extern bool g_debug_bot_on;
+
+			if (g_debug_bot_on && (g_debug_bot == pBot->pEdict))
+				ALERT(at_console, "Trying to switch weapons (currT is %.2f)\n", gpGlobals->time);
+#else
 			ALERT(at_console, "Trying to switch weapons (currT is %.2f)\n", gpGlobals->time);
+#endif // DEBUG
+		}
+	}
+
+	// weapon change is finished and we can set the weapon action to ready again
+	if (pBot->weapon_action == W_INHANDS)
+	{
+		if (pBot->f_shoot_time + 0.2f < gpGlobals->time)
+		{
+			pBot->weapon_action = W_READY;
+
+			if (botdebugger.IsDebugActions())
+				HudNotify("ChangeWeapon() -> WEAPON is READY now!\n", pBot);
+		}
 	}
 }
 
@@ -1825,21 +1688,20 @@ bool FullAutoFireMode(int weapon)
 * wtest value can bypass the weapon testing (don't test weapons) and immediately change
 * the fire mode (this should save some CPU time in cases we already know which weapon bot has)
 */
-void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, CHANGE_FM_TEST wtest)
+void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, FireMode_WTest wtest)
 {
 	// don't change fire mode if attached gl is used (based on FA version)
 	if ((pBot->secondary_active) &&
-		((pBot->current_weapon.iId == fa_weapon_m16) ||
-		(pBot->current_weapon.iId == fa_weapon_ak74)))
+		((pBot->current_weapon.iId == fa_weapon_m16) || (pBot->current_weapon.iId == fa_weapon_ak74)))
 		return;
 
 	// does current weapon supports full auto mode
-	if ((wtest == test_weapons) && (new_mode == FM_AUTO))
+	if ((wtest == FireMode_WTest::test_weapons) && (new_mode == FM_AUTO))
 	{
 		if (FullAutoFireMode(pBot->current_weapon.iId))
 		{
 			// don't test from now we already know that bot has the right weapon
-			wtest = dont_test_weapons;
+			wtest = FireMode_WTest::dont_test_weapons;
 		}
 		// bot doesn't carry weapon with full auto fire mode so end it
 		else
@@ -1847,12 +1709,12 @@ void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, CHANGE_FM_TEST wtest)
 	}
 
 	// does current weapon supports burst mode
-	if ((wtest == test_weapons) && (new_mode == FM_BURST))
+	if ((wtest == FireMode_WTest::test_weapons) && (new_mode == FM_BURST))
 	{
 		if (BurstFireMode(pBot->current_weapon.iId))
 		{			
 			// don't test from now we already know that bot has the right weapon
-			wtest = dont_test_weapons;
+			wtest = FireMode_WTest::dont_test_weapons;
 		}
 		// bot doesn't carry weapon with burst fire so end it
 		else
@@ -1860,7 +1722,7 @@ void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, CHANGE_FM_TEST wtest)
 	}
 
 	// don't try to change firemode on those weapons
-	if ((wtest == test_weapons) && (IgnoreFireMode(pBot->current_weapon.iId)))
+	if ((wtest == FireMode_WTest::test_weapons) && (IgnoreFireMode(pBot->current_weapon.iId)))
 	{
 		return;
 	}
@@ -1943,124 +1805,359 @@ void UTIL_ShowWeapon(bot_t *pBot)
 
 
 /*
+* checks whether the bot should reload his current weapon (based on iClip value and the type of the weapon)
+*/
+bool UTIL_ShouldReload(bot_t *pBot, const char* loc)
+{
+	bot_current_weapon_t w = pBot->current_weapon;
+
+	// don't check things if the weapon isn't ready
+	if (pBot->weapon_action != W_READY)
+		return FALSE;
+
+	// always reload if the weapon is empty and have ammo for it
+	if ((w.iClip == 0) && (w.iAmmo1 > 0))
+		return TRUE;
+
+	//  keep benelli/remington always fully loaded
+	if ((w.iClip < 8) && (w.iAmmo1 > 0) && (w.iId == fa_weapon_benelli))
+		return TRUE;
+
+	// if NOT tasked to check weapon clip for remaining ammo then there is no need to reload weapon either
+	// (i.e. we don't want to check ammo every frame)
+	if (pBot->IsSubTask(ST_W_CLIP) == FALSE)
+		return FALSE;
+
+	// if we have at least two magazines then ...
+	if (w.iAmmo1 > 1)
+	{
+
+
+#ifdef DEBUG
+
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	 													// NEW CODE 094 (remove it)
+		if (loc != NULL)
+		{
+			char dm[256];
+			sprintf(dm, "ShouldReload() called @ (%s)-> going to check for almost empty clip (=%d)\n", loc, w.iClip);
+			//HudNotify(dm, pBot);
+		}
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#endif // DEBUG
+
+
+
+		// see if the magazine is almost empty and ...
+		if ((w.iClip < 3) && ((w.iId == fa_weapon_coltgov) || (w.iId == fa_weapon_desert) ||
+			(w.iId == fa_weapon_ssg3000) || (w.iId == fa_weapon_m82)))
+		{
+			// let the bot know about partly used magazines ...
+			pBot->SetWeaponStatus(WS_NOTEMPTYMAG);
+
+			// before making him reload the weapon
+			return TRUE;
+		}
+
+		// anaconda doesn't allow merging magazines so we can't set partly used magazine flag here
+		// but we'll allow reloading it if it is almost empty
+		if ((w.iClip < 3) && (w.iId == fa_weapon_anaconda))
+		{
+			return TRUE;
+		}
+
+		if ((w.iClip < 5) && ((w.iId == fa_weapon_ber92f) || (w.iId == fa_weapon_ber93r) || (w.iId == fa_weapon_svd) ||
+			(w.iId == fa_weapon_saiga)))
+		{
+			pBot->SetWeaponStatus(WS_NOTEMPTYMAG);
+
+			return TRUE;
+		}
+
+		if ((w.iClip < 10) && UTIL_IsAssaultRifle(w.iId))
+		{
+			pBot->SetWeaponStatus(WS_NOTEMPTYMAG);
+
+			return TRUE;
+		}
+
+		if ((w.iClip < 15) && UTIL_IsSMG(w.iId))
+		{
+			pBot->SetWeaponStatus(WS_NOTEMPTYMAG);
+
+			return TRUE;
+		}
+	}
+
+	// ammo left in current weapon isn't at critical level so we don't have to check it again
+	pBot->RemoveSubTask(ST_W_CLIP);
+
+	// and we also won't reload
+	return FALSE;
+}
+
+
+/*
 * checks amount of magazines the bot should take from ammobox
 */
-void UTIL_CheckAmmoReserves(bot_t *pBot)
+void UTIL_CheckAmmoReserves(bot_t *pBot, const char* loc)
 {
 	int main_weap_id = pBot->main_weapon;
 	int backup_weap_id = pBot->backup_weapon;
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
-	extern bool debug_actions;
+
+	// don't check ammo when the weapon is NOT ready OR
+	// the bot fired the weapon recently (or changed weapons where it's set as well) OR
+	// is paused right now where the bot could be merging magazines
+	if ((pBot->weapon_action != W_READY) ||
+		(pBot->f_shoot_time + 1.0f > gpGlobals->time) ||
+		(pBot->f_pause_time >= gpGlobals->time))
+		return;
+
+
+#ifdef DEBUG
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	if (loc != NULL)
+	{
+		char dbgmsg[256];
+		sprintf(dbgmsg, "CheckAmmoReserves() called @ %s\n", loc);
+		HudNotify(dbgmsg, pBot);
+	}
+#endif // DEBUG
+
 
 	// is main weapon completely empty AND have main weapon
-	if ((pBot->main_no_ammo) && (pBot->main_weapon != -1))
+	if ((pBot->main_no_ammo) && (pBot->main_weapon != NO_VAL))
 		pBot->take_main_mags = weapon_defs[main_weap_id].iAmmo1Max;
 	// otherwise count how many mags have
-	else if (pBot->main_weapon != -1)
-	{
-		pBot->take_main_mags = weapon_defs[main_weap_id].iAmmo1Max -
-			pBot->curr_rgAmmo[weapon_defs[main_weap_id].iAmmo1];
-
-		// check for special cases and handle them
-		if (main_weap_id == fa_weapon_benelli)
-			pBot->take_main_mags /=7;	// gets 7 slugs at once
-
-		if (main_weap_id == fa_weapon_m11)
-			pBot->take_main_mags /=32;	// gets 32 rounds at once
-	}
+	else if (pBot->main_weapon != NO_VAL)
+		pBot->take_main_mags = weapon_defs[main_weap_id].iAmmo1Max - pBot->curr_rgAmmo[weapon_defs[main_weap_id].iAmmo1];
 	else
 		pBot->take_main_mags = 0;
 
+	//																			NEW CODE 094
+	// check for special cases and handle them
+	if (pBot->take_main_mags > 0)
+	{
+		if (main_weap_id == fa_weapon_benelli)
+			pBot->take_main_mags /= 8;			// gets 8 slugs at once
+
+		if (main_weap_id == fa_weapon_m11)
+			pBot->take_main_mags /= 32;			// gets 32 rounds at once
+	}
+
 	// is backup weapon completely empty AND have backup weapon
-	if ((pBot->backup_no_ammo) && (pBot->backup_weapon != -1))
+	if ((pBot->backup_no_ammo) && (pBot->backup_weapon != NO_VAL))
 		pBot->take_backup_mags = weapon_defs[backup_weap_id].iAmmo1Max;
 	// otherwise count how many mags have
-	else if (pBot->backup_weapon != -1)
-	{
+	else if (pBot->backup_weapon != NO_VAL)
 		pBot->take_backup_mags = weapon_defs[backup_weap_id].iAmmo1Max -
 			pBot->curr_rgAmmo[weapon_defs[backup_weap_id].iAmmo1];
-
-		if (backup_weap_id == fa_weapon_benelli)
-			pBot->take_backup_mags /=7;
-
-		if (backup_weap_id == fa_weapon_anaconda)
-			pBot->take_backup_mags /=6;	// gets 6 rounds at once
-
-		if (backup_weap_id == fa_weapon_m11)
-			pBot->take_backup_mags /=32;
-	}
 	else
 		pBot->take_backup_mags = 0;
 
-	// update this time, bot already checked ammunition
-	if (pBot->IsTask(TASK_CHECKAMMO) && (pBot->check_ammunition_time < gpGlobals->time))
-		pBot->check_ammunition_time = gpGlobals->time;
+	//																			NEW CODE 094
+	if (pBot->take_backup_mags > 0)
+	{
+		if (backup_weap_id == fa_weapon_benelli)
+			pBot->take_backup_mags /= 8;
 
+		if (backup_weap_id == fa_weapon_anaconda)
+			pBot->take_backup_mags /= 6;		// gets 6 rounds at once
+
+		if (backup_weap_id == fa_weapon_m11)
+			pBot->take_backup_mags /= 32;
+	}
+
+	// update this time
+	//if (pBot->IsTask(TASK_CHECKAMMO) && (pBot->check_ammunition_time < gpGlobals->time))	// NEW CODE 094 (prev code)
+	pBot->check_ammunition_time = gpGlobals->time;
+
+	// and reset the task, because bot already checked ammunition
 	pBot->RemoveTask(TASK_CHECKAMMO);
 
-	if (debug_actions)
-		ALERT(at_console, "Ammunition was checked ...\n");
+	// bot should also check current weapon magazine for remaining ammo
+	pBot->SetSubTask(ST_W_CLIP);
+
+	if (botdebugger.IsDebugActions())
+		HudNotify("CheckAmmoReserves() -> ammunition was checked ...\n", pBot);
 
 	// has the bot any reserve ammo for main weapon AND main weapon no ammo flag is set
 	// (ie we think that main weapon is completely empty, but we have some ammo for it)
-	if ((pBot->curr_rgAmmo[weapon_defs[main_weap_id].iAmmo1] > 0) &&
-		(pBot->main_no_ammo))
+	if ((main_weap_id != NO_VAL) && (pBot->curr_rgAmmo[weapon_defs[main_weap_id].iAmmo1] > 0) && (pBot->main_no_ammo))
 	{
 		pBot->main_no_ammo = FALSE;		// main weapon isn't completely empty now
 
-		if (debug_actions)
-			ALERT(at_console, "main weapon is usable again\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> main weapon is usable again\n", pBot);
 	}
 
 	// has the bot any reserve ammo for backup weapon AND backup weapon no ammo flag is set
 	// (ie we think that backup weapon is completely empty, but we have some ammo for it)
-	if ((pBot->curr_rgAmmo[weapon_defs[backup_weap_id].iAmmo1] > 0) &&
-		(pBot->backup_no_ammo))
+	if ((backup_weap_id != NO_VAL) && (pBot->curr_rgAmmo[weapon_defs[backup_weap_id].iAmmo1] > 0) && (pBot->backup_no_ammo))
 	{
 		pBot->backup_no_ammo = FALSE;		// backup weapon isn't completely empty now
 
-		if (debug_actions)
-			ALERT(at_console, "backup weapon is usable again\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> backup weapon is usable again\n", pBot);
 	}
 
 	// has the bot some unused grenades yet AND the grenade flag is already set to used
 	// (ie we thing that we don't have any grenade, but there is still at least one available)
-	if ((pBot->grenade_action == ALTW_USED) && (pBot->grenade_slot != -1) &&
+	if ((pBot->grenade_action == ALTW_USED) && (pBot->grenade_slot != NO_VAL) &&
 		(pBot->curr_rgAmmo[weapon_defs[pBot->grenade_slot].iAmmo1] > 0))
 	{
 		pBot->grenade_action = ALTW_NOTUSED;	// grenades aren't completely used yet
 
-		if (debug_actions)
-			ALERT(at_console, "grenades are usable again\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> grenades are usable again\n", pBot);
 	}
 
-	// NEW CODE TEST
+	// we must handle situation when the bot spawned more than one grenade type
+	// (i.e. some custom classes give the bot both grenades yet the system is done so the bot can handle just one)
+	// so look for the moment when the bot depleted his first grenade type
+	if ((pBot->grenade_action == ALTW_USED) && !pBot->IsSubTask(ST_NOOTHERNADE))
+	{
+		int grenade_count = 0;
+
+
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+		//HudNotify("checking for other grenades\n");
+#endif // DEBUG
+
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> checking for other grenades ...\n", pBot);
+
+		// now check if he has also the other grenade
+		if (pBot->bot_weapons & (1 << fa_weapon_concussion))
+		{
+			grenade_count++;
+
+			// NOT already used?
+			if (pBot->curr_rgAmmo[weapon_defs[fa_weapon_concussion].iAmmo1] > 0)
+			{
+				// then make it useable
+				pBot->grenade_slot = fa_weapon_concussion;
+				pBot->grenade_action = ALTW_NOTUSED;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("CheckAmmoReserves() -> concussion grenade has been set as usable\n", pBot);
+
+
+
+#ifdef DEBUG
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				char dbgmsg[256];
+				sprintf(dbgmsg, "CheckAmmoReserves() -> concussion grenade has been set as usable (class=%d)\n", pBot->bot_class);
+				HudNotify(dbgmsg, pBot);
+#endif // DEBUG
+
+
+			}
+		}
+		
+		if (pBot->bot_weapons & (1 << fa_weapon_frag))
+		{
+			grenade_count++;
+
+			if (pBot->curr_rgAmmo[weapon_defs[fa_weapon_frag].iAmmo1] > 0)
+			{
+				pBot->grenade_slot = fa_weapon_frag;
+				pBot->grenade_action = ALTW_NOTUSED;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("CheckAmmoReserves() -> fragmentation grenade has been set as usable\n", pBot);
+
+
+
+
+#ifdef DEBUG
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				char dbgmsg[256];
+				sprintf(dbgmsg, "CheckAmmoReserves() -> frag grenade has been set as usable (class=%d)\n", pBot->bot_class);
+				HudNotify(dbgmsg, pBot);
+#endif // DEBUG
+
+
+
+
+			}
+		}
+
+		if (pBot->bot_weapons & (1 << fa_weapon_flashbang))
+		{
+			grenade_count++;
+
+			if (pBot->curr_rgAmmo[weapon_defs[fa_weapon_flashbang].iAmmo1] > 0)
+			{
+				pBot->grenade_slot = fa_weapon_flashbang;
+				pBot->grenade_action = ALTW_NOTUSED;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("CheckAmmoReserves() -> flashbang has been set as usable\n", pBot);
+			}
+		}
+
+		if (pBot->bot_weapons & (1 << fa_weapon_stg24))
+		{
+			grenade_count++;
+
+			if (pBot->curr_rgAmmo[weapon_defs[fa_weapon_stg24].iAmmo1] > 0)
+			{
+				pBot->grenade_slot = fa_weapon_stg24;
+				pBot->grenade_action = ALTW_NOTUSED;
+
+				if (botdebugger.IsDebugActions())
+					HudNotify("CheckAmmoReserves() -> stielhandgranate has been set as usable\n", pBot);
+			}
+		}
+
+		// if all checks failed then don't do this again because bot already used them or
+		// this custom class doesn't come with multiple grenades
+		if (grenade_count < 2)
+		{
+			pBot->SetSubTask(ST_NOOTHERNADE);
+
+			if (botdebugger.IsDebugActions())
+				HudNotify("CheckAmmoReserves() -> no other grenade was found\n", pBot);
+
+#ifdef DEBUG
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+			//HudNotify("no other grenade was found\n");
+#endif // DEBUG
+
+
+		}
+	}
+
 	// fix the case when the bot picked up a grenade (as an item in a map)
 	// the grenades were not picked up again after respawn and the bot still has a grenade slot marked as USED
 	// (ie. the bot thinks he has a grenade)
-	if (pBot->grenade_action == ALTW_NOTUSED && pBot->grenade_slot != -1 && !(pBot->bot_weapons & (1<<pBot->grenade_slot)))
+	if ((pBot->grenade_action == ALTW_NOTUSED) && (pBot->grenade_slot != NO_VAL) &&
+		!(pBot->bot_weapons & (1<<pBot->grenade_slot)))
 	{
 		pBot->grenade_action = ALTW_USED;
 #ifdef _DEBUG
 		//@@@@@@@@@@@@@@@@@@@@
-		if (debug_actions)
-			ALERT(at_console, "(>>util.cpp|checkammo()<<) both grenades used --> (USED flag set)!!! ... AKA -> DOH >>>> I don't have any grenades\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> ONGROUND ITEM explosives -> don't have them anymore -> USED flag SET!\n", pBot);
 #endif
 	}
 
 	// if the bot is low on ammo set the need ammo flag
 	if ((pBot->take_main_mags > 1) || (pBot->take_backup_mags > 1))
 	{
-		if (debug_actions)
-			ALERT(at_console, "*** need ammo flag has been set\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> need ammo flag has been set\n", pBot);
 
 		pBot->SetNeed(NEED_AMMO);
 	}
 	// otherwise the bot must have enough ammo so clear it
 	else
 	{
-		if (debug_actions)
-			ALERT(at_console, "*** need ammo flag has been removed\n");
+		if (botdebugger.IsDebugActions())
+			HudNotify("CheckAmmoReserves() -> need ammo flag has been removed\n", pBot);
 
 		pBot->RemoveNeed(NEED_AMMO);
 	}
@@ -2370,21 +2467,20 @@ int UTIL_BalanceTeams()
 
 
 /*
-* gets team diff from team_balance_value and calls "changeteam" to change team if needed
+* gets team diff from bot_manager and calls "changeteam" to change team if needed
 */
 int UTIL_DoTheBalance()
 {
-	extern int team_balance_value;
 	extern bool is_dedicated_server;
  
 	// if teams are already balanced
-	if (team_balance_value <= 0)
+	if (botmanager.GetTeamsBalanceValue() <= 0)
 	{
 #ifdef NDEBUG
 		UTIL_DebugInFile("UTIL | D_T_B | T_B_V\n");
 #endif
 #ifdef _DEBUG
-		UTIL_DebugDev("UTIL | DoTheBalance()->team_balance_value <= 0\n", -100, -100);
+		UTIL_DebugDev("UTIL | DoTheBalance()->teams balance value <= 0\n", -100, -100);
 #endif
 		return -128;
 	}
@@ -2398,17 +2494,17 @@ int UTIL_DoTheBalance()
 	switch (state)
 	{
 		case 0:
-			if (team_balance_value > 100)
+			if (botmanager.GetTeamsBalanceValue() > 100)
 			{
 				team = TEAM_RED;
-				int temp = team_balance_value;
+				int temp = botmanager.GetTeamsBalanceValue();
 				temp -= 100;
 				bots_to_go = temp;
 			}
 			else
 			{
 				team = TEAM_BLUE;
-				bots_to_go = team_balance_value;
+				bots_to_go = botmanager.GetTeamsBalanceValue();
 			}
 
 			state++;
@@ -2519,12 +2615,12 @@ int UTIL_DoTheBalance()
 	if (bots_to_go == 0)
 	{
 		if (is_dedicated_server)
-			PrintOutput(NULL, "team balancing finished\n", msg_info);
+			PrintOutput(NULL, "teams balancing finished\n", MType::msg_info);
 		else
-			PrintOutput(NULL, "Team balancing finished\n", msg_info);
+			PrintOutput(NULL, "Teams balancing finished\n", MType::msg_info);
 
 		// set those on last run
-		team_balance_value = 0;
+		botmanager.ResetTeamsBalanceValue();
 		state = 0;
 		bots_to_go = -1;
 
@@ -2702,36 +2798,118 @@ bool UTIL_CanMountSilencer(bot_t *pBot)
 
 /*
 * checks if bot can go/resume prone
-* if so do it and set the safety time to correctly do this action
+* if so then set the appropriate task
 */
-bool UTIL_GoProne(bot_t *pBot)
+bool UTIL_GoProne(bot_t *pBot, const char* loc)
 {
-	if ((pBot->f_go_prone_time < gpGlobals->time) && (pBot->f_cant_prone < gpGlobals->time))
+	if (!pBot->IsGoingProne() && !pBot->IsSubTask(ST_CANTPRONE) && !pBot->IsTask(TASK_BIPOD) &&
+		!pBot->IsBehaviour(BOT_DONTGOPRONE) && (pBot->weapon_action == W_READY))
 	{
-		FakeClientCommand(pBot->pEdict, "prone", NULL, NULL);
+		pBot->SetTask(TASK_GOPRONE);
 
-		pBot->f_go_prone_time = gpGlobals->time + 2.5;
+		
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+		if (loc != NULL)
+		{
+			char dm[256];
+			sprintf(dm, "%s Called UTIL_GoProne() @ %s\n", pBot->name, loc);
+			HudNotify(dm, true, pBot);
+		}
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
 
-		return TRUE;
+
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
 /*
 * clear all Stance flags first and then set the new one
 */
-void SetStanceByte(bot_t *pBot, int flag)
+void SetStance(bot_t *pBot, int flag, const char* loc)
 {
-	// if the bot already is in this Stance OR still changing the Stance, don't set new one
-	if ((pBot->bot_behaviour & flag) || (pBot->f_stance_changed_time > gpGlobals->time))
+	return SetStance(pBot, flag, false, loc);
+}
+
+
+/*
+* overloaded to allow forcing stance right after we just set one
+*/
+void SetStance(bot_t *pBot, int flag, bool is_forced_stance, const char* loc)
+{
+	// if the bot already is in this Stance OR using bipod OR still changing the Stance, don't set new one
+	if ((pBot->bot_behaviour & flag) || pBot->IsTask(TASK_BIPOD) || (pBot->f_bipod_time > gpGlobals->time) ||
+		((pBot->f_stance_changed_time > gpGlobals->time) && !is_forced_stance))
 		return;
 
+	if (flag & (BOT_STANDING | BOT_CROUCHED | BOT_PRONED))
+	{
+#ifdef DEBUG
+		UTIL_DebugInFile("util.cpp|SetStance() -> INVALID stance bit was sent !!!\n");
+#endif // DEBUG
+
+		return;
+	}
+
+
+#ifdef DEBUG
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
+	if (loc != NULL)
+	{
+		char dm[256];
+		sprintf(dm, "%s Called SetStance() @ %s\n", pBot->name, loc);
+		HudNotify(dm, true, pBot);
+	}
+	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#endif // DEBUG
+
+
+
+
+	// if we want the bot to go prone, but he cannot go prone at his current location ...
+	if ((flag & GOTO_PRONE) && pBot->IsSubTask(ST_CANTPRONE))
+	{
+
+
+
+#ifdef DEBUG
+		// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@							NEW CODE 094 (remove it)
+		char dm[256];
+		sprintf(dm, "%s - util.cpp|SetStance() GOTO PRONE && SubTask CANTPRONE -> Stance set to GOTO STANDING !!!\n", pBot->name);
+		HudNotify(dm, true, pBot);
+#endif // DEBUG
+
+
+
+
+		// then reset the stance back to standing
+		flag = GOTO_STANDING;
+	}
+
+
+	if (pBot->IsGoingProne())
+	{
+
+
+
+#ifdef DEBUG
+		char dm[256];
+		sprintf(dm, "%s - util.cpp|SetStance() -> called while going to/resume from prone !!!\n", pBot->name);
+		UTIL_DebugInFile(dm);
+#endif // DEBUG
+
+
+
+	}
+
 	// clear all flags
-	UTIL_ClearBit(BOT_PRONED, pBot->bot_behaviour);
-	UTIL_ClearBit(BOT_CROUCHED, pBot->bot_behaviour);
-	UTIL_ClearBit(BOT_STANDING, pBot->bot_behaviour);
+	UTIL_ClearBit(GOTO_PRONE, pBot->bot_behaviour);
+	UTIL_ClearBit(GOTO_CROUCH, pBot->bot_behaviour);
+	UTIL_ClearBit(GOTO_STANDING, pBot->bot_behaviour);
 
 #ifdef _DEBUG
 	if (pBot->is_forced)
@@ -2740,6 +2918,10 @@ void SetStanceByte(bot_t *pBot, int flag)
 
 	// and set new flag
 	pBot->bot_behaviour |= flag;
+
+	//																				NEW CODE 094
+	// we need to store the time when we changed stance and also adding short delay there
+	pBot->f_stance_changed_time = gpGlobals->time + 0.5f;
 
 	return;
 }
@@ -2776,35 +2958,36 @@ bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range)
 
 
 /*
-* removes all invalid paths ie path length = 1
-* returns total number of removed paths
-* if print_details is TRUE it also does print index of each removed path
+* removes all invalid paths (ie path length = 1) as well as tries to fix those which include invalid waypoints
+* returns total number of paths that has been either fixed or deleted
+* if print_details is TRUE it also does print index of each removed or fixed path
 */
 int UTIL_RemoveFalsePaths(bool print_details)
 {
 	int num_of_removed_paths = 0;
+	int result = 0;																					// NEW CODE 094
 	char msg[64];
 
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
-		// is path length equal 1 (that path is invalid)
+		//																								NEW CODE 094
+		// first remove all invalid waypoints from this path
+		result = WaypointValidatePath(path_index);
+		//******************************************************************************************	NEW CODE 094 END
+
+		// is path length equal 1 (then the whole path is invalid)
 		if (WaypointGetPathLength(path_index) == 1)
 		{
 			// delete that path
-			// I'm using WaypointDeletePath() because DeleteWholePath() isn't known
-			// outside waypoint.cpp
+			// I'm using WaypointDeletePath() because DeleteWholePath() isn't known outside waypoint.cpp
 			if (WaypointDeletePath(NULL, path_index))
 			{
-				extern int g_path_to_continue;
-				extern int g_path_last_wpt;
-
 				num_of_removed_paths++;
 
-				// if removing actual path clear also "pointers" on it
-				if (path_index == g_path_to_continue)
+				// if removing actual path then clear also "pointer" on it
+				if (path_index == internals.GetPathToContinue())
 				{
-					g_path_to_continue = -1;
-					g_path_last_wpt = -1;
+					internals.ResetPathToContinue();
 				}
 
 				if (print_details)
@@ -2812,8 +2995,36 @@ int UTIL_RemoveFalsePaths(bool print_details)
 					sprintf(msg, "Invalid path (path no. %d) was removed\n", path_index + 1);
 					HudNotify(msg);
 				}
+
+				// we must reset it in order to prevent printing wrong messages
+				// eg. "path no. 5 was removed" followed by "path no. 5 was repaired"
+				result = 0;																					// NEW CODE 094
 			}
 		}
+
+		//																								NEW CODE 094
+		// finally set correct return value based on the result
+		if (result == 1)
+		{
+			num_of_removed_paths++;
+
+			if (print_details)
+			{
+				sprintf(msg, "Invalid path (path no. %d) was repaired\n", path_index + 1);
+				HudNotify(msg);
+			}
+		}
+		else if (result == -1)
+		{
+			num_of_removed_paths += 600;		// there's max of 512 paths so this value is safe
+
+			if (print_details)
+			{
+				sprintf(msg, "Unable to repair invalid path (path no. %d)\n", path_index + 1);
+				HudNotify(msg);
+			}
+		}
+		//******************************************************************************************	NEW CODE 094 END
 	}
 
 	return num_of_removed_paths;
@@ -2830,13 +3041,14 @@ int UTIL_RemoveFalsePaths(bool print_details)
 int UTIL_CheckPathsForProblems(bool log_in_file)
 {
 	int num_of_problem_paths = 0;
+	const int max_problems = 10;		// prevents crashing the server due to overloading on a netchan
 	char msg[256];
 
 	// go through all paths ...
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
 		// look for a goback waypoint in one-way path
-		if (WaypointScanPathForProblem(path_index, path_one, wpt_goback))
+		if (WaypointScanPathForBadCombinationOfFlags(path_index, PathT::path_one, WptT::wpt_goback))
 		{
 			num_of_problem_paths++;
 
@@ -2844,8 +3056,12 @@ int UTIL_CheckPathsForProblems(bool log_in_file)
 			HudNotify(msg, log_in_file);
 		}
 
+		// if there are more problems than the given maximum we simply stop checking for more
+		if (num_of_problem_paths >= max_problems)
+			return num_of_problem_paths;
+
 		// look for a parachute waypoint in one-way path
-		if (WaypointScanPathForProblem(path_index, path_one, wpt_chute))
+		if (WaypointScanPathForBadCombinationOfFlags(path_index, PathT::path_one, WptT::wpt_chute))
 		{
 			num_of_problem_paths++;
 
@@ -2853,14 +3069,77 @@ int UTIL_CheckPathsForProblems(bool log_in_file)
 			HudNotify(msg, log_in_file);
 		}
 
+		if (num_of_problem_paths >= max_problems)
+			return num_of_problem_paths;
+
 		// look for invalid path ends ie. paths not ending at a cross waypoint or not ending at ammobox etc.
 		if (WaypointCheckInvalidPathEnd(path_index, log_in_file) > 0)
 			num_of_problem_paths++;
 
+		if (num_of_problem_paths >= max_problems)
+			return num_of_problem_paths;
+
 		// also report the invalid merge of paths 
-		if (WaypointCheckInvalidPathMerge(path_index, log_in_file) > 0)
+		//if (WaypointCheckInvalidPathMerge(path_index, log_in_file) > 0)								NEW CODE 094 (prev code)
+		//	num_of_problem_paths++;
+		
+		//																								NEW CODE 094
+		if (WaypointRepairInvalidPathMerge(path_index, false, log_in_file) > 0)
 			num_of_problem_paths++;
+
+		if (num_of_problem_paths >= max_problems)
+			return num_of_problem_paths;
+
+		// look for multiple addition of the same waypoint into this path
+		W_PATH *p = w_paths[path_index];
+
+		while (p)
+		{
+			W_PATH *rp = p->next;				// start on the next waypoint from this path ...
+			int stop = 0;
+
+			while (rp)
+			{
+				// go through the rest of the path and look for repeated addition of the same waypoint
+				if (rp->wpt_index == p->wpt_index)
+				{
+					num_of_problem_paths++;
+
+					sprintf(msg, "BUG: Waypoint no. %d has been added more than once to path no. %d.\n",
+						p->wpt_index + 1, path_index + 1);
+					HudNotify(msg, log_in_file);
+
+					if (num_of_problem_paths >= max_problems)
+						return num_of_problem_paths;
+				}
+
+				rp = rp->next;
+			}
+
+			p = p->next;
+		}
 	}
+
+	// now go through all waypoints and check for solitary waypoints (i.e. waypoints that aren't part of any path)
+	for (int wpt_index = 0; wpt_index < num_waypoints; wpt_index++)
+	{
+		// skip all waypoints that aren't allowed in paths
+		if (IsWaypoint(wpt_index, WptT::wpt_no) || IsWaypoint(wpt_index, WptT::wpt_aim) || IsWaypoint(wpt_index, WptT::wpt_cross))
+			continue;
+
+		// if we can't find any path on this waypoint then it must be solitary
+		if (FindPath(wpt_index) == -1)
+		{
+			num_of_problem_paths++;
+
+			sprintf(msg, "WARNING: Waypoint no. %d isn't part of any path. There should NOT be lone waypoints except for 'aim' and 'cross'.\n", wpt_index + 1);
+			HudNotify(msg, log_in_file);
+		}
+
+		if (num_of_problem_paths >= max_problems)
+			return num_of_problem_paths;
+	}
+	//**********************************************************************************************	NEW CODE 094 END
 
 	return num_of_problem_paths;
 }
@@ -2901,12 +3180,14 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict)
 
 /*
 * Overloaded to force just range changes without reposition
-* dont move is used to keep all or only certain waypoints in place (eg. when there are bandages right next to)
 */
 bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool dont_move)
 {
 	if (wpt_index != -1 && wpt_index < num_waypoints)
 	{
+		bool cant_move = false;			// to disable default reposition if we detect that the waypoint has a purpose
+										// (eg. when there are bandages right next to it)
+
 
 		// TODO: We should handle aiming and cross waypoints getting out of range
 		// when the master/nearby waypoint got repositioned
@@ -2936,7 +3217,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 			// if there are bandages right next to the waypoint then do not reposition it
 			if ((strcmp(STRING(pent->v.classname), "item_bandage") == 0))
 			{
-				dont_move = true;
+				cant_move = true;
 			}
 			
 			// check for door entity and make the waypoint a door waypoint if it is right in the doorway
@@ -2947,16 +3228,21 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 				waypoints[wpt_index].flags |= W_FL_DOOR;
 				waypoints[wpt_index].range = (float) 20;
 				
-				dont_move = true;
+				cant_move = true;
 			}
 		}
 
 		// do not reposition jump waypoints else the bots may not be able to move towards enemy/goal at all
 		if (waypoints[wpt_index].flags & (W_FL_DUCKJUMP | W_FL_JUMP))
-			dont_move = true;
+			cant_move = true;
 		
-		if (dont_move)
+		if (cant_move)
 			ALERT(at_console, "CANNOT REPOSITION WAYPOINT #%d IT COULD LOSE ITS PURPOSE!!!\n", wpt_index + 1);
+
+		// we've found that this waypoint has a purpose at its current position
+		// so we must prevent its reposition
+		if (cant_move && !dont_move)
+			dont_move = true;
 		
 		// init the new origin with the original waypoint position for the first run
 		new_origin = waypoints[wpt_index].origin;
@@ -3084,18 +3370,14 @@ int UTIL_GetLadderDir(bot_t *pBot)
 {
 	edict_t *pent = NULL;
 
-	while ((pent = UTIL_FindEntityInSphere(pent, pBot->pEdict->v.origin,
-			PLAYER_SEARCH_RADIUS)) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pBot->pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
 	{
 		if (strcmp("func_ladder", STRING(pent->v.classname)) == 0)
 		{
 			Vector ladder_origin = VecBModelOrigin(pent);
 
 #ifdef _DEBUG
-			extern bool debug_waypoints;
-			extern bool debug_paths;
-
-			if ((debug_waypoints) || (debug_paths))
+			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints())
 			{
 				ALERT(at_console, "LADDER - bot z-coord=%.1f | ladder z-coord=%.1f)\n",
 					(float) pBot->pEdict->v.origin.z, (float) ladder_origin.z);
@@ -3124,8 +3406,9 @@ bool UTIL_CheckForwardForBreakable(edict_t *pEdict)
 	TraceResult tr;
 				
 	UTIL_MakeVectors(pEdict->v.v_angle);
-	//v_src = pEdict->v.origin + pEdict->v.view_ofs;	prev code
-	v_src = pEdict->v.origin;	// sice if the brekable is a ventilation cover the head of the bot can be higher then the breakable itself
+	// we're using just origin here, because if the brekable is a ventilation cover the head of the bot
+	// can be higher then the breakable itself
+	v_src = pEdict->v.origin;
 	v_dest = v_src + gpGlobals->v_forward * 250;
 				
 	UTIL_TraceLine(v_src, v_dest, dont_ignore_monsters, pEdict, &tr);
@@ -3212,28 +3495,43 @@ bool UTIL_CheckForBreakableAround(bot_t *pBot)
 
 
 /*
-* returns 1 if bot should do any waypoint action that needs to press the "use"
-* returns 0 if bot should do any waypoint action without pressing the "use"
-* returns -1 if the bot didn't find anything but will hit the "use" key anyway
-* (it doesn't return this ->) returns -10 if bot shouldn't do any action
+* looks for any usable entity in the vicinity (e.g. button)
+* returns true if bot should do any waypoint action that needs pressing the 'use' key
+* returns fale if the bot didn't find anything, but we will hit the 'use' key anyway
+* (in case there's special entity set up on some custom map that works like a button and requires pressing 'use' key)
 */
-int UTIL_DoWaypointAction(bot_t *pBot)
+bool UTIL_CheckForUsablesAround(bot_t *pBot)
 {
-	extern bool debug_actions;
-
 	edict_t *pent = NULL;
 	char item_name[64];
 	Vector entity_origin;
+	float search_radius;//																			NEW CODE 094
+
+
+#ifdef DEBUG
+		//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+		char dbgmsg[256];
+		sprintf(dbgmsg, "%s - UTIL_CheckForUsables() called\n", pBot->name);
+		HudNotify(dbgmsg, pBot);
+#endif // DEBUG
+
+
 
 	edict_t *pEdict = pBot->pEdict;
 
+	// if we are at ammobox waypoint then we can extend the search radius, because ammoboxes can be used from
+	// greater distance than other entities such as a button for example
+	if (IsWaypoint(pBot->curr_wpt_index, WptT::wpt_ammobox))
+		search_radius = 96.0;
+	else
+		search_radius = PLAYER_SEARCH_RADIUS;
+
 	// search the surrounding for entities
-	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, search_radius)) != NULL)
 	{
 		strcpy(item_name, STRING(pent->v.classname));
 
-		if ((strcmp("ammobox", item_name) == 0) ||
-			(strcmp("momentary_rot_button", item_name) == 0))
+		if ((strcmp("ammobox", item_name) == 0) || (strcmp("momentary_rot_button", item_name) == 0))
 		{
 			// make vector to entity
 			Vector entity = pent->v.origin - pEdict->v.origin;
@@ -3250,12 +3548,12 @@ int UTIL_DoWaypointAction(bot_t *pBot)
 			BotFixIdealYaw(pEdict);
 
 			// print what we just found if needed
-			if (debug_actions)
+			if (botdebugger.IsDebugActions())
 			{
 				if (strcmp("ammobox", item_name) == 0)
-					ALERT(at_console, "Found ammobox\n");
+					HudNotify("Found ammobox\n", pBot);
 				else if (strcmp("momentary_rot_button", item_name) == 0)
-					ALERT(at_console, "Found m_rot_button (wheel)\n");
+					HudNotify("Found m_rot_button (wheel)\n", pBot);
 			}
 
 			// store the entity we found
@@ -3268,15 +3566,14 @@ int UTIL_DoWaypointAction(bot_t *pBot)
 			pBot->f_face_item_time = gpGlobals->time + 0.5;
 
 			// no need to continue in searching
-			return 1;
+			return true;
 		}
 
 		// use BModel conversion for entities that are BModels
 		// (ie. those entities have 0,0,0 as an origin value)
 		entity_origin = VecBModelOrigin(pent);
 
-		if ((strcmp("func_tankcontrols", item_name) == 0) ||
-			(strcmp("func_button", item_name) == 0) ||
+		if ((strcmp("func_tankcontrols", item_name) == 0) || (strcmp("func_button", item_name) == 0) ||
 			(strcmp("button_target", item_name) == 0))
 		{
 			Vector entity = entity_origin - pEdict->v.origin;
@@ -3289,14 +3586,14 @@ int UTIL_DoWaypointAction(bot_t *pBot)
 			pEdict->v.ideal_yaw = bot_angles.y;
 			BotFixIdealYaw(pEdict);
 
-			if (debug_actions)
+			if (botdebugger.IsDebugActions())
 			{
 				if (strcmp("func_tankcontrols", item_name) == 0)
-					ALERT(at_console, "Found TANK (mounted gun)\n");
+					HudNotify("Found TANK (mounted gun)\n", pBot);
 				else if (strcmp("func_button", item_name) == 0)
-					ALERT(at_console, "Found button\n");
+					HudNotify("Found button\n", pBot);
 				else if (strcmp("button_target", item_name) == 0)
-					ALERT(at_console, "Found button_target\n");
+					HudNotify("Found button_target\n", pBot);
 			}
 
 			pBot->pItem = pent;
@@ -3305,12 +3602,12 @@ int UTIL_DoWaypointAction(bot_t *pBot)
 			//		based on the difference of current view angle and angle to item
 			pBot->f_face_item_time = gpGlobals->time + 0.5;
 
-			return 0;
+			return true;
 		}
 	}
 
 	// didn't find anything but "press" the use key anyway
-	return -1;
+	return false;
 }
 
 
@@ -3320,7 +3617,6 @@ int UTIL_DoWaypointAction(bot_t *pBot)
 */
 bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 {
-	extern bool b_observer_mode;
 	edict_t *pEdict = pBot->pEdict;
 	float sensitivity;
 
@@ -3337,7 +3633,7 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 		return FALSE;
 
 	// don't react on observers
-	if ((b_observer_mode) && !(pWounded->v.flags & FL_FAKECLIENT))
+	if (botdebugger.IsObserverMode() && !(pWounded->v.flags & FL_FAKECLIENT))
 		return FALSE;
 
 	// if the bot is being used AND his user isn't the wounded one
@@ -3364,7 +3660,7 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 
 	if (distance < sensitivity)
 	{
-		// has the bot only last bandage keep it for yourself? or is there another can't do a
+		// has the bot only last 'keep it for yourself' bandage? or is there another can't do a
 		// medical treatment situation
 		// also if the bot has enemy AND the enemy is heavily hurt AND not a chance
 		// then ignore the call
@@ -3399,20 +3695,6 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 
 		UTIL_TraceLine(v_bothead, v_patient, ignore_monsters, pEdict, &tr);
 
-
-#ifdef _DEBUG
-		/*/
-		//@@@@@@@@@@@@@@@@@
-		ALERT(at_console, "tr %.2f (hitgr %d) (flPlaneDist %.2f)\n",
-			tr.flFraction, tr.iHitgroup, tr.flPlaneDist);
-		ALERT(at_console, "pHit (class %s) (net %s) (glob %s)\n",
-			STRING(tr.pHit->v.classname), STRING(tr.pHit->v.netname),
-			STRING(tr.pHit->v.globalname));
-		/**/
-#endif
-
-
-
 		// sees the bot the wounded soldier?
 		if ((tr.flFraction >= 1.0) ||
 			((tr.flFraction >= 0.95) && (strcmp("player", STRING(tr.pHit->v.classname)) == 0)))
@@ -3442,15 +3724,6 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 			// reset wait time
 			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
 
-
-#ifdef _DEBUG
-			//@@@@@@@@@@@@@
-			//ALERT(at_console, "***Have NEW PATIENT\n");
-#endif
-
-
-
-
 			// use text message to notify your patient
 			pBot->BotSpeak(SAY_MEDIC_HELP_YOU, STRING(pWounded->v.netname));
 
@@ -3479,21 +3752,10 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 	if (bot_team != player_team)
 		return FALSE;
 
-	// has the bot only last bandage keep it for yourself? AND is the bot able to help a teammate
-	if ((pBot->bot_bandages <= 1) ||
-		(pBot->sniping_time > gpGlobals->time) ||
+	// has the bot only last 'keep it for yourself' bandage? AND is the bot able to help a teammate
+	if ((pBot->bot_bandages <= 1) || (pBot->sniping_time > gpGlobals->time) ||
 		pBot->IsTask(TASK_BIPOD) || pBot->IsTask(TASK_USETANK))
 	{
-
-
-#ifdef _DEBUG
-		//@@@@@@@@@@@
-		//ALERT(at_console, "CANT help - no bandages or doing something else!!!\n");
-#endif
-
-
-
-
 		return FALSE;
 	}
 
@@ -3529,20 +3791,6 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 
 		UTIL_TraceLine(v_bothead, v_patient, ignore_monsters, pEdict, &tr);
 
-
-#ifdef _DEBUG
-		/*/
-		//@@@@@@@@@@@@@@@@@
-		ALERT(at_console, "util.cpp|Canmedevac() tr.flFrac %.2f\n", tr.flFraction);
-		/*
-		ALERT(at_console, "tr %.2f (hitgr %d) (flPlaneDist %.2f)\n",
-			tr.flFraction, tr.iHitgroup, tr.flPlaneDist);
-		ALERT(at_console, "pHit (class %s) (net %s) (glob %s)\n",
-			STRING(tr.pHit->v.classname), STRING(tr.pHit->v.netname),
-			STRING(tr.pHit->v.globalname));
-		/**/
-#endif
-
 		if ((tr.flFraction >= 1.0) ||
 			((tr.flFraction >= 0.95) && (strcmp("bodyque", STRING(tr.pHit->v.classname)) == 0)))
 		{			
@@ -3563,11 +3811,6 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 
 			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
 
-#ifdef _DEBUG
-			//@@@@@@@@@@@@@
-			//ALERT(at_console, "***Have NEW CORPSE\n");
-#endif
-
 			return TRUE;
 		}
 	}
@@ -3586,30 +3829,12 @@ bool UTIL_PatientNeedsTreatment(edict_t *pPatient)
 	// ignore the patient if he's under water
 	if (pPatient->v.waterlevel == 3)
 	{
-
-
-		#ifdef _DEBUG
-			//@@@@@@@@@@@@@
-			//ALERT(at_console, "***PATIENT is underwater - can't heal him\n");
-		#endif
-
-
-
 		return FALSE;
 	}
 
 	// this edict is a bot AND is already bandaging self so there's no need to help him
 	if ((bot_index != -1) && (bots[bot_index].bandage_time >= gpGlobals->time))
 	{
-
-
-		#ifdef _DEBUG
-			//@@@@@@@@@@@@@
-			//ALERT(at_console, "***PATIENT isn't bleeding\n");
-		#endif
-
-
-
 		return FALSE;
 	}
 
@@ -3666,12 +3891,12 @@ char *strlwr(char *str)
 */
 bool IsStringValid(char *str)
 {
-	if ((str != NULL) && (strlen(str) > 3) && (strchr(str, '<') == NULL) &&
-		(strchr(str, '>') == NULL) && (strchr(str, '{') == NULL) && (strchr(str, '}') == NULL) &&
-		(strchr(str, '[') == NULL) && (strchr(str, ']') == NULL) && (strchr(str, '(') == NULL) &&
-		(strchr(str, ')') == NULL) && (strchr(str, '+') == NULL) && (strchr(str, '=') == NULL) &&
-		(strchr(str, '_') == NULL) && (strchr(str, '|') == NULL) && (strchr(str, '~') == NULL) &&
-		(strchr(str, '*') == NULL) && (strchr(str, '/') == NULL) && (strchr(str, '\\') == NULL))
+	if ((str != NULL) && (strlen(str) > 3) && (strstr(str, "<") == NULL) &&
+		(strstr(str, ">") == NULL) && (strstr(str, "{") == NULL) && (strstr(str, "}") == NULL) &&
+		(strstr(str, "[") == NULL) && (strstr(str, "]") == NULL) && (strstr(str, "(") == NULL) &&
+		(strstr(str, ")") == NULL) && (strstr(str, "+") == NULL) && (strstr(str, "=") == NULL) &&
+		(strstr(str, "_") == NULL) && (strstr(str, "|") == NULL) && (strstr(str, "~") == NULL) &&
+		(strstr(str, "*") == NULL) && (strstr(str, "/") == NULL) && (strstr(str, "\\") == NULL))
 		return TRUE;
 
 	return FALSE;
@@ -3784,6 +4009,7 @@ void ShortenIt(char *name)
 	char temp_name[BOT_NAME_LEN];
 
 	strncpy(temp_name, name, 4);
+	temp_name[4] = '\0';//																	NEW CODE 094
 	strcpy(name, temp_name);
 	name[4] = '\0';
 	strcat(name, "...");
@@ -3800,93 +4026,17 @@ void UTIL_HumanizeTheName(const char* original_name, char *name)
 	if (original_name != NULL)
 		strncpy(name, original_name, BOT_NAME_LEN);
 	
-	// just in case anything went wrong
-	if (name == NULL)
-		strcpy(name, "you");
+	// just in case something went wrong
+	//if (name == NULL)//																NEW CODE 094 (prev code)
+	//	strcpy(name, "you");
+	if (name[0] == '\0')//																NEW CODE 094
+		strcpy(name, "man");
 
 	// remove clantags and pick only a part of the original nick
 	ProcessTheName(name);
-	// additional check to catch nicks that weren't shortened enought
+	// additional check to catch nicks that weren't shortened enough
 	ShortenIt(name);
 }
-
-
-
-#ifdef _DEBUG
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TEMP: ONLY A TEST !!!!!!!!!!!!!!!!!
-void Test(char *name)
-{
-	if (strlen(name) > 6)
-	{
-		char temp_name[BOT_NAME_LEN];
-		char *useful_part;
-		char *seperators = " <>)([]}{+=_~*|";
-
-		strrev(name);		
-		useful_part = strtok(name, seperators);
-
-		if (IsStringValid(useful_part))
-		{
-			int len = strlen(useful_part);
-
-			if ((isalnum(useful_part[len-1])) == FALSE)
-				useful_part[len-1] = '\0';
-
-			strcpy(temp_name, useful_part);
-
-			if (isalnum(temp_name[0]))
-			{
-				strcpy(name, strrev(temp_name));
-				return;
-			}
-			else
-			{
-				strcpy(name, &temp_name[1]);
-				strrev(name);
-				return;
-			}
-		}
-		else
-		{
-			int safety_stop = 0;
-			while ((useful_part = strtok(NULL, seperators)) != NULL)
-			{
-				if (IsStringValid(useful_part))
-				{
-					int len = strlen(useful_part);
-					
-					if ((isalnum(useful_part[len-1])) == FALSE)
-						useful_part[len-1] = '\0';
-					
-					strcpy(temp_name, useful_part);
-					
-					if (isalnum(temp_name[0]))
-					{
-						strcpy(name, strrev(temp_name));
-						return;
-					}
-					else
-					{
-						strcpy(name, &temp_name[1]);
-						strrev(name);
-						return;
-					}
-				}
-
-				if (safety_stop > 10)
-				{
-					strcpy(name, "you");
-					return;
-				}
-
-				safety_stop++;
-			}
-
-			strrev(name);
-		}
-	}
-}
-#endif
 
 
 /*
@@ -3907,7 +4057,7 @@ bool IsOfficialWpt(const char *waypointer)
 * prints info message to appropriate output using given format
 * length of the message is limited
 */
-void PrintOutput(edict_t *pEdict, char *message, MESSAGE_TYPE msg_type)
+void PrintOutput(edict_t *pEdict, char *message, MType msg_type)
 {
 	char output[1024];
 	extern bool is_dedicated_server;
@@ -3922,16 +4072,16 @@ void PrintOutput(edict_t *pEdict, char *message, MESSAGE_TYPE msg_type)
 	{
 		switch (msg_type)
 		{
-			case msg_null:
+			case MType::msg_null:
 				sprintf(output, "%s", message);
 				break;
-			case msg_info:
+			case MType::msg_info:
 				sprintf(output, "MARINE_BOT INFO - %s", message);
 				break;
-			case msg_warning:
+			case MType::msg_warning:
 				sprintf(output, "MARINE_BOT WARNING - %s", message);
 				break;
-			case msg_error:
+			case MType::msg_error:
 				sprintf(output, "MARINE_BOT ERROR - %s", message);
 				break;
 			default:
@@ -3974,11 +4124,29 @@ void EchoConsole(const char *message)
 */
 void HudNotify(char *msg)
 {
-	//extern edict_t *listenserver_edict;
+#ifdef DEBUG																			// NEW CODE 094 (remove it)
 
-	//if (listenserver_edict)
-	//	ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
+	HudNotify(msg, true);
+
+#else
+
+	
 	HudNotify(msg, false);
+#endif // DEBUG
+}
+
+
+void HudNotify(char* msg, bot_t* pBot)
+{
+#ifdef DEBUG																			// NEW CODE 094 (remove it)
+
+	HudNotify(msg, true, pBot);
+
+#else
+
+
+	HudNotify(msg, false, pBot);
+#endif // DEBUG
 }
 
 
@@ -3989,12 +4157,114 @@ void HudNotify(char *msg, bool islogging)
 {
 	extern edict_t *listenserver_edict;
 
+	if (msg == NULL)
+		return;
+
+#ifdef DEBUG																	// NEW CODE 094 (remove it)
+
+	if (islogging && (gpGlobals->time > 10.0))
+	{
+		char extram[256];
+		//sprintf(extram, "%s\n forcedusage=%d | weaponaction=%d | currWid=%d | currWclip=%d | currWisactive=%d\n",
+		//	msg, bots[0].forced_usage, bots[0].weapon_action, bots[0].current_weapon.iId, bots[0].current_weapon.iClip, bots[0].current_weapon.isActive);
+		sprintf(extram, "%s", msg);
+
+		UTIL_DebugInFile(extram);
+	}
+
+#else
+
+
+	// write it into file first, because this way if something goes wrong we should have the last event logged in file
+	if (islogging)
+		UTIL_DebugInFile(msg);
+
+
+#endif // DEBUG
+
+	// engine printing to hud notify area can only accept 128 characters including the terminating one
+	// so we must cut the message here to prevent the overflow
+	// otherwise the console won't format the text correctly (new line character is missing)
+	
+	int length = strlen(msg);
+	if (length > 127)
+	{
+		msg[126] = '\n';
+		msg[127] = '\0';
+	}
+
+	if (listenserver_edict)
+		ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
+}
+
+
+void HudNotify(char *msg, bool islogging, bot_t *pBot)
+{
+	extern edict_t *listenserver_edict;
+
+	if (msg == NULL)
+		return;
+
+#ifdef DEBUG																	// NEW CODE 094
+
+	extern edict_t* g_debug_bot;
+	extern bool g_debug_bot_on;
+
+	// if we are debugging one specific bot and this isn't him
+	// then quit and don't print anything
+	if (g_debug_bot_on && (g_debug_bot != pBot->pEdict))
+		return;
+
+
+	if (msg != NULL)
+	{
+		static char last_msg[256] = "";
+
+		if (strcmp(msg, last_msg) != 0)
+		{
+			char extram[256];
+			//sprintf(extram, "%s\n%s\n forcedusage=%d | weaponaction=%d | currWid=%d | currWclip=%d | health=%d | botclass=%d\n",
+			//	pBot->name, msg, pBot->forced_usage, pBot->weapon_action, pBot->current_weapon.iId,
+			//	pBot->current_weapon.iClip, pBot->bot_health, pBot->bot_class);
+			sprintf(extram, "(%s)%s", pBot->name, msg);
+
+			UTIL_DebugInFile(extram);
+
+			strcpy(last_msg, msg);
+
+			int length = strlen(msg);
+			if (length > 127)
+			{
+				msg[126] = '\n';
+				msg[127] = '\0';
+			}
+
+			if (listenserver_edict)
+				ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
+		}
+	}
+
+#else
+
+
+	// write it into file first, because this way if something goes wrong we should have the last event logged in file
+	if (islogging)
+		UTIL_DebugInFile(msg);
+
+	int length = strlen(msg);
+	if (length > 127)
+	{
+		msg[126] = '\n';
+		msg[127] = '\0';
+	}
+
 	if (listenserver_edict)
 		ClientPrint(listenserver_edict, HUD_PRINTNOTIFY, msg);
 
-	if (islogging)
-		UTIL_DebugInFile(msg);
+#endif // DEBUG
+
 }
+
 
 
 /*
@@ -4042,7 +4312,11 @@ void UTIL_DebugInFile(char *msg)
 	fprintf(f, "***new record(time:%f)(map:%s)***\n", gpGlobals->time, STRING(gpGlobals->mapname));
 	fprintf(f, msg);
 	fprintf(f, "\n");
+#ifndef DEBUG
 	fprintf(f, "***record end***\n\n");
+#else
+	fprintf(f, "\n");
+#endif // !DEBUG
 
 	fclose(f);
 }
@@ -4053,6 +4327,8 @@ void UTIL_DebugInFile(char *msg)
 */
 void UTIL_DebugDev(char *msg, int wpt, int path)
 {
+#ifdef DEBUG
+
 	FILE *f;
 
 	// doesn't the debug file exist yet?
@@ -4098,6 +4374,8 @@ void UTIL_DebugDev(char *msg, int wpt, int path)
 	fclose(f);
 
 	ALERT(at_console, "\n***EVENT SEND TO DEBUG FILE***\n");
+
+#endif // DEBUG
 }
 
 
