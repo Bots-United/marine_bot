@@ -3891,12 +3891,12 @@ char *strlwr(char *str)
 */
 bool IsStringValid(char *str)
 {
-	if ((str != NULL) && (strlen(str) > 3) && (strstr(str, "<") == NULL) &&
-		(strstr(str, ">") == NULL) && (strstr(str, "{") == NULL) && (strstr(str, "}") == NULL) &&
-		(strstr(str, "[") == NULL) && (strstr(str, "]") == NULL) && (strstr(str, "(") == NULL) &&
-		(strstr(str, ")") == NULL) && (strstr(str, "+") == NULL) && (strstr(str, "=") == NULL) &&
-		(strstr(str, "_") == NULL) && (strstr(str, "|") == NULL) && (strstr(str, "~") == NULL) &&
-		(strstr(str, "*") == NULL) && (strstr(str, "/") == NULL) && (strstr(str, "\\") == NULL))
+	if ((str != NULL) && (strlen(str) > 3) && (strchr(str, '<') == NULL) &&
+		(strchr(str, '>') == NULL) && (strchr(str, '{') == NULL) && (strchr(str, '}') == NULL) &&
+		(strchr(str, '[') == NULL) && (strchr(str, ']') == NULL) && (strchr(str, '(') == NULL) &&
+		(strchr(str, ')') == NULL) && (strchr(str, '+') == NULL) && (strchr(str, '=') == NULL) &&
+		(strchr(str, '_') == NULL) && (strchr(str, '|') == NULL) && (strchr(str, '~') == NULL) &&
+		(strchr(str, '*') == NULL) && (strchr(str, '/') == NULL) && (strchr(str, '\\') == NULL))
 		return TRUE;
 
 	return FALSE;

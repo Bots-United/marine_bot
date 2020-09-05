@@ -27,7 +27,7 @@ BASEFLAGS = -Dstricmp=strcasecmp -Dstrcmpi=strcasecmp
 
 CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -mmmx -msse -msse2 -mfpmath=387 -m32 \
 	-Wall -w \
-	-I. -I./Config -I../engine -I../common -I../pm_shared -I../dlls -I../public
+	-I. -I./Config -I./engine -I./common -I./pm_shared -I./dlls -I./public
 
 OBJ = bot.o bot_client.o bot_combat.o bot_manager.o bot_navigate.o \
 	bot_start.o client_commands.o dll.o engine.o h_export.o linkfunc.o \

@@ -2476,7 +2476,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 1:
 					// GOOD, offset a little for x, y, and z
-					if (hs_percentage > 66)
+					if (hs_percentage > 50)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
@@ -2486,7 +2486,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
-					if (hs_percentage > 80)
+					if (hs_percentage > 66)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
@@ -2496,7 +2496,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 3:
 					// POOR, offset for x, y, and z
-					if (hs_percentage > 90)
+					if (hs_percentage > 75)
 						target = target_origin + target_head;
 					else
 						target = target_origin;

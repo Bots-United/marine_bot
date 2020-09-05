@@ -21,7 +21,7 @@
 #ifndef MB_DEFINES_H
 #define MB_DEFINES_H
 
-#include <string.h>
+#include <cstring>
 
 // Marine Bot source code is compatible with original HL SDK v2.3 by default,
 // but by setting this flag the source code will compile even under new HL SDK by Allied Modders
@@ -51,8 +51,8 @@ typedef unsigned char			BYTE;
 // needed for the 4 engine functions in original HL SDK v2.3 that are different on Linux
 // to actually pass through the compilation on Linux ... weird, maybe I'm just missing something
 #if !defined ( NEWSDKAM ) && !defined ( NEWSDKVALVE ) && !defined ( NEWSDKMM ) && !defined ( WIN32 )
-typedef long int					int32;
-typedef unsigned long int			uint32;
+typedef int					int32;
+typedef unsigned int			uint32;
 #endif
 
 

@@ -97,9 +97,9 @@ edict_t *g_debug_bot = NULL;	// pointer on a single bot we want to debug (not al
 bool g_debug_bot_on = FALSE;	// do we debug a single bot?
 
 #ifdef NOFAMAS
-char mb_version_info[32] = "0.94b_noFamas";
+char mb_version_info[32] = "0.94b_noFamas-[APG]";
 #else
-char mb_version_info[32] = "0.94b";		// holds MarineBot version string
+char mb_version_info[32] = "0.94b-[APG]";		// holds MarineBot version string
 #endif
 
 // Marine Bot doesn't use these yet and most probably will never spam the game with these
@@ -1349,10 +1349,10 @@ void StartFrame( void )
 						spawn_time_reset = TRUE;
 
 						if (respawn_time >= 1.0)
-							respawn_time = min(respawn_time, gpGlobals->time + (float)1.0);
+							respawn_time = std::min(respawn_time, gpGlobals->time + (float)1.0);
 
 						if (bot_cfg_pause_time >= 1.0)
-							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
+							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
 					}
 				}
 			}
