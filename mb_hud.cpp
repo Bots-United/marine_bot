@@ -62,7 +62,8 @@ static short FixedSigned16( float value, float scale )
 * creates a HUD text message
 * the maximal length of the text is 512 chars because of engine limitation
 */
-void FullCustHudMessage(edict_t *pEntity, const char *msg_name, int channel, int pos_x, int pos_y, int gfx, Vector color1, Vector color2, int brightness, float fade_in, float fade_out, float duration)
+void FullCustHudMessage(edict_t* pEntity, const char* msg_name, int channel, int pos_x, int pos_y, int gfx,
+                        const Vector color1, const Vector color2, int brightness, float fade_in, float fade_out, float duration)
 {
 	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, pEntity);
 	WRITE_BYTE( TE_TEXTMESSAGE);
@@ -140,7 +141,7 @@ void StdHudMessageToAll(const char *msg_name, int gfx, int time)
 /*
 * displays a HUD message where user can specify also color of the message
 */
-void CustHudMessage(edict_t *pEntity, const char *msg_name, Vector color1 , Vector color2, int gfx, int time)
+void CustHudMessage(edict_t *pEntity, const char *msg_name, const Vector color1, const Vector color2, int gfx, int time)
 {
 	if (internals.GetHUDMessageTime() < gpGlobals->time)
 		FullCustHudMessage(pEntity, msg_name, 3, 1, 0, gfx, color1, color2, 200, 0.03, 1.0, time);
@@ -150,7 +151,7 @@ void CustHudMessage(edict_t *pEntity, const char *msg_name, Vector color1 , Vect
 /*
 * sends the custom HUD message to all real clients (ie. not to bots)
 */
-void CustHudMessageToAll(const char *msg_name, Vector color1, Vector color2, int gfx, int time)
+void CustHudMessageToAll(const char *msg_name, const Vector color1, const Vector color2, int gfx, int time)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
