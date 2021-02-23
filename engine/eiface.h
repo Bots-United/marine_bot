@@ -167,7 +167,11 @@ typedef struct enginefuncs_s
 	void		(*pfnCVarSetString)			(const char *szVarName, const char *szValue);
 	void		(*pfnAlertMessage)			(ALERT_TYPE atype, char *szFmt, ...);
 	void		(*pfnEngineFprintf)			(void *pfile, char *szFmt, ...);
-	void*		(*pfnPvAllocEntPrivateData)	(edict_t *pEdict, int32 cb);
+#ifdef __linux__
+	void* (*pfnPvAllocEntPrivateData)	(edict_t* pEdict, int32 cb);
+#elif _WIN32
+	void*		(*pfnPvAllocEntPrivateData)	(edict_t* pEdict, long cb);
+#endif
 	void*		(*pfnPvEntPrivateData)		(edict_t *pEdict);
 	void		(*pfnFreeEntPrivateData)	(edict_t *pEdict);
 	const char*	(*pfnSzFromIndex)			(int iString);
@@ -182,8 +186,18 @@ typedef struct enginefuncs_s
 	int			(*pfnRegUserMsg)			(const char *pszName, int iSize);
 	void		(*pfnAnimationAutomove)		(const edict_t* pEdict, float flTime);
 	void		(*pfnGetBonePosition)		(const edict_t* pEdict, int iBone, float *rgflOrigin, float *rgflAngles );
+	
+#ifdef __linux__
 	uint32 (*pfnFunctionFromName)	( const char *pName );
+#elif _WIN32
+	unsigned long (*pfnFunctionFromName)	(const char* pName);
+#endif
+
+#ifdef __linux__
 	const char *(*pfnNameForFunction)		( uint32 function );
+#elif _WIN32
+	const char* (*pfnNameForFunction)		(unsigned long function);
+#endif
 	void		(*pfnClientPrintf)			( edict_t* pEdict, PRINT_TYPE ptype, const char *szMsg ); // JOHN: engine callbacks so game DLL can print messages to individual clients
 	void		(*pfnServerPrint)			( const char *szMsg );
 	const char *(*pfnCmd_Args)				( void );		// these 3 added 
@@ -194,7 +208,11 @@ typedef struct enginefuncs_s
 	void        (*pfnCRC32_ProcessBuffer)   (CRC32_t *pulCRC, void *p, int len);
 	void		(*pfnCRC32_ProcessByte)     (CRC32_t *pulCRC, unsigned char ch);
 	CRC32_t		(*pfnCRC32_Final)			(CRC32_t pulCRC);
+#ifdef __linux__
 	int32		(*pfnRandomLong)			(int32  lLow,  int32  lHigh);
+#elif _WIN32
+	long		(*pfnRandomLong)			(long  lLow, long  lHigh);
+#endif
 	float		(*pfnRandomFloat)			(float flLow, float flHigh);
 	void		(*pfnSetView)				(const edict_t *pClient, const edict_t *pViewent );
 	float		(*pfnTime)					( void );

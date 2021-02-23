@@ -54,7 +54,7 @@ extern int whine_count;
 
 static FILE *fp;
 
-bot_t *bots = NULL;   // no bots in a game yet
+bot_t *bots = nullptr;   // no bots in a game yet
 
 float bot_t::harakiri_moment = 0.0;
 
@@ -74,7 +74,7 @@ void BotFindItem( bot_t *pBot );
 bool IsBleeding(edict_t *pPatient);
 bool BotHealTeammate(bot_t *pBot);
 bool BotCheckMidAir(edict_t *pEdict);
-void BotCheckSkillSystem(void);
+void BotCheckSkillSystem();
 void BotSelectBackupWeapon(bot_t *pBot);
 void BotSelectKnife(bot_t *pBot);
 
@@ -104,12 +104,12 @@ inline void SET_CLIENT_KEY_VALUE( int clientIndex, char *infobuffer,
 // this is the LINK_ENTITY_TO_CLASS function that creates a player (bot)
 void player( entvars_t *pev )
 {
-	static LINK_ENTITY_FUNC otherClassName = NULL;
+	static LINK_ENTITY_FUNC otherClassName = nullptr;
 
-	if (otherClassName == NULL)
+	if (otherClassName == nullptr)
 		otherClassName = (LINK_ENTITY_FUNC)GetProcAddress(h_Library, "player");
 
-	if (otherClassName != NULL)
+	if (otherClassName != nullptr)
 	{
 		(*otherClassName)(pev);
 	}
@@ -119,7 +119,7 @@ bot_t::bot_t()
 {
 		is_used			= false;
 		respawn_state	=0;
-		pEdict			= NULL;
+		pEdict			= nullptr;
 		need_to_initialize = false;
 		name[0]			= '\0';
 		clan_tag		= 0;
@@ -131,7 +131,7 @@ bot_t::bot_t()
 		aim_skill		= 0;
 		bot_team		= NO_VAL;
 		bot_class		= NO_VAL;
-		pcust_class		= NULL;
+		pcust_class		= nullptr;
 		bot_skin		= NO_VAL;
 		bot_behaviour	= 0;
 		idle_angle		= 0.0;
@@ -191,7 +191,7 @@ void bot_t::BotSpawnInit()
 	v_prev_origin = Vector(9999.0, 9999.0, 9999.0);
 	f_dontmove_time = gpGlobals->time;
 
-	pItem = NULL;
+	pItem = nullptr;
 	f_face_item_time = 0.0;
 
 	wpt_origin = g_vecZero;//Vector(0, 0, 0);
@@ -256,16 +256,16 @@ void bot_t::BotSpawnInit()
 	else
 		wander_dir = SIDE_RIGHT;
 
-	pBotEnemy = NULL;
+	pBotEnemy = nullptr;
 	f_bot_see_enemy_time = 0.0;	// set it to zero to prevent "area clear" after spawn (at least for now)
 	f_bot_find_enemy_time = gpGlobals->time;
-	pBotPrevEnemy = NULL;
+	pBotPrevEnemy = nullptr;
 	f_bot_wait_for_enemy_time = gpGlobals->time;
 	v_last_enemy_position = g_vecZero;//Vector(0, 0, 0);
 	f_prev_enemy_dist = 0.0;
 	f_reaction_time = 0.0;
 
-	pBotUser = NULL;
+	pBotUser = nullptr;
 	f_bot_use_time = 0.0;
 //	b_bot_say_killed = FALSE;
 //	f_bot_say_killed = 0.0;
@@ -355,23 +355,20 @@ void bot_t::BotSpawnInit()
 /*
 * reads names from external file and puts them to global array of bot names
 */
-void BotNameInit( void )
+void BotNameInit()
 {
-	FILE *bot_name_fp;
 	char bot_name_filename[256];
-	int str_index;
 	char name_buffer[80];
-	int length, index;
 
-	UTIL_MarineBotFileName(bot_name_filename, "marine_dog-tags.txt", NULL);
+	UTIL_MarineBotFileName(bot_name_filename, "marine_dog-tags.txt", nullptr);
 
-	bot_name_fp = fopen(bot_name_filename, "r");
+	FILE* bot_name_fp = fopen(bot_name_filename, "r");
 
-	if (bot_name_fp != NULL)
+	if (bot_name_fp != nullptr)
 	{
-		while ((number_names < MAX_BOT_NAMES) && (fgets(name_buffer, 80, bot_name_fp) != NULL))
+		while ((number_names < MAX_BOT_NAMES) && (fgets(name_buffer, 80, bot_name_fp) != nullptr))
 		{
-			length = strlen(name_buffer);
+			int length = strlen(name_buffer);
 
 			// handle commented lines in the file (skip them)
 			if (name_buffer[0] == '#')
@@ -383,13 +380,13 @@ void BotNameInit( void )
 				length--;
 			}
 
-			str_index = 0;
+			int str_index = 0;
 			while (str_index < length)
 			{
 				if ((name_buffer[str_index] < ' ') || (name_buffer[str_index] > '~') ||
 					(name_buffer[str_index] == '"'))
 				{
-					for (index=str_index; index < length; index++)
+					for (int index = str_index; index < length; index++)
 						name_buffer[index] = name_buffer[index+1];
 				}
 
@@ -415,14 +412,12 @@ void BotNameInit( void )
 */
 void BotPickName( char *name_buffer )
 {
-	int name_index;
-	bool used;
 	int attempts = 0;
 
-	name_index = RANDOM_LONG(1, number_names) - 1;  // zero based
+	int name_index = RANDOM_LONG(1, number_names) - 1;  // zero based
 
 	// check make sure this name isn't used
-	used = TRUE;
+	bool used = TRUE;
 
 	while (used)
 	{
@@ -447,7 +442,7 @@ void BotPickName( char *name_buffer )
 				if (pPlayer && !pPlayer->free)
 				{
 					// check if the name is part of this client's name
-					if (strstr(STRING(pPlayer->v.netname), bot_names[name_index].name) != NULL)
+					if (strstr(STRING(pPlayer->v.netname), bot_names[name_index].name) != nullptr)
 					{
 						// we found that another bot uses this name so set correct flag
 						bot_names[name_index].is_used = TRUE;
@@ -507,22 +502,18 @@ bool BotCreate( edict_t *pPlayer, const std::string &s_arg1, const std::string &
 bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
                 const char *arg3, const char *arg4, const char *arg5)
 {
-	edict_t *BotEnt;
-	bot_t *pBot;
 	char c_name[BOT_NAME_LEN+1];
-	int skill;
-	int i, j, length;
 	bool found = FALSE;
 
 	// general initialization
 	c_name[0] = 0;
-	skill = 1;
+	int skill = 1;
 
 	if (mod_id == FIREARMS_DLL)
 	{
 		skill = 0;
 
-		if ((arg4 != NULL) && (*arg4 != 0))
+		if ((arg4 != nullptr) && (*arg4 != 0))
 			skill = atoi(arg4);
 
 		if ((skill < 1) || (skill > 5))
@@ -535,7 +526,7 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 				skill = externals.GetSpawnSkill();
 		}
 
-		if ((arg5 != NULL) && (*arg5 != 0))
+		if ((arg5 != nullptr) && (*arg5 != 0))
 		{
 			strncpy( c_name, arg5, BOT_NAME_LEN-1 );
 			c_name[BOT_NAME_LEN] = 0;  // make sure c_name is null terminated
@@ -549,22 +540,22 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 		}
 	}
 
-	length = strlen(c_name);
+	int length = strlen(c_name);
 
 	// remove any illegal characters from name
-	for (i = 0; i < length; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if ((c_name[i] < ' ') || (c_name[i] > '~') ||
 			(c_name[i] == '"'))
 		{
-			for (j = i; j < length; j++)  // shuffle chars left (and null)
+			for (int j = i; j < length; j++)  // shuffle chars left (and null)
 				c_name[j] = c_name[j+1];
 
 			length--;
 		}         
 	}
 
-	BotEnt = CREATE_FAKE_CLIENT( c_name );
+	edict_t* BotEnt = CREATE_FAKE_CLIENT(c_name);
 
 	if (FNullEnt( BotEnt ))
 	{
@@ -578,13 +569,10 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 	else
 	{
 		char ptr[128];  // allocate space for message from ClientConnect
-		char *infobuffer;
-		int clientIndex;
-		int index;
 
 		PrintOutput(pPlayer, "Creating MarineBot...\n", MType::msg_null);
 
-		index = 0;
+		int index = 0;
 		while ((bots[index].is_used) && (index < MAX_CLIENTS))
 			index++;
 
@@ -600,14 +588,14 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 
 		// kick & rejoin bug - a fix by Pierre-Marie Baty
 		FREE_PRIVATE (BotEnt);
-		BotEnt->pvPrivateData = NULL;
+		BotEnt->pvPrivateData = nullptr;
 		BotEnt->v.frags = 0;
 		// a fix by Pierre-Marie Baty end
 
 		player( VARS(BotEnt) );
 
-		infobuffer = GET_INFOBUFFER( BotEnt );
-		clientIndex = ENTINDEX( BotEnt );
+		char* infobuffer = GET_INFOBUFFER(BotEnt);
+		const int clientIndex = ENTINDEX(BotEnt);
 
 		SET_CLIENT_KEY_VALUE( clientIndex, infobuffer, "model", "gina" );
 
@@ -624,7 +612,7 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 
 		// initialize all the variables for this bot
 
-		pBot = &bots[index];
+		bot_t* pBot = &bots[index];
 
 		pBot->is_used = TRUE;
 		pBot->respawn_state = RESPAWN_IDLE;
@@ -666,22 +654,22 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 		pBot->bot_fa_skill = 0;
 		pBot->round_end = FALSE;
 
-		pBot->pcust_class = NULL;
+		pBot->pcust_class = nullptr;
 		for (int ii=0; ii<ROUTE_LENGTH; ++ii) {	// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 			pBot->point_list[ii] = -1;			// Because I don't like that system in FA. For deathmatch it's great, but FA is different
 		}
 
 		if (mod_id == FIREARMS_DLL)
 		{
-			if ((arg1 != NULL) && (arg1[0] != 0))
+			if ((arg1 != nullptr) && (arg1[0] != 0))
 			{
 				pBot->bot_team = atoi(arg1);
 
-				if ((arg2 != NULL) && (arg2[0] != 0))
+				if ((arg2 != nullptr) && (arg2[0] != 0))
 				{
 					pBot->bot_class = atoi(arg2);
 
-					if ((arg3 != NULL) && (*arg3 != 0))
+					if ((arg3 != nullptr) && (*arg3 != 0))
 					{
 						pBot->bot_skin = atoi(arg3);
 					}
@@ -699,9 +687,9 @@ bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
 */
 bool IsEntityInSphere(const char* entity_name, edict_t *pEdict, float radius)
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 
-	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, radius )) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, radius )) != nullptr)
 	{
 		char item_name[64];
 		strcpy(item_name, STRING(pent->v.classname));
@@ -738,13 +726,13 @@ bool BotEntityIsVisible( bot_t *pBot, Vector dest )
 */
 void BotFindItem( bot_t *pBot )
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 	char item_name[40];
 	Vector vecStart, vecEnd;
 	int angle_to_entity;
 	edict_t *pEdict = pBot->pEdict;
 	
-	while ((pent = UTIL_FindEntityInSphere( pent, pEdict->v.origin, FIND_ITEM_RADIUS )) != NULL)
+	while ((pent = UTIL_FindEntityInSphere( pent, pEdict->v.origin, FIND_ITEM_RADIUS )) != nullptr)
 	{
 		strcpy(item_name, STRING(pent->v.classname));
 
@@ -777,7 +765,7 @@ void BotFindItem( bot_t *pBot )
 
 					// the best bots don't fail to spot it much, but worse bots
 					// have higher chance not to see this mine
-					int chance_to_miss = 95 - (pBot->bot_skill * 5);
+					const int chance_to_miss = 95 - (pBot->bot_skill * 5);
 
 					// like if the bot didn't see it
 					if (RANDOM_LONG(1, 100) > chance_to_miss)
@@ -823,8 +811,8 @@ void BotFindItem( bot_t *pBot )
 				if ((pent->v.solid == SOLID_NOT) && (pent->v.movetype == MOVETYPE_FOLLOW))
 					continue;
 
-				int grenade_team = UTIL_GetTeam(pent);
-				int bot_team = UTIL_GetTeam(pEdict);
+				const int grenade_team = UTIL_GetTeam(pent);
+				const int bot_team = UTIL_GetTeam(pEdict);
 				
 				// ignore grenades thrown by your teammate or unknown grenades
 				// even if it might save lifes in certain cases (ie. TKs)
@@ -863,8 +851,8 @@ void BotFindItem( bot_t *pBot )
 				if ((pent->v.solid == SOLID_NOT) && (pent->v.movetype == MOVETYPE_FOLLOW))
 					continue;
 
-				int grenade_team = UTIL_GetTeam(pent);
-				int bot_team = UTIL_GetTeam(pEdict);
+				const int grenade_team = UTIL_GetTeam(pent);
+				const int bot_team = UTIL_GetTeam(pEdict);
 				
 				if ((grenade_team == bot_team) || (grenade_team == TEAM_NONE))
 					continue;
@@ -908,7 +896,7 @@ void bot_t::BotSpeak(int msg_type, const char *target)
 	// store the time the bot said something
 	text_msg_time = gpGlobals->time;
 
-	int choice = RANDOM_LONG(1, 100);
+	const int choice = RANDOM_LONG(1, 100);
 	char msg[128];
 	char name[BOT_NAME_LEN];
 	name[0] = '\0';
@@ -986,20 +974,18 @@ void bot_t::CheckMedicGuildTag()
 	if ((bot_fa_skill & (FAID | MEDIC)) && !(clan_tag & NAMETAG_MEDGUILD))
 	{
 		char change_name[32];
-		char *infobuffer;
-		int clientIndex;
 
 		clan_tag |= NAMETAG_MEDGUILD;
 
 		// if the MedicGuild sign isn't set yet change bot's name
-		if (strstr(name, "}+{") == NULL)
+		if (strstr(name, "}+{") == nullptr)
 		{
 			strcpy(change_name, name);
 			strcat(change_name, "}+{");
 
 			player(VARS(pEdict));
-			infobuffer = GET_INFOBUFFER(pEdict);
-			clientIndex = ENTINDEX(pEdict);
+			char* infobuffer = GET_INFOBUFFER(pEdict);
+			const int clientIndex = ENTINDEX(pEdict);
 
 			SET_CLIENT_KEY_VALUE(clientIndex, infobuffer, "name", change_name);
 
@@ -1012,18 +998,16 @@ void bot_t::CheckMedicGuildTag()
 	if (!(clan_tag & NAMETAG_DONE) && !(bot_fa_skill & (FAID | MEDIC)))
 	{
 		char change_name[32];
-		char *infobuffer;
-		int clientIndex;
 
 		// if there's MedicGuild tag remove it
 		if (clan_tag & NAMETAG_MEDGUILD)
 			clan_tag &= ~NAMETAG_MEDGUILD;
 
 		strcpy(change_name, name);
-		int length = strlen(change_name);
+		const int length = strlen(change_name);
 
 		// check if the "}+{" sign is in bot's name
-		if (strstr(name, "}+{") != NULL)
+		if (strstr(name, "}+{") != nullptr)
 		{
 			strcpy(change_name, name);
 			// remove the "}+{" sign from bot's name
@@ -1031,8 +1015,8 @@ void bot_t::CheckMedicGuildTag()
 			change_name[length - 3] = '\0';
 
 			player(VARS(pEdict));
-			infobuffer = GET_INFOBUFFER(pEdict);
-			clientIndex = ENTINDEX(pEdict);
+			char* infobuffer = GET_INFOBUFFER(pEdict);
+			const int clientIndex = ENTINDEX(pEdict);
 
 			SET_CLIENT_KEY_VALUE(clientIndex, infobuffer, "name", change_name);
 
@@ -1059,7 +1043,7 @@ void bot_t::BotDoMedEvac(float distance)
 	if (f_medic_treat_time > gpGlobals->time)
 	{
 		SetDontCheckStuck("Bot do MedEvac() -> doing treatment");
-		FakeClientCommand(pEdict, "useskill", "treat", NULL);
+		FakeClientCommand(pEdict, "useskill", "treat", nullptr);
 
 		return;
 	}
@@ -1069,7 +1053,7 @@ void bot_t::BotDoMedEvac(float distance)
 	{
 		SetDontCheckStuck("Bot do MedEvac() -> finishing it");
 		RemoveTask(TASK_HEALHIM);
-		pBotEnemy = NULL;
+		pBotEnemy = nullptr;
 		
 		RemoveTask(TASK_MEDEVAC);
 		RemoveSubTask(ST_MEDEVAC_DONE);
@@ -1184,13 +1168,13 @@ bool BotHealTeammate(bot_t *pBot)
 	pBot->SetDontCheckStuck("Bot HealTeammate()");
 	pBot->f_dont_look_for_waypoint_time = gpGlobals->time;
 
-	float distance = (pBot->pBotEnemy->v.origin - pEdict->v.origin).Length();
+	const float distance = (pBot->pBotEnemy->v.origin - pEdict->v.origin).Length();
 
 	// if the wounded teammate is close enough to start the treatment
 	if (((distance < 75) && (UTIL_IsOldVersion() == FALSE)) || ((distance < 50) && UTIL_IsOldVersion()))
 	{
 		edict_t *pWounded = pBot->pBotEnemy;
-		int skill = pBot->bot_skill;
+		const int skill = pBot->bot_skill;
 
 		float delay[BOT_SKILL_LEVELS] = {0.0, 0.2, 0.5, 0.9, 1.5};
 
@@ -1201,8 +1185,8 @@ bool BotHealTeammate(bot_t *pBot)
 		pBot->move_speed = SPEED_NO;	// don't move while treatment
 
 		// handle the false healing
-		int player_team = UTIL_GetTeam(pWounded);
-		int bot_team = UTIL_GetTeam(pEdict);
+		const int player_team = UTIL_GetTeam(pWounded);
+		const int bot_team = UTIL_GetTeam(pEdict);
 
 		if (bot_team != player_team)
 		{
@@ -1236,14 +1220,14 @@ bool BotHealTeammate(bot_t *pBot)
 		if ((pWounded->v.flags & FL_PRONED) && (!(pEdict->v.flags & FL_DUCKING)))
 			return TRUE;
 
-		Vector v_patient = pWounded->v.origin - pEdict->v.origin;
-		Vector bot_angles = UTIL_VecToAngles(v_patient);
+		const Vector v_patient = pWounded->v.origin - pEdict->v.origin;
+		const Vector bot_angles = UTIL_VecToAngles(v_patient);
 		
 		pEdict->v.ideal_yaw = bot_angles.y;
 		BotFixIdealYaw(pEdict);
 
-		float bots_head = pEdict->v.origin.z + pEdict->v.view_ofs.z;
-		float patients_head = pWounded->v.origin.z + pWounded->v.view_ofs.z;
+		const float bots_head = pEdict->v.origin.z + pEdict->v.view_ofs.z;
+		const float patients_head = pWounded->v.origin.z + pWounded->v.view_ofs.z;
 
 		// is patient under the bot? so aim a bit down
 		if (bots_head > patients_head)
@@ -1267,7 +1251,7 @@ bool BotHealTeammate(bot_t *pBot)
 				;
 			// otherwise try to treat the wounded soldier
 			else
-				FakeClientCommand(pEdict, "useskill", "treat", NULL);
+				FakeClientCommand(pEdict, "useskill", "treat", nullptr);
 			
 			return TRUE;
 		}
@@ -1321,7 +1305,7 @@ bool BotHealTeammate(bot_t *pBot)
 			if ((pBot->bot_bandages > 7) ||
 				((pBot->bot_bandages > 4) && (RANDOM_LONG(1, 100) <= 25)))
 			{
-				FakeClientCommand(pEdict, "useskill", "givebandage", NULL);
+				FakeClientCommand(pEdict, "useskill", "givebandage", nullptr);
 
 				pBot->f_medic_treat_time = gpGlobals->time +
 					RANDOM_FLOAT(0.8, 1.3) + delay[skill];
@@ -1338,7 +1322,7 @@ bool BotHealTeammate(bot_t *pBot)
 		// stop the whole treatment
 		else if (pBot->IsSubTask(ST_HEALED))
 		{
-			pBot->pBotEnemy = NULL;
+			pBot->pBotEnemy = nullptr;
 			pBot->RemoveTask(TASK_HEALHIM);
 			// don't shoot healed teammate in next few seconds
 			pBot->f_shoot_time = gpGlobals->time + 0.2;
@@ -1398,7 +1382,7 @@ bool BotCheckMidAir(edict_t *pEdict)
 /*
 * sets the correct move speed based on the speed flag stored in bot structure
 */
-float bot_t::BotSetSpeed()
+float bot_t::BotSetSpeed() const
 {
 	float tmp_move_speed = f_max_speed;
 
@@ -1499,7 +1483,7 @@ void bot_t::BotPressFireToRespawn()
 	}
 
 	// respawn with the same gear
-	FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+	FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 	//if (botdebugger.IsDebugActions())
 	//	ALERT(at_console, "***BotRespawn called\n");
@@ -1781,13 +1765,13 @@ void bot_t::FacepItem(void)
 		return;
 
 	// no pItem?
-	if (pItem == NULL)
+	if (pItem == nullptr)
 	{
 		// scan surrounding for some breakables
 		UTIL_CheckForBreakableAround(this);
 
 		// still no pItem?
-		if (pItem == NULL)
+		if (pItem == nullptr)
 		{
 #ifdef _DEBUG
 			char msg[256];
@@ -1828,8 +1812,8 @@ void bot_t::FacepItem(void)
 	if (IsSubTask(ST_RANDOMCENTRE))
 		entity_origin = entity_origin + Vector((RANDOM_LONG(1, 10) - 5), (RANDOM_LONG(1, 10) - 5), (RANDOM_LONG(1, 10) - 5));
 
-	Vector entity = entity_origin - (pEdict->v.origin + pEdict->v.view_ofs);
-	Vector bot_angles = UTIL_VecToAngles(entity);
+	const Vector entity = entity_origin - (pEdict->v.origin + pEdict->v.view_ofs);
+	const Vector bot_angles = UTIL_VecToAngles(entity);
 
 	pEdict->v.idealpitch = -bot_angles.x;
 	BotFixIdealPitch(pEdict);
@@ -1908,7 +1892,7 @@ void bot_t::TargetAimWaypoint(const char* loc)
 	}
 
 
-	int local_wpt = curr_wpt_index;
+	const int local_wpt = curr_wpt_index;
 
 	if (local_wpt == -1)
 	{
@@ -2051,8 +2035,8 @@ void bot_t::TargetAimWaypoint(const char* loc)
 		//if (targeting_stop >= 50)															NEW CODE 094 (prev code)
 		if (targeting_stop >= 250)//														NEW CODE 094
 		{
-			Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
-			Vector aim_angles = UTIL_VecToAngles(v_aim);			
+			const Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
+			const Vector aim_angles = UTIL_VecToAngles(v_aim);			
 			pEdict->v.ideal_yaw = aim_angles.y;
 			BotFixIdealYaw(pEdict);
 
@@ -2090,8 +2074,8 @@ void bot_t::TargetAimWaypoint(const char* loc)
 			// face current aim waypoint
 			if (f_aim_at_target_time > gpGlobals->time)
 			{
-				Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
-				Vector aim_angles = UTIL_VecToAngles(v_aim);
+				const Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
+				const Vector aim_angles = UTIL_VecToAngles(v_aim);
 
 				pEdict->v.ideal_yaw = aim_angles.y;
 				BotFixIdealYaw(pEdict);
@@ -2172,7 +2156,7 @@ void bot_t::TargetAimWaypoint(const char* loc)
 		// otherwise just turn towards it
 		else
 		{
-			Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
+			const Vector v_aim = waypoints[curr_aim_index].origin - waypoints[curr_wpt_index].origin;
 			Vector aim_angles = UTIL_VecToAngles(v_aim);
 				
 			// some off-set
@@ -2333,9 +2317,9 @@ void bot_t::BotWaitHere()
 		if (FInNarrowViewCone(&v_door, pEdict, 0.95))
 		{
 			UTIL_MakeVectors(pEdict->v.v_angle);
-			
-			Vector v_src = pEdict->v.origin + pEdict->v.view_ofs;
-			Vector v_dest = v_src + gpGlobals->v_forward * 70;
+
+			const Vector v_src = pEdict->v.origin + pEdict->v.view_ofs;
+			const Vector v_dest = v_src + gpGlobals->v_forward * 70;
 			
 			TraceResult tr;
 			UTIL_TraceLine( v_src, v_dest, ignore_monsters, pEdict->v.pContainingEntity, &tr);
@@ -2390,8 +2374,8 @@ void bot_t::BotWaitHere()
 		// otherwise do face it
 		else
 		{
-			Vector door_angle = v_door - pEdict->v.origin;
-			Vector bot_angles = UTIL_VecToAngles(door_angle);
+			const Vector door_angle = v_door - pEdict->v.origin;
+			const Vector bot_angles = UTIL_VecToAngles(door_angle);
 			
 			pEdict->v.ideal_yaw = bot_angles.y;
 			BotFixIdealYaw(pEdict);
@@ -3011,13 +2995,13 @@ void bot_t::BotThink()
 	{
 		// the bot is in red team
 		// but the bot_team still says something else than red team
-		if ((strstr(STRING(pEdict->v.model), "red1") != NULL) &&
+		if ((strstr(STRING(pEdict->v.model), "red1") != nullptr) &&
 			(bot_team != TEAM_RED))
 			bot_team = TEAM_RED;
 
 		// the bot is in blue team
 		// but the bot_team still says something else than blue team
-		if ((strstr(STRING(pEdict->v.model), "blue1") != NULL) &&
+		if ((strstr(STRING(pEdict->v.model), "blue1") != nullptr) &&
 			(bot_team != TEAM_BLUE))
 			bot_team = TEAM_BLUE;
 	}
@@ -3071,7 +3055,7 @@ void bot_t::BotThink()
 	// if lost clear view for current enemy AND if NOT on ladder)
 	// ignoreall completely skips this part -> we're ignoring everything
 	if ((f_sound_update_time <= gpGlobals->time) && (botdebugger.IsIgnoreAll() == FALSE) && 
-		((pBotEnemy == NULL) || ((pBotEnemy) && (f_bot_wait_for_enemy_time >= gpGlobals->time))) &&
+		((pBotEnemy == nullptr) || ((pBotEnemy) && (f_bot_wait_for_enemy_time >= gpGlobals->time))) &&
 		(pEdict->v.movetype != MOVETYPE_FLY))
 	{
 		int ind;
@@ -3357,10 +3341,10 @@ void bot_t::BotThink()
 					if (RANDOM_LONG(1, 100) <= 45)
 						pBotEnemy = BotFindEnemy();
 					else
-						pBotEnemy = NULL;
+						pBotEnemy = nullptr;
 
 					// found the bot an enemy
-					if (pBotEnemy != NULL)
+					if (pBotEnemy != nullptr)
 					{
 						// in most of the time detonate the mine even if bot isn't in safe distance
 						if (RANDOM_LONG(1, 100) <= 75)
@@ -3381,15 +3365,15 @@ void bot_t::BotThink()
 		}
 		else
 		{
-			pBotEnemy = NULL;  // clear enemy pointer (no ememy for you!)
+			pBotEnemy = nullptr;  // clear enemy pointer (no ememy for you!)
 		}
 
 		// has the bot NO enemy
 		// this must be before the combat statement, it's special "clearing" section
-		if (pBotEnemy == NULL)
+		if (pBotEnemy == nullptr)
 		{
 			// does the bot use any sniper rifle AND has scope on AND NOT at shoot waypoint
-			if ((pEdict->v.fov != NO_ZOOM) && (f_shoot_time < gpGlobals->time) && (pItem == NULL) &&
+			if ((pEdict->v.fov != NO_ZOOM) && (f_shoot_time < gpGlobals->time) && (pItem == nullptr) &&
 				(IsWaypoint(curr_wpt_index, WptT::wpt_fire) == FALSE))//									NEW CODE 094 (bug fix)
 			{
 				if (UTIL_IsSniperRifle(current_weapon.iId))
@@ -3461,7 +3445,7 @@ void bot_t::BotThink()
 		}
 
 		// does an enemy exist?
-		else if (pBotEnemy != NULL)
+		else if (pBotEnemy != nullptr)
 		{
 			// should the bot heal one of teammates
 			if (IsTask(TASK_HEALHIM))
@@ -3479,7 +3463,7 @@ void bot_t::BotThink()
 					else
 					{
 						RemoveTask(TASK_HEALHIM);
-						pBotEnemy = NULL;
+						pBotEnemy = nullptr;
 
 						RemoveTask(TASK_MEDEVAC);
 						RemoveSubTask(ST_MEDEVAC_DONE);
@@ -3492,7 +3476,7 @@ void bot_t::BotThink()
 				else if (pBotEnemy->v.health >= pBotEnemy->v.max_health)
 				{
 					RemoveTask(TASK_HEALHIM);
-					pBotEnemy = NULL;
+					pBotEnemy = nullptr;
 				}
 				else
 				{
@@ -3503,7 +3487,7 @@ void bot_t::BotThink()
 						if (BotHealTeammate(this) == FALSE)
 						{
 							// player is healed, null the pointer
-							pBotEnemy = NULL;							
+							pBotEnemy = nullptr;							
 							// stop healing behaviour
 							RemoveTask(TASK_HEALHIM);
 							// remove the healed flag
@@ -3514,7 +3498,7 @@ void bot_t::BotThink()
 					else
 					{
 						RemoveTask(TASK_HEALHIM);
-						pBotEnemy = NULL;
+						pBotEnemy = nullptr;
 					}
 				}
 			}
@@ -3583,7 +3567,7 @@ void bot_t::BotThink()
 		}
 
 		// is the bot being "used" and can still follow "user"?
-		else if (pBotUser != NULL)
+		else if (pBotUser != nullptr)
 		{
 			if (BotFollowTeammate(this) == TRUE)
 			{
@@ -3758,7 +3742,7 @@ void bot_t::BotThink()
 			edict_t *pBreakable = UTIL_FindEntityInSphere(pEdict, "func_breakable");
 
 			// no breakable object around, remove this task
-			if ((pBreakable == NULL) || (pBreakable->v.health <= 0) || (pBreakable->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
+			if ((pBreakable == nullptr) || (pBreakable->v.health <= 0) || (pBreakable->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
 			{
 				RemoveTask(TASK_BREAKIT);
 				SetDontCheckStuck("bot think()|TaskBreakIt -> no breakable object around", 0.0);
@@ -3820,7 +3804,7 @@ void bot_t::BotThink()
 			do_action = false;
 
 			// don't have any item yet so see which entities are around
-			if (pItem == NULL)
+			if (pItem == nullptr)
 			{
 				if (botdebugger.IsDebugActions())
 					HudNotify("Bot has no item yet. Going to check for it now...\n", this);
@@ -3897,7 +3881,7 @@ void bot_t::BotThink()
 			if (IsSubTask(ST_FACEITEM_DONE))
 			{
 				// handle eventual crash bug
-				if (pItem == NULL)
+				if (pItem == nullptr)
 				{
 					// log it
 					char msg[256];
@@ -4104,7 +4088,7 @@ void bot_t::BotThink()
 
 			// reload second m11 in FA25
 			else if ((current_weapon.iId == fa_weapon_m11) && (current_weapon.iAttachment == 0) &&
-				(current_weapon.iAmmo2 > 0) && (pBotEnemy == NULL) && (f_shoot_time < gpGlobals->time) &&
+				(current_weapon.iAmmo2 > 0) && (pBotEnemy == nullptr) && (f_shoot_time < gpGlobals->time) &&
 				(f_reload_time < gpGlobals->time) && (bot_spawn_time + 5.0f < gpGlobals->time) &&
 				(wpt_action_time < gpGlobals->time))
 			{
@@ -4328,7 +4312,7 @@ void bot_t::BotThink()
 		// if the bot has enemy and there's a dangerous depth in front of the bot then stop
 		// we check both far and close distance to make sure that there really isn't even a
 		// narrow pit/gap, once one is true then we stop the bot
-		if ((pBotEnemy != NULL) && (IsDeathFall(pEdict) || IsForwardBlocked(this)))
+		if ((pBotEnemy != nullptr) && (IsDeathFall(pEdict) || IsForwardBlocked(this)))
 		{
 			move_speed = SPEED_NO;
 			SetDontMoveTime(1.0);
@@ -4612,7 +4596,7 @@ void bot_t::BotThink()
 			}
 
 			// if the bot is beeing "used" AND is very close to user then just stop
-			else if ((pBotUser != NULL) && ((pEdict->v.origin - pBotUser->v.origin).Length() < 150))
+			else if ((pBotUser != nullptr) && ((pEdict->v.origin - pBotUser->v.origin).Length() < 150))
 			{
 				move_speed = SPEED_NO;
 
@@ -4794,7 +4778,7 @@ void bot_t::BotThink()
 					HudNotify("***Start bandage treatment\n", this);
 
 				// so use bandages (ie start bandage treatment)
-				FakeClientCommand(pEdict, "usebandage", NULL, NULL);
+				FakeClientCommand(pEdict, "usebandage", nullptr, nullptr);
 
 				// based on tests in FA 3.0 bandaging takes 4.2 seconds,
 				// but we are going to set a little longer delay to successfully finish the treatment
@@ -4932,7 +4916,7 @@ void bot_t::BotThink()
 	// is the bot forced to sprint and has no enemy and is not reloading weapon
 	// (ie. we can't shoot while sprinting so when the bot has an enemy we can't set these two
 	// otherwise the bot won't be able to shoot his weapon, and we can't reload as well)
-	else if (IsTask(TASK_SPRINT) && (pBotEnemy == NULL) && (f_reload_time < gpGlobals->time) &&
+	else if (IsTask(TASK_SPRINT) && (pBotEnemy == nullptr) && (f_reload_time < gpGlobals->time) &&
 		(current_weapon.iId != fa_weapon_claymore))
 	{
 		// both must be set, because bot doesn't use in_forward normally
@@ -4974,7 +4958,7 @@ void bot_t::BotThink()
 			SetDontCheckStuck("bot think() -> bot is using TANK");
 
 			// the bot is already facing the gun and has no enemy at the moment
-			if ((f_face_item_time < gpGlobals->time) && (pBotEnemy == NULL))
+			if ((f_face_item_time < gpGlobals->time) && (pBotEnemy == nullptr))
 			{
 				// the bot has been told to use the tank only for given time
 				// and the time is over now
@@ -5025,11 +5009,11 @@ void bot_t::BotThink()
 				else
 				{
 					// search func_tank entity if the bot hasn't one yet
-					if (pItem == NULL)
+					if (pItem == nullptr)
 					{
-						edict_t *pent = NULL;
+						edict_t *pent = nullptr;
 						
-						while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, 100)) != NULL)
+						while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, 100)) != nullptr)
 						{
 							if (strcmp("func_tank", STRING(pent->v.classname)) == 0)
 								pItem = pent;
@@ -5081,7 +5065,7 @@ void bot_t::BotThink()
 	// is some time after waypoint action AND TANK is NOT used
 	if (IsTask(TASK_WPTACTION) && (wpt_action_time + 0.5 < gpGlobals->time) && !IsTask(TASK_USETANK))
 	{
-		pItem = NULL;					// no item
+		pItem = nullptr;					// no item
 		RemoveTask(TASK_WPTACTION);		// clear it
 		RemoveSubTask(ST_FACEITEM_DONE);
 		RemoveSubTask(ST_BUTTON_USED);
@@ -5105,9 +5089,9 @@ void bot_t::BotThink()
 	}
 
 	// clear the item pointer once the bot doesn't need it
-	if ((pItem != NULL) && !IsTask(TASK_WPTACTION) && !IsTask(TASK_USETANK) && (wpt_wait_time + 0.5 < gpGlobals->time))
+	if ((pItem != nullptr) && !IsTask(TASK_WPTACTION) && !IsTask(TASK_USETANK) && (wpt_wait_time + 0.5 < gpGlobals->time))
 	{
-		pItem = NULL;					// no item
+		pItem = nullptr;					// no item
 		RemoveSubTask(ST_RANDOMCENTRE);
 
 		if (botdebugger.IsDebugActions())
@@ -5117,7 +5101,7 @@ void bot_t::BotThink()
 	// if next waypoint isn't sniper waypoint AND the bot has no enemy
 	// clear the don't move flag (ie bot is allowed to move in next combat)
 	if (IsTask(TASK_DONTMOVEINCOMBAT) && (wpt_wait_time < gpGlobals->time) && !IsWaypoint(curr_wpt_index, WptT::wpt_sniper) &&
-		(pBotEnemy == NULL))
+		(pBotEnemy == nullptr))
 	{
 		RemoveTask(TASK_DONTMOVEINCOMBAT);
 
@@ -5329,7 +5313,7 @@ void bot_t::BotThink()
 	if (IsBehaviour(BOT_DONTGOPRONE) && (weapon_action == W_READY) && (IsTask(TASK_BIPOD) == false) &&
 		(f_bipod_time < gpGlobals->time) && (f_pause_time < gpGlobals->time) &&
 		(IsGoingProne() == false) && (IsSubTask(ST_CANTPRONE) == false) &&
-		((pBotEnemy == NULL) || (pBotEnemy && ((pBotEnemy->v.origin - pEdict->v.origin).Length() > 1000.0f))))
+		((pBotEnemy == nullptr) || (pBotEnemy && ((pBotEnemy->v.origin - pEdict->v.origin).Length() > 1000.0f))))
 	{
 		// then it's time to remove such behaviour
 		RemoveBehaviour(BOT_DONTGOPRONE);
@@ -5467,7 +5451,7 @@ void bot_t::BotThink()
 
 
 		// call the client command
-		FakeClientCommand(pEdict, "prone", NULL, NULL);
+		FakeClientCommand(pEdict, "prone", nullptr, nullptr);
 
 		// store the moment when the bot called the command
 		f_go_prone_time = gpGlobals->time;

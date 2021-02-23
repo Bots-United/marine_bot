@@ -54,7 +54,7 @@ class Section {
     public:
 	Section() {};
 	~Section();
-	std::string getVal(const std::string key) const;
+	std::string getVal(std::string key) const;
 	SectionList sectionList;
 	std::map<std::string, std::string>	item;
 };
@@ -79,7 +79,7 @@ struct ParserParam {
     Section *root_p;
     const std::string *value_ptr;
     Section *sect_ptr;
-    ParserParam() { value_ptr = NULL; sect_ptr = NULL; root_p = NULL; }
+    ParserParam() { value_ptr = nullptr; sect_ptr = nullptr; root_p = nullptr; }
 };
 
 Section * parceConfig(char *confFileName);
@@ -109,7 +109,7 @@ class SetupBaseType_uint : public SetupBaseType {
     public:
 	SetupBaseType_uint(unsigned int &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = (unsigned int) strtoul(str_val.c_str(), NULL, 10);
+	    val = (unsigned int) strtoul(str_val.c_str(), nullptr, 10);
 	}
 };
 
@@ -129,7 +129,7 @@ class SetupBaseType_ushort : public SetupBaseType {
     public:
 	SetupBaseType_ushort(unsigned short &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = (unsigned short) strtoul(str_val.c_str(), NULL, 10);
+	    val = (unsigned short) strtoul(str_val.c_str(), nullptr, 10);
 	}
 };
 
@@ -139,7 +139,7 @@ class SetupBaseType_long : public SetupBaseType {
     public:
 	SetupBaseType_long(long &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = strtol(str_val.c_str(), NULL, 10);
+	    val = strtol(str_val.c_str(), nullptr, 10);
 	}
 };
 
@@ -149,7 +149,7 @@ class SetupBaseType_ulong : public SetupBaseType {
     public:
 	SetupBaseType_ulong(unsigned long &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = strtoul(str_val.c_str(), NULL, 10);
+	    val = strtoul(str_val.c_str(), nullptr, 10);
 	}
 };
 
@@ -159,7 +159,7 @@ class SetupBaseType_double : public SetupBaseType {
     public:
 	SetupBaseType_double(double &c_val) : val(c_val) {}
 	void set(std::string &str_val) {
-	    val = strtod(str_val.c_str(), NULL);
+	    val = strtod(str_val.c_str(), nullptr);
 	}
 };
 
@@ -210,7 +210,7 @@ class SetupRow {
       }
       ~SetupRow() {
           delete val_converter;
-	  val_converter = NULL;
+	  val_converter = nullptr;
       }
 };
 
@@ -232,10 +232,9 @@ class SetupVars {
 	    var_row.push_back(new SetupRow(key, sbt, fatality, default_val));
 	}
 	void Set(const Section *sect) {
-	    std::string conf_value;
-	    for (size_t i=0; i<var_row.size(); ++i) {
+		for (size_t i=0; i<var_row.size(); ++i) {
 		try {
-		    conf_value = sect->getVal(var_row[i]->key);
+		    std::string conf_value = sect->getVal(var_row[i]->key);
 		    var_row[i]->val_converter->set(conf_value);
 		} catch (...) {
 		    if (var_row[i]->fatality == true) { 

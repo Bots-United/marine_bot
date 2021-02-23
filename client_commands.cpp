@@ -241,7 +241,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		total_clients = 0;
 		for (int i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (clients[i].pEntity != NULL)
+			if (clients[i].pEntity != nullptr)
 				total_clients++;
 		}
 
@@ -258,7 +258,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			botmanager.SetBotCheckTime(gpGlobals->time + 0.5);
 
 			// check if there is specified bot ammount to add (i.e. "arg filling")
-			if ((arg1 != NULL) && (*arg1 != 0))
+			if ((arg1 != nullptr) && (*arg1 != 0))
 			{
 				int temp = atoi(arg1);
 
@@ -327,7 +327,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 				sprintf(msg, "error - probably no blue bots\n");
 			}
 		}
-		else if ((arg1 == NULL) || (*arg1 == 0))	// no arg then kick random bot
+		else if ((arg1 == nullptr) || (*arg1 == 0))	// no arg then kick random bot
 		{
 			if (UTIL_KickBot(-100))
 			{
@@ -848,7 +848,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 
 		const char* texture = g_engfuncs.pfnTraceTexture(tr.pHit, vecStart, vecEnd);
 
-		if (texture == NULL)
+		if (texture == nullptr)
 			sprintf(msg, "unable to get the texture name or you are too far!\n");
 		else
 			sprintf(msg, "the name of the texture in front is \"%s\"\n", texture);
@@ -1134,7 +1134,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			int wpt_index;
 
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				wpt_index = atoi(arg2);
 				// due to array based style
@@ -1179,9 +1179,9 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "save"))		// store waypoint data to the file
 		{
-			if (WaypointSave(NULL))
+			if (WaypointSave(nullptr))
 			{
-				if (WaypointPathSave(NULL))
+				if (WaypointPathSave(nullptr))
 				{
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoints and paths were successfully saved\n");
 					PlaySoundConfirmation(pEntity, SND_DONE);
@@ -1202,7 +1202,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "load"))		// load waypoints
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				char temp[64];
 
@@ -1226,11 +1226,11 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else
 			{
-				if (WaypointLoad(pEntity, NULL) > 0)
+				if (WaypointLoad(pEntity, nullptr) > 0)
 				{
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoints loaded\n");
 
-					if (WaypointPathLoad(pEntity, NULL) > 0)
+					if (WaypointPathLoad(pEntity, nullptr) > 0)
 					{
 						ClientPrint(pEntity, HUD_PRINTNOTIFY, "paths loaded\n");
 						PlaySoundConfirmation(pEntity, SND_DONE);
@@ -1361,7 +1361,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			{
 				PlaySoundConfirmation(pEntity, SND_DONE);
 
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 					sprintf(msg, "priority changed to NO priority!\n");
 				else
 					sprintf(msg, "both priorities changed to NO priority!\nWARNING - this waypoint is ignored by all bots!\n");
@@ -1377,7 +1377,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			{
 				PlaySoundConfirmation(pEntity, SND_DONE);
 
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 					sprintf(msg, "priority changed to %d\n", result);
 				else
 					sprintf(msg, "both priorities changed to %d\n", result);
@@ -1423,7 +1423,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			{
 				PlaySoundConfirmation(pEntity, SND_DONE);
 
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 					sprintf(msg, "time changed to %.1f\n", result);
 				else
 					sprintf(msg, "both times changed to %.1f\n", result);
@@ -1610,7 +1610,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 				{
 					PlaySoundConfirmation(pEntity, SND_DONE);
 
-					if ((arg4 != NULL) && (*arg4 != 0))
+					if ((arg4 != nullptr) && (*arg4 != 0))
 						sprintf(msg, "priority changed to NO priority!\n");
 					else
 						sprintf(msg, "both priorities changed to NO priority!\nWARNING - this waypoint is ignored by all bots!\n");
@@ -1625,7 +1625,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 				{
 					PlaySoundConfirmation(pEntity, SND_DONE);
 
-					if ((arg4 != NULL) && (*arg4 != 0))
+					if ((arg4 != nullptr) && (*arg4 != 0))
 						sprintf(msg, "priority changed to %d\n", result);
 					else
 						sprintf(msg, "both priorities changed to %d\n", result);
@@ -1731,11 +1731,11 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 
 				if (WaypointSubscribe(temp, TRUE))
 				{
-					WaypointSave(NULL);		// save them
+					WaypointSave(nullptr);		// save them
 
 					// are there any paths then save them too
 					if (num_w_paths > 0)
-						WaypointPathSave(NULL);
+						WaypointPathSave(nullptr);
 
 					PlaySoundConfirmation(pEntity, SND_DONE);
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoints subscription SUCCESSFUL\n");
@@ -1772,10 +1772,10 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 
 					if (WaypointSubscribe(temp, FALSE))
 					{
-						WaypointSave(NULL);		// save them
+						WaypointSave(nullptr);		// save them
 
 						if (num_w_paths > 0)
-							WaypointPathSave(NULL);
+							WaypointPathSave(nullptr);
 
 						PlaySoundConfirmation(pEntity, SND_DONE);
 						ClientPrint(pEntity, HUD_PRINTNOTIFY, "waypoints subscription SUCCESSFUL\n");
@@ -1847,7 +1847,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "drawdistance"))	// change draw distance
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int temp = atoi(arg2);
 
@@ -1869,7 +1869,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if ((FStrEq(arg1, "position")) || (FStrEq(arg1, "pos")))	// print waypoint origin
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int wpt_index = atoi(arg2) - 1;
 
@@ -1910,7 +1910,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "detect"))	// print all entities around waypoint
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int wpt_index = atoi(arg2) - 1;
 
@@ -1923,14 +1923,14 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 					}
 					else
 					{
-						edict_t* pent = NULL;
+						edict_t* pent = nullptr;
 						bool no_entities = true;
 
 						PlaySoundConfirmation(pEntity, SND_DONE);
 						ClientPrint(pEntity, HUD_PRINTNOTIFY, "Checking entities around ...\n");
 
 						while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin,
-							PLAYER_SEARCH_RADIUS)) != NULL)
+							PLAYER_SEARCH_RADIUS)) != nullptr)
 						{
 							no_entities = false;
 
@@ -1979,7 +1979,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else if (FStrEq(arg2, "range"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int wpt_index = atoi(arg3) - 1;
 					if (UTIL_RepairWaypointRangeandPosition(wpt_index, pEntity, true))
@@ -2004,7 +2004,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			else if (FStrEq(arg2, "range_and_position") || FStrEq(arg2, "rangeandposition") ||
 				FStrEq(arg2, "rangeandpos"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int wpt_index = atoi(arg3) - 1;
 					if (UTIL_RepairWaypointRangeandPosition(wpt_index, pEntity))
@@ -2028,7 +2028,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else if (FStrEq(arg2, "pathend"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int path_index = atoi(arg3) - 1;
 					int result = WaypointRepairInvalidPathEnd(path_index);
@@ -2065,7 +2065,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else if (FStrEq(arg2, "pathmerge"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int path_index = atoi(arg3) - 1;
 					int result = WaypointRepairInvalidPathMerge(path_index);
@@ -2107,7 +2107,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else if (FStrEq(arg2, "sniperspot") || FStrEq(arg2, "camperspot"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int path_index = atoi(arg3) - 1;
 
@@ -2141,7 +2141,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else if (FStrEq(arg2, "crosswpt") || FStrEq(arg2, "crossrange"))
 			{
-				if ((arg3 != NULL) && (*arg3 != 0))
+				if ((arg3 != nullptr) && (*arg3 != 0))
 				{
 					int cross_index = atoi(arg3) - 1;
 					float original_range = 0.0;
@@ -2239,7 +2239,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "distance"))	// set distance between two wpts for autowpt
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int temp = atoi(arg2);
 
@@ -2361,7 +2361,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "save"))
 		{
-			if (WaypointPathSave(NULL))
+			if (WaypointPathSave(nullptr))
 			{
 				PlaySoundConfirmation(pEntity, SND_DONE);
 				ClientPrint(pEntity, HUD_PRINTNOTIFY, "paths successfully saved\n");
@@ -2369,7 +2369,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "load"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				char temp[64];
 
@@ -2383,7 +2383,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			}
 			else
 			{
-				if (WaypointPathLoad(pEntity, NULL))
+				if (WaypointPathLoad(pEntity, nullptr))
 				{
 					PlaySoundConfirmation(pEntity, SND_DONE);
 					ClientPrint(pEntity, HUD_PRINTNOTIFY, "paths successfully loaded\n");
@@ -2398,7 +2398,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "info"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2);
 				bool result = FALSE;
@@ -2419,7 +2419,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "printall"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				bool result = FALSE;
 
@@ -2452,7 +2452,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "printpath"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2) - 1;
 
@@ -2555,7 +2555,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "compass"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				if (FStrEq(arg2, "off"))
 				{
@@ -2571,7 +2571,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 
 					if ((path_index >= 0) && (path_index < num_w_paths))
 					{
-						if (w_paths[path_index] != NULL)
+						if (w_paths[path_index] != nullptr)
 						{
 							char index[5];
 
@@ -2612,7 +2612,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "highlight"))
 		{
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path;
 
@@ -2677,7 +2677,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 						PlaySoundConfirmation(pEntity, SND_DONE);
 						ClientPrint(pEntity, HUD_PRINTNOTIFY, "path highlighting is ON!\nall machine gunner paths will be drawn\n");
 					}
-					else if (w_paths[path] != NULL)
+					else if (w_paths[path] != nullptr)
 					{
 						wptser.SetPathToHighlight(path);
 						wptser.SetShowWaypoints(true);
@@ -2743,7 +2743,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			bool result = FALSE;
 
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2);
 
@@ -2803,7 +2803,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		}
 		else if (FStrEq(arg1, "insert"))
 		{
-			if ((arg2 == NULL) || (*arg2 == 0))
+			if ((arg2 == nullptr) || (*arg2 == 0))
 			{
 				PlaySoundConfirmation(pEntity, SND_FAILED);
 				ClientPrint(pEntity, HUD_PRINTNOTIFY, "missing arguments check for MB help!\n");
@@ -2888,7 +2888,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			bool result = FALSE;
 
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2);
 
@@ -2983,7 +2983,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			bool result = FALSE;
 
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2);
 
@@ -3009,7 +3009,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			bool result = FALSE;
 
-			if ((arg2 != NULL) && (*arg2 != 0))
+			if ((arg2 != nullptr) && (*arg2 != 0))
 			{
 				int path_index = atoi(arg2);
 
@@ -3037,7 +3037,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			// set the initial value to something that cannot happen
 			int result = -128;
 
-			if ((arg3 != NULL) && (*arg3 != 0))
+			if ((arg3 != nullptr) && (*arg3 != 0))
 			{
 				int path_index = atoi(arg3);
 
@@ -3077,7 +3077,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			int result = -128;
 
-			if ((arg3 != NULL) && (*arg3 != 0))
+			if ((arg3 != nullptr) && (*arg3 != 0))
 			{
 				int path_index = atoi(arg3);
 
@@ -3118,7 +3118,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			int result = -128;
 
-			if ((arg3 != NULL) && (*arg3 != 0))
+			if ((arg3 != nullptr) && (*arg3 != 0))
 			{
 				int path_index = atoi(arg3);
 
@@ -3158,7 +3158,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		{
 			int result = -128;
 
-			if ((arg3 != NULL) && (*arg3 != 0))
+			if ((arg3 != nullptr) && (*arg3 != 0))
 			{
 				int path_index = atoi(arg3);
 
@@ -6401,12 +6401,12 @@ void MBMenuSystem(edict_t* pEntity, const char* arg1)
 	{
 		if (FStrEq(arg1, "1"))
 		{
-			BotCreate(pEntity, "1", NULL, NULL, NULL, NULL);
+			BotCreate(pEntity, "1", nullptr, nullptr, nullptr, nullptr);
 			botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
 		}
 		else if (FStrEq(arg1, "2"))
 		{
-			BotCreate(pEntity, "2", NULL, NULL, NULL, NULL);
+			BotCreate(pEntity, "2", nullptr, nullptr, nullptr, nullptr);
 			botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
 		}
 		else if (FStrEq(arg1, "3"))
@@ -7331,15 +7331,15 @@ void MBMenuSystem(edict_t* pEntity, const char* arg1)
 		}
 		else if (FStrEq(arg1, "3"))
 		{
-			WaypointLoad(pEntity, NULL);
-			WaypointPathLoad(pEntity, NULL);
+			WaypointLoad(pEntity, nullptr);
+			WaypointPathLoad(pEntity, nullptr);
 		}
 		else if (FStrEq(arg1, "4"))
 		{
-			WaypointSave(NULL);
+			WaypointSave(nullptr);
 
 			if (num_w_paths > 0)
-				WaypointPathSave(NULL);
+				WaypointPathSave(nullptr);
 		}
 		else if (FStrEq(arg1, "5"))
 		{
@@ -7347,8 +7347,8 @@ void MBMenuSystem(edict_t* pEntity, const char* arg1)
 			{
 				if (WaypointPathLoadUnsupported(pEntity))
 				{
-					WaypointSave(NULL);
-					WaypointPathSave(NULL);
+					WaypointSave(nullptr);
+					WaypointPathSave(nullptr);
 				}
 			}
 		}
@@ -7765,7 +7765,7 @@ void SpawnSkillCommand(edict_t* pEntity, const char* arg1)
 {
 	if (strlen(arg1) >= 1)
 	{
-		int temp = atoi(arg1);
+		const int temp = atoi(arg1);
 
 		if ((temp >= 1) && (temp <= BOT_SKILL_LEVELS))
 		{
@@ -7799,12 +7799,11 @@ void SetBotSkillCommand(edict_t* pEntity, const char* arg1)
 {
 	if (strlen(arg1) >= 1)
 	{
-		int temp = 0;
-		temp = atoi(arg1);
+		const int temp = atoi(arg1);
 
 		if ((temp >= 1) && (temp <= BOT_SKILL_LEVELS))
 		{
-			int result = UTIL_ChangeBotSkillLevel(FALSE, temp);
+			const int result = UTIL_ChangeBotSkillLevel(FALSE, temp);
 
 			char msg[80];
 			sprintf(msg, "botskill set to %d\n", result);
@@ -7868,15 +7867,13 @@ void BotSkillDownCommand(edict_t* pEntity, const char* arg1)
 
 void SetAimSkillCommand(edict_t* pEntity, const char* arg1)
 {
-	int temp = 0;
-
 	if (strlen(arg1) >= 1)
 	{
-		temp = atoi(arg1);
+		const int temp = atoi(arg1);
 
 		if ((temp >= 1) && (temp <= BOT_SKILL_LEVELS))
 		{
-			int result = UTIL_ChangeAimSkillLevel(temp);
+			const int result = UTIL_ChangeAimSkillLevel(temp);
 
 			char msg[80];
 			sprintf(msg, "aimskill set to %d\n", result);
@@ -7951,7 +7948,7 @@ void RangeLimitCommand(edict_t* pEntity, const char* arg1)
 {
 	if (strlen(arg1) >= 1)
 	{
-		float temp = atoi(arg1);
+		const float temp = atoi(arg1);
 
 		if (isdigit(arg1[0]) && (temp >= 500) && (temp <= 7500))
 		{

@@ -41,11 +41,11 @@ using std::string;
 #include "waypoint.h"
 
 
-Section *conf_weapons = NULL;
+Section *conf_weapons = nullptr;
 
 extern "C"
 {
-#include <stdio.h>
+#include <cstdio>
 };
 
 const int SERVER_CMD_LEN = 80;
@@ -87,13 +87,13 @@ int m_spriteTexturePath3 = 0;
 
 bool is_dedicated_server = FALSE;	// TRUE if the server is a dedicated server
 
-Section* conf = NULL;		// for new config system by Andrey Kotrekhov
+Section* conf = nullptr;		// for new config system by Andrey Kotrekhov
 
 //edict_t *pent_info_firearms_detect = NULL;	// NOT USED
 
-edict_t *listenserver_edict = NULL;
-edict_t *pRecipient = NULL;		// the one who write the ClintCommand
-edict_t *g_debug_bot = NULL;	// pointer on a single bot we want to debug (not all actions are logged, add the code to those that are needed at the moment)
+edict_t *listenserver_edict = nullptr;
+edict_t *pRecipient = nullptr;		// the one who write the ClintCommand
+edict_t *g_debug_bot = nullptr;	// pointer on a single bot we want to debug (not all actions are logged, add the code to those that are needed at the moment)
 bool g_debug_bot_on = FALSE;	// do we debug a single bot?
 
 #ifdef NOFAMAS
@@ -209,13 +209,13 @@ void GameDLLInit(void)
 
 	conf_weapons = parceConfig(filename);
 				
-	if (conf_weapons == NULL)
+	if (conf_weapons == nullptr)
 	{
 		sprintf(msg, "There is a syntax error in %s, or the file cant be found\n", filename);
-		PrintOutput(NULL, msg, MType::msg_error);
+		PrintOutput(nullptr, msg, MType::msg_error);
 			
 		sprintf(msg, "Bots will not shoot\n");
-		PrintOutput(NULL, msg, MType::msg_warning);
+		PrintOutput(nullptr, msg, MType::msg_warning);
 		
 		// show also this error message through the hud once client join game
 		if (warning_event == FALSE)
@@ -297,7 +297,7 @@ int DispatchSpawn( edict_t *pent )
 				warning_event = FALSE;
 			}
 
-			int result = WaypointLoad(NULL, NULL);
+			int result = WaypointLoad(nullptr, nullptr);
 
 			// if the waypoint file doesn't exist switch to the other directory and check again
 			if (result == -10)
@@ -307,26 +307,26 @@ int DispatchSpawn( edict_t *pent )
 				else
 					internals.SetIsCustomWaypoints(true);
 
-				PrintOutput(NULL, "There is invalid or missing waypoint file for this map. ",
-					MType::msg_error);
-				PrintOutput(NULL, "Checking the other waypoint directory\n", MType::msg_info);
+				PrintOutput(nullptr, "There is invalid or missing waypoint file for this map. ",
+				            MType::msg_error);
+				PrintOutput(nullptr, "Checking the other waypoint directory\n", MType::msg_info);
 
-				result = WaypointLoad(NULL, NULL);
+				result = WaypointLoad(nullptr, nullptr);
 
 				//TODO: Switch back to default wpts directory if there are no wpts in custom
 			}
 
 			// if old waypoints are detected try convert them automatically
 			if (result == -1)
-				WaypointLoadUnsupported(NULL);
+				WaypointLoadUnsupported(nullptr);
 			// was there any other problem
 			else if ((result == 0) || (result == -10))
 			{
 				// print error message directly into DS console
 				if (is_dedicated_server)
 				{
-					PrintOutput(NULL, "There is invalid or missing waypoint file for this map\n", MType::msg_error);
-					PrintOutput(NULL, "Bots may play incorrectly\n", MType::msg_warning);
+					PrintOutput(nullptr, "There is invalid or missing waypoint file for this map\n", MType::msg_error);
+					PrintOutput(nullptr, "Bots may play incorrectly\n", MType::msg_warning);
 				}
 				else
 				{
@@ -340,20 +340,20 @@ int DispatchSpawn( edict_t *pent )
 				}
 			}
 			else
-				PrintOutput(NULL, "Loading waypoints...\n", MType::msg_info);
+				PrintOutput(nullptr, "Loading waypoints...\n", MType::msg_info);
 
 			// load waypoint paths
-			result = WaypointPathLoad(NULL, NULL);
+			result = WaypointPathLoad(nullptr, nullptr);
 			
 			// if old waypoint paths are detected try convert them automatically
 			if (result == -1)
-				WaypointPathLoadUnsupported(NULL);
+				WaypointPathLoadUnsupported(nullptr);
 			else if (result == 0)
 			{
 				if (is_dedicated_server)
 				{
-					PrintOutput(NULL, "There is invalid or missing path waypoint file for this map\n", MType::msg_error);
-					PrintOutput(NULL, "Bots may play incorrectly\n", MType::msg_warning);
+					PrintOutput(nullptr, "There is invalid or missing path waypoint file for this map\n", MType::msg_error);
+					PrintOutput(nullptr, "Bots may play incorrectly\n", MType::msg_warning);
 				}
 				else
 				{
@@ -508,8 +508,6 @@ BOOL ClientConnect( edict_t *pEntity, const char *pszName, const char *pszAddres
 {
 	if (gpGlobals->deathmatch)
 	{
-		int i;
-
 #ifdef _DEBUG
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ClientConnect: pent=%p name=%s address=%s\n", pEntity, pszName, pszAddress); fclose(fp); }
 #endif
@@ -537,7 +535,7 @@ BOOL ClientConnect( edict_t *pEntity, const char *pszName, const char *pszAddres
 				(clients[0].ClientCount() > externals.GetMaxBots()) &&
 				(externals.GetMaxBots() != -1))
 			{
-				for (i=0; i < MAX_CLIENTS; i++)
+				for (int i = 0; i < MAX_CLIENTS; i++)
 				{
 					// is this slot used?
 					if (bots[i].is_used)
@@ -579,7 +577,7 @@ void ClientDisconnect( edict_t *pEntity )
 			else
 				clients[i].substr_human();
 
-			clients[i].pEntity = NULL;
+			clients[i].pEntity = nullptr;
 			clients[i].SetHuman(FALSE);
 			clients[i].SetBleeding(FALSE);
 		}
@@ -607,7 +605,7 @@ void ClientDisconnect( edict_t *pEntity )
 				// try to find the name this bot used and sign it free
 				for (int j = 0; j < MAX_BOT_NAMES; j++)
 				{
-					if (strstr(bots[i].name, bot_names[j].name) != NULL)
+					if (strstr(bots[i].name, bot_names[j].name) != nullptr)
 					{
 						// this clients name is free again
 						bot_names[j].is_used = FALSE;
@@ -663,7 +661,7 @@ void ClientPutInServer( edict_t *pEntity )
 
 	int i = 0;
 
-	while ((i < MAX_CLIENTS) && (clients[i].pEntity != NULL))
+	while ((i < MAX_CLIENTS) && (clients[i].pEntity != nullptr))
 		i++;
 
 	if (i < MAX_CLIENTS)
@@ -731,15 +729,15 @@ void ClientCommand( edict_t *pEntity )
 		strcpy(edict_name, STRING(pEntity->v.netname));
 
 		fp=fopen(debug_fname,"a"); fprintf(fp,"%s's ClientCommand: %s ",edict_name,pcmd);
-		if ((arg1 != NULL) && (*arg1 != 0))
+		if ((arg1 != nullptr) && (*arg1 != 0))
 			fprintf(fp," %s", arg1);
-		if ((arg2 != NULL) && (*arg2 != 0))
+		if ((arg2 != nullptr) && (*arg2 != 0))
 			fprintf(fp," %s", arg2);
-		if ((arg3 != NULL) && (*arg3 != 0))
+		if ((arg3 != nullptr) && (*arg3 != 0))
 			fprintf(fp," %s", arg3);
-		if ((arg4 != NULL) && (*arg4 != 0))
+		if ((arg4 != nullptr) && (*arg4 != 0))
 			fprintf(fp," %s", arg4);
-		if ((arg5 != NULL) && (*arg5 != 0))
+		if ((arg5 != nullptr) && (*arg5 != 0))
 			fprintf(fp," %s", arg5);
 
 		fprintf(fp, " (gametime=%.3f)\n", gpGlobals->time);
@@ -838,7 +836,7 @@ void StartFrame( void )
 			// to prevent engine overloading
 			wptser.ResetOnMapChange();
 
-			pRecipient = NULL;
+			pRecipient = nullptr;
 
 			// reset welcome messages with new map
 			welcome_time = 0.0;
@@ -862,7 +860,7 @@ void StartFrame( void )
 			FILE *temp_fp = fopen(filename, "r");
 			
 			// check if the map specific .cfg exists
-			if (temp_fp != NULL)
+			if (temp_fp != nullptr)
 			{				
 				// we don't need the file so we should close it
 				fclose(temp_fp);
@@ -943,7 +941,7 @@ void StartFrame( void )
 		// listen server
 		if (!is_dedicated_server)
 		{
-			if ((listenserver_edict != NULL) && IsAlive(listenserver_edict))
+			if ((listenserver_edict != nullptr) && IsAlive(listenserver_edict))
 			{
 				// we found some fatal error so set error message time
 				if ((error_occured) && (hud_error_msg_time < 1.0))
@@ -1075,8 +1073,8 @@ void StartFrame( void )
 			if ((welcome_sent == FALSE) && (welcome_time < gpGlobals->time) &&
 				(welcome_time > 1.0))
 			{
-				PrintOutput(NULL, "\n", MType::msg_null);
-				PrintOutput(NULL, "write [m_bot help] or [m_bot ?] into your console for command help\n", MType::msg_info);
+				PrintOutput(nullptr, "\n", MType::msg_null);
+				PrintOutput(nullptr, "write [m_bot help] or [m_bot ?] into your console for command help\n", MType::msg_info);
 
 				welcome_sent = TRUE;	// do it only once
 			}
@@ -1167,7 +1165,7 @@ void StartFrame( void )
 		// run a check for possible round end
 		for (index = 0; index < MAX_CLIENTS; index++)
 		{
-			if (clients[index].pEntity != NULL)
+			if (clients[index].pEntity != nullptr)
 			{
 				if ((clients[index].GetMaxSpeedTime() + 0.5) < gpGlobals->time)
 				{
@@ -1248,7 +1246,7 @@ void StartFrame( void )
 					temp_bot_skill++;
 					sprintf(c_skill, "%d", temp_bot_skill);
 
-					BotCreate(NULL, c_team, c_class, c_skin, c_skill, bots[index].name);
+					BotCreate(nullptr, c_team, c_class, c_skin, c_skill, bots[index].name);
 
 					// set back stored settings
 					bots[index].aim_skill = aim_skill;
@@ -1273,17 +1271,17 @@ void StartFrame( void )
 				need_to_open_cfg = FALSE;  // only do this once!!!
 
 				// if there is some previous conf then flush it
-				if (::conf != NULL)
+				if (::conf != nullptr)
 				{
 					delete ::conf;
 				}
-				::conf = NULL;
+				::conf = nullptr;
 
 				// allows us to read the whole configuration file
 				read_whole_cfg = TRUE;
 
 				// if conf pointer is NULL then read the config file again
-				if (conf == NULL)
+				if (conf == nullptr)
 				{
 					// check if mapname_marine.cfg file exists
 					strcpy(mapname, STRING(gpGlobals->mapname));
@@ -1292,10 +1290,10 @@ void StartFrame( void )
 					UTIL_MarineBotFileName(filename, "mapcfgs", mapname);
 
 					// SECTION - for new config system by Andrey Kotrekhov
-					if ((conf = parceConfig(filename)) != NULL)
+					if ((conf = parceConfig(filename)) != nullptr)
 					{
 						sprintf(msg, "Executing %s\n", filename);
-						PrintOutput(NULL, msg, MType::msg_info);
+						PrintOutput(nullptr, msg, MType::msg_info);
 
 						// to know that we changed to map specific .cfg
 						// we will need to read the default "marine.cfg" again once the map
@@ -1304,22 +1302,22 @@ void StartFrame( void )
 					}
 					else
 					{
-						UTIL_MarineBotFileName(filename, "marine.cfg", NULL);
+						UTIL_MarineBotFileName(filename, "marine.cfg", nullptr);
 
 						sprintf(msg, "Executing %s\n", filename);
-						PrintOutput(NULL, msg, MType::msg_info);
+						PrintOutput(nullptr, msg, MType::msg_info);
 
 						conf = parceConfig(filename);
 
 						using_default_cfg = TRUE;
 
-						if (conf == NULL)
+						if (conf == nullptr)
 						{
 							// print error message directly into DS console
 							if (is_dedicated_server)
 							{
-								PrintOutput(NULL, "MARINE_BOT CRITICAL ERROR - There is a syntax error in marine.cfg, or the file cant be found\n", MType::msg_null);
-								PrintOutput(NULL, "Bots may join or play incorrectly\n", MType::msg_warning);
+								PrintOutput(nullptr, "MARINE_BOT CRITICAL ERROR - There is a syntax error in marine.cfg, or the file cant be found\n", MType::msg_null);
+								PrintOutput(nullptr, "Bots may join or play incorrectly\n", MType::msg_warning);
 							}
 							// print error message once client join the game
 							else
@@ -1342,23 +1340,30 @@ void StartFrame( void )
 
 			if (!is_dedicated_server && !spawn_time_reset)
 			{
-				if (listenserver_edict != NULL)
+				if (listenserver_edict != nullptr)
 				{
 					if (IsAlive(listenserver_edict))
 					{
 						spawn_time_reset = TRUE;
-
+#ifdef __linux__
 						if (respawn_time >= 1.0)
 							respawn_time = std::min(respawn_time, gpGlobals->time + (float)1.0);
 
 						if (bot_cfg_pause_time >= 1.0)
 							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
+#elif _WIN32
+						if (respawn_time >= 1.0)
+							respawn_time = min(respawn_time, gpGlobals->time + (float)1.0);
+
+						if (bot_cfg_pause_time >= 1.0)
+							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
+#endif
 					}
 				}
 			}
 
 			// for new config system by Andrey Kotrekhov
-			if ((conf != NULL) &&
+			if ((conf != nullptr) &&
 				(bot_cfg_pause_time >= 1.0) && (bot_cfg_pause_time <= gpGlobals->time))
 			{
 				// process bot.cfg file options
@@ -1384,7 +1389,7 @@ void StartFrame( void )
 				reds = blues = 0;
 				for (int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if (clients[i].pEntity != NULL)
+					if (clients[i].pEntity != nullptr)
 					{
 						if (UTIL_GetTeam(clients[i].pEntity) == TEAM_RED)
 							reds++;
@@ -1395,16 +1400,16 @@ void StartFrame( void )
 
 				// create bot (red, blue, random) based on team member count
 				if (reds < blues)
-					BotCreate( NULL, "1", NULL, NULL, NULL, NULL );
+					BotCreate(nullptr, "1", nullptr, nullptr, nullptr, nullptr );
 				else if (reds > blues)
-					BotCreate( NULL, "2", NULL, NULL, NULL, NULL );
+					BotCreate(nullptr, "2", nullptr, nullptr, nullptr, nullptr );
 				else
-					BotCreate( NULL, NULL, NULL, NULL, NULL, NULL );
+					BotCreate(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr );
 			}
 			// otherwise do random join
 			else if ((clients[0].ClientCount() < externals.GetMaxBots()) &&
 				(externals.GetMaxBots() != -1))
-				BotCreate( NULL, NULL, NULL, NULL, NULL, NULL );
+				BotCreate(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr );
 
 			// if there are currently MORE than the maximum number of "players"
 			// and we can kick a bot then kick one
@@ -1420,7 +1425,7 @@ void StartFrame( void )
 				reds = blues = 0;
 				for (int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if (clients[i].pEntity != NULL)
+					if (clients[i].pEntity != nullptr)
 					{
 						if (UTIL_GetTeam(clients[i].pEntity) == TEAM_RED)
 							reds++;
@@ -1466,7 +1471,7 @@ void StartFrame( void )
 				botmanager.ResetTimeOfTeamsBalanceCheck();
 				botmanager.ResetTeamsBalanceNeeded();		// added by kota@
 
-				PrintOutput(NULL, "auto balance DISABLED!\n", MType::msg_default);
+				PrintOutput(nullptr, "auto balance DISABLED!\n", MType::msg_default);
 			}
 			else
 			{
@@ -1476,28 +1481,28 @@ void StartFrame( void )
 				// we don't want to print the message into listen server console
 				if (is_dedicated_server)
 				{
-					PrintOutput(NULL, "\n", MType::msg_null);	// first seperate this message
+					PrintOutput(nullptr, "\n", MType::msg_null);	// first seperate this message
 
 					if (botmanager.GetTeamsBalanceValue() == -2)
-						PrintOutput(NULL, "server is empty!\n", MType::msg_warning);
+						PrintOutput(nullptr, "server is empty!\n", MType::msg_warning);
 					else if (botmanager.GetTeamsBalanceValue() == -1)
-						PrintOutput(NULL, "there are no bots!\n", MType::msg_warning);
+						PrintOutput(nullptr, "there are no bots!\n", MType::msg_warning);
 					else if (botmanager.GetTeamsBalanceValue() == 0)
-						PrintOutput(NULL, "teams are balanced\n", MType::msg_info);
+						PrintOutput(nullptr, "teams are balanced\n", MType::msg_info);
 					else if (botmanager.GetTeamsBalanceValue() > 100)
 					{
 						sprintf(msg, "balancing in progress... (moving %d bots from RED team to blue)\n",
 							botmanager.GetTeamsBalanceValue() - 100);
-						PrintOutput(NULL, msg, MType::msg_info);
+						PrintOutput(nullptr, msg, MType::msg_info);
 					}
 					else if ((botmanager.GetTeamsBalanceValue() > 0) && (botmanager.GetTeamsBalanceValue() < 100))
 					{
 						sprintf(msg, "balancing in progress... (moving %d bots from BLUE team to red)\n",
 							botmanager.GetTeamsBalanceValue());
-						PrintOutput(NULL, msg, MType::msg_info);
+						PrintOutput(nullptr, msg, MType::msg_info);
 					}
 					else if (botmanager.GetTeamsBalanceValue() < -2)
-						PrintOutput(NULL, "internal error\n", MType::msg_error);
+						PrintOutput(nullptr, "internal error\n", MType::msg_error);
 				}
 			}
 		}
@@ -1509,21 +1514,21 @@ void StartFrame( void )
 			bool more_details = TRUE;
 			int clients_info = UTIL_BalanceTeams();
 
-			PrintOutput(NULL, "\n", MType::msg_null);	// seperate this msg
+			PrintOutput(nullptr, "\n", MType::msg_null);	// seperate this msg
 
 			if (clients_info == -2)
 			{
-				PrintOutput(NULL, "there are NO players or bots (server is EMPTY)!\n", MType::msg_warning);
+				PrintOutput(nullptr, "there are NO players or bots (server is EMPTY)!\n", MType::msg_warning);
 
 				more_details = FALSE;
 			}
 			else if (clients_info == -1)
 			{
-				PrintOutput(NULL, "there are NO bots!\n", MType::msg_warning);
+				PrintOutput(nullptr, "there are NO bots!\n", MType::msg_warning);
 			}
 			else if (clients_info > 0)
 			{
-				PrintOutput(NULL, "teams are NOT balanced!\n", MType::msg_warning);
+				PrintOutput(nullptr, "teams are NOT balanced!\n", MType::msg_warning);
 			}
 
 			if (more_details)
@@ -1555,7 +1560,7 @@ void StartFrame( void )
 					sprintf(msg, "MARINE_BOT INFO - there are %d clients on the server (no bots)\n",
 							//total_clients);
 							clients[0].ClientCount());
-					PrintOutput(NULL, msg, MType::msg_null);
+					PrintOutput(nullptr, msg, MType::msg_null);
 				}
 				else
 				{
@@ -1563,12 +1568,12 @@ void StartFrame( void )
 							//total_clients, players, the_bots);
 							clients[0].ClientCount(), clients[0].HumanCount(),
 							clients[0].BotCount());
-					PrintOutput(NULL, msg, MType::msg_null);
+					PrintOutput(nullptr, msg, MType::msg_null);
 
 					int j, k;
 					char client_name[BOT_NAME_LEN];
 
-					PrintOutput(NULL, "--------------MB skill values----------------------\n", MType::msg_null);
+					PrintOutput(nullptr, "--------------MB skill values----------------------\n", MType::msg_null);
 
 					// print bot names and their skill levels
 					for (j = 0; j < MAX_CLIENTS; j++)
@@ -1586,10 +1591,10 @@ void StartFrame( void )
 
 						sprintf(msg, "%s: botskill:%d and aimskill:%d\n", client_name,
 								bots[j].bot_skill + 1, bots[j].aim_skill + 1);
-						PrintOutput(NULL, msg, MType::msg_null);
+						PrintOutput(nullptr, msg, MType::msg_null);
 					}
 
-					PrintOutput(NULL, "---------------------------------------------------\n", MType::msg_null);
+					PrintOutput(nullptr, "---------------------------------------------------\n", MType::msg_null);
 				}
 			}
 
@@ -1608,7 +1613,7 @@ void StartFrame( void )
 			// count clients in both teams
 			for (int i = 0; i < MAX_CLIENTS; i++)
 			{
-				if (clients[i].pEntity != NULL)
+				if (clients[i].pEntity != nullptr)
 				{
 					total_clients++;
 
@@ -1630,11 +1635,11 @@ void StartFrame( void )
 				botmanager.ResetListenServerFilling();
 			// create bot (red, blue, random) based on team member count
 			else if (reds < blues)
-				bot_added = BotCreate( NULL, "1", NULL, NULL, NULL, NULL );
+				bot_added = BotCreate(nullptr, "1", nullptr, nullptr, nullptr, nullptr );
 			else if (reds > blues)
-				bot_added = BotCreate( NULL, "2", NULL, NULL, NULL, NULL );
+				bot_added = BotCreate(nullptr, "2", nullptr, nullptr, nullptr, nullptr );
 			else
-				bot_added = BotCreate( NULL, NULL, NULL, NULL, NULL, NULL );
+				bot_added = BotCreate(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr );
 
 			if (bot_added)
 			{
@@ -1668,7 +1673,7 @@ void StartFrame( void )
 		{
 			// we don't want this message on DS
 			if (is_dedicated_server == FALSE)
-				PrintOutput(NULL, "***autosaving waypoints and paths***\n", MType::msg_null);
+				PrintOutput(nullptr, "***autosaving waypoints and paths***\n", MType::msg_null);
 
 			// check if all went fine
 			if (WaypointAutoSave())
@@ -1679,7 +1684,7 @@ void StartFrame( void )
 				wpt_autosave_time = gpGlobals->time + 30.0;
 
 				if (is_dedicated_server == FALSE)
-					PrintOutput(NULL, "***waypoints and paths weren't saved***\n", MType::msg_null);
+					PrintOutput(nullptr, "***waypoints and paths weren't saved***\n", MType::msg_null);
 			}
 		}
 
@@ -1708,7 +1713,7 @@ const char *GetGameDescription( void )
 	// prepare development debugging file
 	if (debug_fname[0] == '\0')
 	{
-		UTIL_MarineBotFileName(debug_fname, "!mb_devdebug.txt", NULL);
+		UTIL_MarineBotFileName(debug_fname, "!mb_devdebug.txt", nullptr);
 	}
 
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "GetGameDescription\n"); fclose(fp); }
@@ -1983,7 +1988,7 @@ int EXPORT GetNewDLLFunctions( NEW_DLL_FUNCTIONS *pFunctionTable, int *interface
 extern "C" EXPORT int GetNewDLLFunctions( NEW_DLL_FUNCTIONS *pFunctionTable, int *interfaceVersion )
 #endif
 {
-   if (other_GetNewDLLFunctions == NULL)
+   if (other_GetNewDLLFunctions == nullptr)
       return FALSE;
 
    // pass other DLLs engine callbacks to function table...
@@ -2004,15 +2009,15 @@ void FakeClientCommand(edict_t *pBot, char *arg1, char *arg2, char *arg3)
 
 	isFakeClientCommand = 1;
 
-	if ((arg1 == NULL) || (*arg1 == 0))
+	if ((arg1 == nullptr) || (*arg1 == 0))
 		return;
 
-	if ((arg2 == NULL) || (*arg2 == 0))
+	if ((arg2 == nullptr) || (*arg2 == 0))
 	{
 		length = sprintf(&g_argv[0], "%s", arg1);
 		fake_arg_count = 1;
 	}
-	else if ((arg3 == NULL) || (*arg3 == 0))
+	else if ((arg3 == nullptr) || (*arg3 == 0))
 	{
 		length = sprintf(&g_argv[0], "%s %s", arg1, arg2);
 		fake_arg_count = 2;
@@ -2080,7 +2085,7 @@ const char *Cmd_Argv( int argc )
 		}
 		else
 		{
-			return NULL;
+			return nullptr;
 		}
 	}
 	else
@@ -2116,7 +2121,7 @@ void ProcessBotCfgFile(Section *conf)
 	static char server_cmd[SERVER_CMD_LEN+1];	
 	char msg[80];
 
-	if (conf == NULL)
+	if (conf == nullptr)
 	{
 #ifdef _DEBUG
 		//@@@@@@@@@@
@@ -2197,7 +2202,7 @@ void ProcessBotCfgFile(Section *conf)
 			externals.SetIsLogging(FALSE);
 			// here must be standard printing to print that into console
 			if (is_dedicated_server)
-				PrintOutput(NULL, "MARINE_BOT CFG FILE INIT - logging DISABLED!\n", MType::msg_null);
+				PrintOutput(nullptr, "MARINE_BOT CFG FILE INIT - logging DISABLED!\n", MType::msg_null);
 		}
 
 		if ((temp_default_bot_skill < 1) || (temp_default_bot_skill > 5))
@@ -2212,7 +2217,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_random_skill == TRUE)
 		{
@@ -2226,7 +2231,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if ((temp_minbots < 0) || (temp_minbots > 31))
 		{
@@ -2247,7 +2252,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if ((temp_maxbots < 0) || (temp_maxbots > 31))
 		{
@@ -2268,7 +2273,7 @@ void ProcessBotCfgFile(Section *conf)
 	    }
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if ((temp_bot_reaction_time < 0.0) || (temp_bot_reaction_time > 50.0))
 		{
@@ -2285,7 +2290,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_auto_balance_time == 0.0)
 		{
@@ -2312,7 +2317,7 @@ void ProcessBotCfgFile(Section *conf)
 	    }
 
 	    if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_customclasses == TRUE)
 		{
@@ -2326,7 +2331,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_info_time == 0)
 		{
@@ -2348,7 +2353,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_send_presentation_time == 0)
 		{
@@ -2374,7 +2379,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_dontspeak == TRUE)
 		{
@@ -2388,7 +2393,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_botdontchat == TRUE)
 		{
@@ -2402,7 +2407,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_richnames == TRUE)
 		{
@@ -2416,7 +2421,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 
 		if (temp_passivehealing == TRUE)
 		{
@@ -2430,7 +2435,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		
 		if (is_dedicated_server)
-			PrintOutput(NULL, msg, MType::msg_null);
+			PrintOutput(nullptr, msg, MType::msg_null);
 	}
 
 	if (bot_cfg_pause_time > gpGlobals->time)
@@ -2440,7 +2445,7 @@ void ProcessBotCfgFile(Section *conf)
 
 	if (init_commands == false)
 	{
-		SI com_i = conf->sectionList.find("commands");
+		const SI com_i = conf->sectionList.find("commands");
 
 		if (com_i != conf->sectionList.end())
  		{
@@ -2502,7 +2507,7 @@ void ProcessBotCfgFile(Section *conf)
 	}
 
 	string arg1="", arg2="", arg3="", arg4="", arg5="";
-	SI ci = conf->sectionList.find("recruit");
+	const SI ci = conf->sectionList.find("recruit");
 
 	if (ci != conf->sectionList.end())
 	{
@@ -2544,7 +2549,7 @@ void ProcessBotCfgFile(Section *conf)
 				catch (errGetVal &er_val)
 				{
 					sprintf(msg, "** ProcessBotCfgFile() - missing variable '%s'\n", er_val.key.c_str());					
-					PrintOutput(NULL, msg, MType::msg_error);
+					PrintOutput(nullptr, msg, MType::msg_error);
 				}
 #ifdef _DEBUG
 				//@@@@@@@@@@
@@ -2556,7 +2561,7 @@ void ProcessBotCfgFile(Section *conf)
 				PrintOutput(NULL, msg, MType::msg_null);
 #endif
 
-				BotCreate( NULL, arg1, arg2, arg3, arg4, arg5 );
+				BotCreate(nullptr, arg1, arg2, arg3, arg4, arg5 );
 				
 				bot_cfg_pause_time = gpGlobals->time + 2.0;
 				botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
@@ -2572,15 +2577,14 @@ void ProcessBotCfgFile(Section *conf)
 // handles MB Dedicated Server Commands
 void MBServerCommand(void)
 {
-	const char *cmd, *arg1, *arg2, *arg3, *arg4, *arg5;
 	char msg[256];
 
-	cmd = CMD_ARGV (1);
-	arg1 = CMD_ARGV (2);
-	arg2 = CMD_ARGV (3);
-	arg3 = CMD_ARGV (4);
-	arg4 = CMD_ARGV (5);
-	arg5 = CMD_ARGV (6);
+	const char* cmd = CMD_ARGV(1);
+	const char* arg1 = CMD_ARGV(2);
+	const char* arg2 = CMD_ARGV(3);
+	const char* arg3 = CMD_ARGV(4);
+	const char* arg4 = CMD_ARGV(5);
+	const char* arg5 = CMD_ARGV(6);
 
 	//@@@@@@@@
 	//sprintf(msg, "SHOW ME THE LINE (new system)!!! <cmd(%s)><arg1(%s)><arg2(%s)><arg3(%s)><arg4(%s)><arg5(%s)>\n",
@@ -2597,37 +2601,37 @@ void MBServerCommand(void)
 		// (ie. no \n or \t in the string, \n will automatically end the string
 		// so anything that's behind it won't be printed to the console)
 		
-		PrintOutput(NULL, "\n", MType::msg_null);
-		PrintOutput(NULL, "----------------------------------------------------\n", MType::msg_null);
-		PrintOutput(NULL, "Marine Bot dedicated server commands help\n", MType::msg_null);
-		PrintOutput(NULL, "----------------------------------------------------\n", MType::msg_null);
-		PrintOutput(NULL, "CVAR for MarineBot is [m_bot] so all cmds must start with m_bot\n", MType::msg_null);
-		PrintOutput(NULL, "[addmarine]  add bot with random team, class, name and default skill\n", MType::msg_null);
-		PrintOutput(NULL, "[addmarine1] add bot to red team with random class, name and default skill\n", MType::msg_null);
-		PrintOutput(NULL, "[addmarine2] add bot to blue team with random class, name and default skill\n", MType::msg_null);
-		PrintOutput(NULL, "[addmarine <team> <class> <skin> <skill> <name>] add fully customized bot\n", MType::msg_null);
-		PrintOutput(NULL, "[min_bots <number>] specify minimum of bots on server (31=disabled - no bot is kicked)\n", MType::msg_null);
-		PrintOutput(NULL, "[max_bots <number>] specify maximum of bots on server (0=disabled)\n", MType::msg_null);
-		PrintOutput(NULL, "[random_skill <current>] toggle between using default bot skill and generating the skill randomly for each bot, \"current\" returns actual state\n", MType::msg_null);
-		PrintOutput(NULL, "[spawn_skill <number>] set default bot skill on join (1-5 where 1=best)\n", MType::msg_null);
-		PrintOutput(NULL, "[set_botskill <number>] set bot skill level for all bots already in game\n", MType::msg_null);
-		PrintOutput(NULL, "[botskill_up] increase bot skill level for all bots already in game\n", MType::msg_null);
-		PrintOutput(NULL, "[botskill_down] decrease bot skill level for all bots already in game\n", MType::msg_null);
-		PrintOutput(NULL, "[set_aimskill <number>] set aim skill level for all bots already in game\n", MType::msg_null);
-		PrintOutput(NULL, "[reaction_time <number>] set bot reaction time (0-50 where 1 will be converted to 0.1s and 50 to 5.0s)\n", MType::msg_null);
-		PrintOutput(NULL, "[range_limit <number>] set the max distance of enemy the bot can see & attack (500-7500 units)\n", MType::msg_null);
-		PrintOutput(NULL, "[balance_teams] try to balance teams on server (move bots to weaker team)\n", MType::msg_null);
-		PrintOutput(NULL, "[auto_balance <number>] set time for team balance checks ie. autobalancing (30-3600s where 30 is 30seconds and 3600 is 1hour, setting it to 0=never do team balance)\n", MType::msg_null);
-		PrintOutput(NULL, "[send_info <number>] set time for info message gets send (30-3600s; 0=off)\n", MType::msg_null);
-		PrintOutput(NULL, "[send_presentation <number>] set time for presentation message gets send (0-3600s; 0=off)\n", MType::msg_null);
-		PrintOutput(NULL, "[clients] print clients/bots count currently on server\n", MType::msg_null);
-		PrintOutput(NULL, "[version_info] print MB version\n", MType::msg_null);
-		PrintOutput(NULL, "[load_unsupported] convert & save older waypoint file\n", MType::msg_null);
-		PrintOutput(NULL, "[directory <current>] toggle through waypoint directories, \"current\" returns name of current directory\n", MType::msg_null);
-		PrintOutput(NULL, "[dont_speak <current>] bot will not use Voice&Radio commands, \"current\" returns actual state\n", MType::msg_null);
-		PrintOutput(NULL, "[dont_chat <current>] bot will not use say&say_team commands, \"current\" returns actual state\n", MType::msg_null);
-		PrintOutput(NULL, "[passive_healing <current>] bot will not heal teammates automatically, \"current\" returns actual state\n", MType::msg_null);
-		PrintOutput(NULL, "------------------------------------------\n", MType::msg_null);
+		PrintOutput(nullptr, "\n", MType::msg_null);
+		PrintOutput(nullptr, "----------------------------------------------------\n", MType::msg_null);
+		PrintOutput(nullptr, "Marine Bot dedicated server commands help\n", MType::msg_null);
+		PrintOutput(nullptr, "----------------------------------------------------\n", MType::msg_null);
+		PrintOutput(nullptr, "CVAR for MarineBot is [m_bot] so all cmds must start with m_bot\n", MType::msg_null);
+		PrintOutput(nullptr, "[addmarine]  add bot with random team, class, name and default skill\n", MType::msg_null);
+		PrintOutput(nullptr, "[addmarine1] add bot to red team with random class, name and default skill\n", MType::msg_null);
+		PrintOutput(nullptr, "[addmarine2] add bot to blue team with random class, name and default skill\n", MType::msg_null);
+		PrintOutput(nullptr, "[addmarine <team> <class> <skin> <skill> <name>] add fully customized bot\n", MType::msg_null);
+		PrintOutput(nullptr, "[min_bots <number>] specify minimum of bots on server (31=disabled - no bot is kicked)\n", MType::msg_null);
+		PrintOutput(nullptr, "[max_bots <number>] specify maximum of bots on server (0=disabled)\n", MType::msg_null);
+		PrintOutput(nullptr, "[random_skill <current>] toggle between using default bot skill and generating the skill randomly for each bot, \"current\" returns actual state\n", MType::msg_null);
+		PrintOutput(nullptr, "[spawn_skill <number>] set default bot skill on join (1-5 where 1=best)\n", MType::msg_null);
+		PrintOutput(nullptr, "[set_botskill <number>] set bot skill level for all bots already in game\n", MType::msg_null);
+		PrintOutput(nullptr, "[botskill_up] increase bot skill level for all bots already in game\n", MType::msg_null);
+		PrintOutput(nullptr, "[botskill_down] decrease bot skill level for all bots already in game\n", MType::msg_null);
+		PrintOutput(nullptr, "[set_aimskill <number>] set aim skill level for all bots already in game\n", MType::msg_null);
+		PrintOutput(nullptr, "[reaction_time <number>] set bot reaction time (0-50 where 1 will be converted to 0.1s and 50 to 5.0s)\n", MType::msg_null);
+		PrintOutput(nullptr, "[range_limit <number>] set the max distance of enemy the bot can see & attack (500-7500 units)\n", MType::msg_null);
+		PrintOutput(nullptr, "[balance_teams] try to balance teams on server (move bots to weaker team)\n", MType::msg_null);
+		PrintOutput(nullptr, "[auto_balance <number>] set time for team balance checks ie. autobalancing (30-3600s where 30 is 30seconds and 3600 is 1hour, setting it to 0=never do team balance)\n", MType::msg_null);
+		PrintOutput(nullptr, "[send_info <number>] set time for info message gets send (30-3600s; 0=off)\n", MType::msg_null);
+		PrintOutput(nullptr, "[send_presentation <number>] set time for presentation message gets send (0-3600s; 0=off)\n", MType::msg_null);
+		PrintOutput(nullptr, "[clients] print clients/bots count currently on server\n", MType::msg_null);
+		PrintOutput(nullptr, "[version_info] print MB version\n", MType::msg_null);
+		PrintOutput(nullptr, "[load_unsupported] convert & save older waypoint file\n", MType::msg_null);
+		PrintOutput(nullptr, "[directory <current>] toggle through waypoint directories, \"current\" returns name of current directory\n", MType::msg_null);
+		PrintOutput(nullptr, "[dont_speak <current>] bot will not use Voice&Radio commands, \"current\" returns actual state\n", MType::msg_null);
+		PrintOutput(nullptr, "[dont_chat <current>] bot will not use say&say_team commands, \"current\" returns actual state\n", MType::msg_null);
+		PrintOutput(nullptr, "[passive_healing <current>] bot will not heal teammates automatically, \"current\" returns actual state\n", MType::msg_null);
+		PrintOutput(nullptr, "------------------------------------------\n", MType::msg_null);
 	}
 	// spawn random team bot
 	else if (strcmp(cmd, "addmarine") == 0)
@@ -2635,7 +2639,7 @@ void MBServerCommand(void)
 		// allow more than maxbots bots on the server for the rest of current map
 		override_max_bots = TRUE;
 		
-		BotCreate( NULL, arg1, arg2, arg3, arg4, arg5 );
+		BotCreate(nullptr, arg1, arg2, arg3, arg4, arg5 );
 
 		// wait for a while before allowing the next addition
 		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
@@ -2644,19 +2648,19 @@ void MBServerCommand(void)
 	else if (strcmp(cmd, "addmarine1") == 0)
 	{
 		override_max_bots = TRUE;
-		BotCreate( NULL, "1", NULL, NULL, NULL, NULL );		
+		BotCreate(nullptr, "1", nullptr, nullptr, nullptr, nullptr );		
 		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
 	}
 	// spawn blue bot
 	else if (strcmp(cmd, "addmarine2") == 0)
 	{
 		override_max_bots = TRUE;
-		BotCreate( NULL, "2", NULL, NULL, NULL, NULL );
+		BotCreate(nullptr, "2", nullptr, nullptr, nullptr, nullptr );
 		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
 	}
 	else if (strcmp(cmd, "min_bots") == 0)
 	{
-		if ((arg1 != NULL) && (arg1[0] != 0))
+		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
 			externals.SetMinBots((int) atoi( arg1 ));
 
@@ -2680,11 +2684,11 @@ void MBServerCommand(void)
 		
 		// print the message into console
 		// if logging is on it does log it to logfile
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	else if (strcmp(cmd, "max_bots") == 0)
 	{
-		if ((arg1 != NULL) && (arg1[0] != 0))
+		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
 			externals.SetMaxBots((int) atoi( arg1 ));
 			
@@ -2706,46 +2710,46 @@ void MBServerCommand(void)
 		else
 			sprintf(msg, "MARINE_BOT ERROR - invalid or missing argument!\n");
 		
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	else if (strcmp(cmd, "random_skill") == 0)
 	{
-		RandomSkillCommand(NULL, arg1);
+		RandomSkillCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "spawn_skill") == 0)
 	{
-		SpawnSkillCommand(NULL, arg1);
+		SpawnSkillCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "set_botskill") == 0)
 	{
-		SetBotSkillCommand(NULL, arg1);
+		SetBotSkillCommand(nullptr, arg1);
 	}				
 	else if (strcmp(cmd, "botskill_up") == 0)
 	{
-		BotSkillUpCommand(NULL, arg1);
+		BotSkillUpCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "botskill_down") == 0)
 	{
-		BotSkillDownCommand(NULL, arg1);
+		BotSkillDownCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "set_aimskill") == 0)
 	{
-		SetAimSkillCommand(NULL, arg1);
+		SetAimSkillCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "reaction_time") == 0)
 	{
-		SetReactionTimeCommand(NULL, arg1);
+		SetReactionTimeCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "range_limit") == 0)
 	{
-		RangeLimitCommand(NULL, arg1);
+		RangeLimitCommand(nullptr, arg1);
 	}
 	// set the time for teams balance checking
 	else if (strcmp(cmd, "auto_balance") == 0)
 	{
-		if ((arg1 != NULL) && (arg1[0] != 0))
+		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
-			float temp = atoi(arg1);
+			const float temp = atoi(arg1);
 			
 			if (temp <= 0)
 			{
@@ -2768,7 +2772,7 @@ void MBServerCommand(void)
 				sprintf(msg, "MARINE_BOT ERROR - invalid auto_balance time value!\n");
 		}
 
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	// do teams balancing manually
 	else if (strcmp(cmd, "balance_teams") == 0)
@@ -2790,14 +2794,14 @@ void MBServerCommand(void)
 		else if (botmanager.GetTeamsBalanceValue() < -2)
 			sprintf(msg, "MARINE_BOT ERROR - internal error\n");
 		
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	// set the time between two info notifications
 	else if (strcmp(cmd, "send_info") == 0)
 	{
-		if ((arg1 != NULL) && (arg1[0] != 0))
+		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
-			float temp = atoi(arg1);
+			const float temp = atoi(arg1);
 			
 			if (temp == 0)
 			{
@@ -2817,14 +2821,14 @@ void MBServerCommand(void)
 				sprintf(msg, "MARINE_BOT ERROR - invalid send_info time value!\n");
 		}
 		
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	// set the time between two presentation messages
 	else if (strcmp(cmd, "send_presentation") == 0)
 	{
-		if ((arg1 != NULL) && (arg1[0] != 0))
+		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
-			float temp = atoi(arg1);
+			const float temp = atoi(arg1);
 
 			if (temp == 0.0)
 			{
@@ -2849,18 +2853,18 @@ void MBServerCommand(void)
 				sprintf(msg, "MARINE_BOT ERROR - invalid send_presentation time value!\n");
 		}
 		
-		PrintOutput(NULL, msg, MType::msg_null);
+		PrintOutput(nullptr, msg, MType::msg_null);
 	}
 	// get some info about all clients on the server
 	else if (strcmp(cmd, "clients") == 0)
 	{
-		int actual_pl, red_clients, red_bots, blue_clients, blue_bots;
+		int red_clients, red_bots, blue_clients, blue_bots;
 		
-		actual_pl = red_clients = red_bots = blue_clients = blue_bots = 0;
+		int actual_pl = red_clients = red_bots = blue_clients = blue_bots = 0;
 
 		for (int i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (clients[i].pEntity != NULL)
+			if (clients[i].pEntity != nullptr)
 			{
 				actual_pl++;
 
@@ -2882,75 +2886,75 @@ void MBServerCommand(void)
 		}
 		
 		if (actual_pl == 0)
-			PrintOutput(NULL, "the server is empty\n", MType::msg_warning);
+			PrintOutput(nullptr, "the server is empty\n", MType::msg_warning);
 		else
 		{
 			if ((red_bots == 0) && (blue_bots == 0))
 			{
-				PrintOutput(NULL, "there are no bots!\n", MType::msg_warning);
-				PrintOutput(NULL, "clients analyzed\n", MType::msg_null);
-				PrintOutput(NULL, "------------------------------------\n", MType::msg_null);
+				PrintOutput(nullptr, "there are no bots!\n", MType::msg_warning);
+				PrintOutput(nullptr, "clients analyzed\n", MType::msg_null);
+				PrintOutput(nullptr, "------------------------------------\n", MType::msg_null);
 				sprintf(msg, "total clients on server: %d\n", actual_pl);
-				PrintOutput(NULL, msg, MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
 				sprintf(msg, "red clients: %d\n", red_clients);
-				PrintOutput(NULL, msg, MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
 				sprintf(msg, "blue clients: %d\n", blue_clients);
-				PrintOutput(NULL, msg, MType::msg_null);
-				PrintOutput(NULL, "------------------------------------\n", MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
+				PrintOutput(nullptr, "------------------------------------\n", MType::msg_null);
 			}
 			else
 			{
-				PrintOutput(NULL, "clients analyzed\n", MType::msg_default);
-				PrintOutput(NULL, "------------------------------------\n", MType::msg_null);
+				PrintOutput(nullptr, "clients analyzed\n", MType::msg_default);
+				PrintOutput(nullptr, "------------------------------------\n", MType::msg_null);
 				sprintf(msg, "total clients on server: %d\n", actual_pl);
-				PrintOutput(NULL, msg, MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
 				sprintf(msg, "red team bots: %d out of %d red clients\n", red_bots, red_clients);
-				PrintOutput(NULL, msg, MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
 				sprintf(msg, "blue team bots: %d out of %d blue clients\n",
 					blue_bots, blue_clients);
-				PrintOutput(NULL, msg, MType::msg_null);
-				PrintOutput(NULL, "------------------------------------\n", MType::msg_null);
+				PrintOutput(nullptr, msg, MType::msg_null);
+				PrintOutput(nullptr, "------------------------------------\n", MType::msg_null);
 			}
 		}
 	}
 	else if (strcmp(cmd, "version_info") == 0)
 	{
 		sprintf(msg, "You are using MarineBot version: %s\n", mb_version_info);
-		PrintOutput(NULL, msg, MType::msg_default);
+		PrintOutput(nullptr, msg, MType::msg_default);
 	}
 	else if (strcmp(cmd, "load_unsupported") == 0)
 	{
-		PrintOutput(NULL, "starting conversion...\n", MType::msg_default);
+		PrintOutput(nullptr, "starting conversion...\n", MType::msg_default);
 		
-		if (WaypointLoadUnsupported(NULL))
+		if (WaypointLoadUnsupported(nullptr))
 		{
-			if (WaypointPathLoadUnsupported(NULL))
+			if (WaypointPathLoadUnsupported(nullptr))
 			{
-				WaypointSave(NULL);
+				WaypointSave(nullptr);
 				
-				PrintOutput(NULL, "older waypoints and paths converted and saved\n", MType::msg_info);
+				PrintOutput(nullptr, "older waypoints and paths converted and saved\n", MType::msg_info);
 			}
 		}
 	}
 	else if (strcmp(cmd, "directory") == 0)
 	{
-		SetWaypointDirectoryCommand(NULL, arg1);
+		SetWaypointDirectoryCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "passive_healing") == 0)
 	{
-		PassiveHealingCommand(NULL, arg1);
+		PassiveHealingCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "dont_speak") == 0)
 	{
-		DontSpeakCommand(NULL, arg1);
+		DontSpeakCommand(nullptr, arg1);
 	}
 	else if (strcmp(cmd, "dont_chat") == 0)
 	{
-		DontChatCommand(NULL, arg1);
+		DontChatCommand(nullptr, arg1);
 	}
 	else
 	{
-		PrintOutput(NULL, "invalid or unknown command!\n", MType::msg_error);
-		PrintOutput(NULL, "write [m_bot help] or [m_bot ?] into your console for command help\n", MType::msg_info);
+		PrintOutput(nullptr, "invalid or unknown command!\n", MType::msg_error);
+		PrintOutput(nullptr, "write [m_bot help] or [m_bot ?] into your console for command help\n", MType::msg_info);
 	}
 }

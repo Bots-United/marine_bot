@@ -102,41 +102,37 @@ void UTIL_MakeVectors( const Vector &vecAngles )
 
 edict_t *UTIL_FindEntityInSphere( edict_t *pentStart, const Vector &vecCenter, float flRadius )
 {
-   edict_t  *pentEntity;
-
-   pentEntity = FIND_ENTITY_IN_SPHERE( pentStart, vecCenter, flRadius);
+	edict_t* pentEntity = FIND_ENTITY_IN_SPHERE(pentStart, vecCenter, flRadius);
 
    if (!FNullEnt(pentEntity))
       return pentEntity;
 
-   return NULL;
+   return nullptr;
 }
 
 
 // search for entity passed by its classname
 edict_t *UTIL_FindEntityInSphere(edict_t *pCallerEdict, const char *ent_name)
 {
-	edict_t *pEntity = NULL;
+	edict_t *pEntity = nullptr;
 	
-	while ((pEntity = UTIL_FindEntityInSphere(pEntity, pCallerEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+	while ((pEntity = UTIL_FindEntityInSphere(pEntity, pCallerEdict->v.origin, PLAYER_SEARCH_RADIUS)) != nullptr)
 	{
 		if (strcmp(STRING(pEntity->v.classname), ent_name) == 0)
 			return pEntity;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 
 edict_t *UTIL_FindEntityByString( edict_t *pentStart, const char *szKeyword, const char *szValue )
 {
-   edict_t *pentEntity;
-
-   pentEntity = FIND_ENTITY_BY_STRING( pentStart, szKeyword, szValue );
+	edict_t* pentEntity = FIND_ENTITY_BY_STRING(pentStart, szKeyword, szValue);
 
    if (!FNullEnt(pentEntity))
       return pentEntity;
-   return NULL;
+   return nullptr;
 }
 
 
@@ -180,7 +176,7 @@ void ClientPrint( edict_t *pEntity, int msg_dest, const char *msg_name)
    if (gmsgTextMsg == 0)
       gmsgTextMsg = REG_USER_MSG( "TextMsg", -1 );
 
-   pfnMessageBegin( MSG_ONE, gmsgTextMsg, NULL, pEntity );
+   pfnMessageBegin( MSG_ONE, gmsgTextMsg, nullptr, pEntity );
    pfnWriteByte( msg_dest );
    pfnWriteString( msg_name );
    pfnMessageEnd();
@@ -294,7 +290,7 @@ edict_t *DBG_EntOfVars( const entvars_t *pev )
 */
 int UTIL_GetTeam(edict_t *pEntity)
 {
-	if (pEntity == NULL)
+	if (pEntity == nullptr)
 	{
 #ifdef _DEBUG
 		char msg[256];
@@ -316,7 +312,7 @@ int UTIL_GetTeam(edict_t *pEntity)
 			return TEAM_BLUE;
 
 		// works for getting team info from thrown grenades in all supported versions
-		if (pEntity->v.owner != NULL)
+		if (pEntity->v.owner != nullptr)
 			return UTIL_GetTeam(pEntity->v.owner);
 
 		/*		PREV CODE - works well in FA 29 and so on, but not in 25 etc.
@@ -343,10 +339,10 @@ int UTIL_GetTeam(edict_t *pEntity)
 		// if previous checks failed then try to get the team info from the model
 		// (works in older FA versions)
 		// Red team - sand(brown) camouflage
-		if (strstr(STRING(pEntity->v.model), "red1") != NULL)
+		if (strstr(STRING(pEntity->v.model), "red1") != nullptr)
 			return TEAM_RED;
 		// Blue team - jungle(green) camouflage
-		else if (strstr(STRING(pEntity->v.model), "blue1") != NULL)
+		else if (strstr(STRING(pEntity->v.model), "blue1") != nullptr)
 			return TEAM_BLUE;
 	}
 
@@ -398,9 +394,7 @@ int UTIL_GetTeam(edict_t *pEntity)
 
 int UTIL_GetBotIndex(edict_t *pEdict)
 {
-   int index;
-
-   for (index=0; index < MAX_CLIENTS; index++)
+	for (int index = 0; index < MAX_CLIENTS; index++)
    {
       if (bots[index].pEdict == pEdict)
       {
@@ -443,15 +437,12 @@ bool IsAlive(edict_t *pEdict)
 
 bool FInViewCone(Vector *pOrigin, edict_t *pEdict)
 {
-	Vector2D vec2LOS;
-	float    flDot;
-	
 	UTIL_MakeVectors ( pEdict->v.angles );
 	
-	vec2LOS = ( *pOrigin - pEdict->v.origin ).Make2D();
+	Vector2D vec2LOS = (*pOrigin - pEdict->v.origin).Make2D();
 	vec2LOS = vec2LOS.Normalize();
-	
-	flDot = DotProduct (vec2LOS , gpGlobals->v_forward.Make2D() );
+
+	const float flDot = DotProduct(vec2LOS, gpGlobals->v_forward.Make2D());
 	
 	if ( flDot > 0.50 )  // 60 degree field of view
 	{
@@ -467,15 +458,12 @@ bool FInViewCone(Vector *pOrigin, edict_t *pEdict)
 // for more accurate checks
 bool FInNarrowViewCone(Vector *pOrigin, edict_t *pEdict, float cone)
 {
-	Vector2D vec2LOS;
-	float    flDot;
-	
 	UTIL_MakeVectors ( pEdict->v.angles );
 	
-	vec2LOS = ( *pOrigin - pEdict->v.origin ).Make2D();
+	Vector2D vec2LOS = (*pOrigin - pEdict->v.origin).Make2D();
 	vec2LOS = vec2LOS.Normalize();
-	
-	flDot = DotProduct (vec2LOS , gpGlobals->v_forward.Make2D() );
+
+	const float flDot = DotProduct(vec2LOS, gpGlobals->v_forward.Make2D());
 
 
 
@@ -508,13 +496,12 @@ bool FInNarrowViewCone(Vector *pOrigin, edict_t *pEdict, float cone)
 bool FVisible(const Vector &vecOrigin, edict_t *pEdict, bool ignore_water)
 {
 	TraceResult tr;
-	Vector      vecLookerOrigin;
-	
+
 	// look through caller's eyes
-	vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
-	
-	int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
+	const Vector vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
+
+	const int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
+	const int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
 	
 	// don't look through water 
 	if ((bInWater != bLookerInWater) && (ignore_water == FALSE))
@@ -536,13 +523,12 @@ bool FVisible(const Vector &vecOrigin, edict_t *pEdict, bool ignore_water)
 bool FVisible( const Vector &vecOrigin, edict_t *pEdict )
 {
 	TraceResult tr;
-	Vector      vecLookerOrigin;
-	
+
 	// look through caller's eyes
-	vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
-	
-	int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
+	const Vector vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
+
+	const int bInWater = (UTIL_PointContents (vecOrigin) == CONTENTS_WATER);
+	const int bLookerInWater = (UTIL_PointContents (vecLookerOrigin) == CONTENTS_WATER);
 	
 	// don't look through water
 	if (bInWater != bLookerInWater)
@@ -582,8 +568,8 @@ int FPlayerVisible(const Vector &vecOrigin, const Vector &vecLookerOrigin, edict
 {
 	TraceResult tr;
 
-	int bInWater = (UTIL_PointContents(vecOrigin) == CONTENTS_WATER);
-	int bLookerInWater = (UTIL_PointContents(vecLookerOrigin) == CONTENTS_WATER);
+	const int bInWater = (UTIL_PointContents(vecOrigin) == CONTENTS_WATER);
+	const int bLookerInWater = (UTIL_PointContents(vecLookerOrigin) == CONTENTS_WATER);
 
 	// don't look through water
 	if (bInWater != bLookerInWater)
@@ -640,8 +626,8 @@ int FPlayerVisible(const Vector &vecOrigin, const Vector &vecLookerOrigin, edict
 		// (i.e. teammate standing between the bot and the enemy)
 		if (strcmp(STRING(obstacle->v.classname), "player") == 0)
 		{
-			int pEdict_team = UTIL_GetTeam(pEdict);
-			int obstacle_team = UTIL_GetTeam(obstacle);
+			const int pEdict_team = UTIL_GetTeam(pEdict);
+			const int obstacle_team = UTIL_GetTeam(obstacle);
 
 			// we would hit a teammate so don't shoot and risk a team kill
 			if (pEdict_team == obstacle_team)
@@ -693,10 +679,9 @@ int FPlayerVisible(const Vector &vecOrigin, const Vector &vecLookerOrigin, edict
 			// to figure out if it's a see through object or not
 			if (strcmp(STRING(gpGlobals->mapname), "obj_armory") == 0)
 			{
-				const char *texture = NULL;
-				texture = g_engfuncs.pfnTraceTexture(obstacle, vecLookerOrigin, vecOrigin);
+				const char* texture = g_engfuncs.pfnTraceTexture(obstacle, vecLookerOrigin, vecOrigin);
 
-				if ((texture != NULL) && ((strcmp(texture, "{nm_leaves3") == 0) || (strcmp(texture, "{artrellis") == 0)))
+				if ((texture != nullptr) && ((strcmp(texture, "{nm_leaves3") == 0) || (strcmp(texture, "{artrellis") == 0)))
 				{
 
 #ifdef DEBUG
@@ -743,10 +728,9 @@ int FPlayerVisible(const Vector &vecOrigin, const Vector &vecLookerOrigin, edict
 int FPlayerVisible( const Vector &vecOrigin, edict_t *pEdict )
 {
 	TraceResult tr;
-	Vector      vecLookerOrigin;
-	
+
 	// look through caller's eyes
-	vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
+	const Vector vecLookerOrigin = pEdict->v.origin + pEdict->v.view_ofs;
 
 	return FPlayerVisible(vecOrigin, vecLookerOrigin, pEdict);
 }
@@ -860,8 +844,8 @@ void UTIL_ShowMenu( edict_t *pEdict, int slots, int displaytime, bool needmore, 
 	// don't run anything when in Firearms28, this menu was completely removed from game since FA28
 	if (UTIL_IsNewerVersion())
 	{
-		Vector color1 = Vector(250, 50, 0);
-		Vector color2 = Vector(255, 0, 20);
+		const Vector color1 = Vector(250, 50, 0);
+		const Vector color2 = Vector(255, 0, 20);
 
 		CustHudMessage(pEdict, "Warning: In-game HUD menu was removed in FA2.8 and above\nThis command isn't available", color1, color2, 2, 5);
 		ClientPrint(pEdict, HUD_PRINTNOTIFY, "In-game HUD menu was removed in FA2.8 and above. This command isn't available!\n");
@@ -876,7 +860,7 @@ void UTIL_ShowMenu( edict_t *pEdict, int slots, int displaytime, bool needmore, 
 	if (gmsgShowMenu == 0)
 		gmsgShowMenu = REG_USER_MSG( "ShowMenu", -1 );
 
-	pfnMessageBegin( MSG_ONE, gmsgShowMenu, NULL, pEdict );
+	pfnMessageBegin( MSG_ONE, gmsgShowMenu, nullptr, pEdict );
 	
 	pfnWriteShort( slots );
 	pfnWriteChar( displaytime );
@@ -1076,8 +1060,6 @@ bool bot_t::UpdateSounds(edict_t *pPlayer)
 	static bool check_footstep_sounds = TRUE;
 	static float footstep_sounds_on;
 	float sensitivity[BOT_SKILL_LEVELS] = {2.0, 1.8, 1.6, 1.4, 1.0}; // based on bot skill level
-	float volume;
-	int bot_team, foe_team;
 	Vector v_sound;
 
 	// ignore sounds when on ladder (just for sure)
@@ -1096,11 +1078,11 @@ bool bot_t::UpdateSounds(edict_t *pPlayer)
 		// check if this player is moving fast enough to make sounds
 		if (pPlayer->v.velocity.Length2D() > 220.0)
 		{
-			volume = 500.0;  // volume of sound being made (just pick something)
+			const float volume = 500.0;  // volume of sound being made (just pick something)
 
-			bot_team = UTIL_GetTeam(pEdict);
+			const int bot_team = UTIL_GetTeam(pEdict);
 
-			foe_team = UTIL_GetTeam(pPlayer);
+			const int foe_team = UTIL_GetTeam(pPlayer);
 			
 			// is possible enemy really enemy (ie not in same team)
 			if ((foe_team != TEAM_NONE) && (bot_team != foe_team))
@@ -1122,8 +1104,8 @@ bool bot_t::UpdateSounds(edict_t *pPlayer)
 				// we don't want the bot to turn back and/or sides while he's advancing forward
 				if (pEdict->v.velocity.Length2D() > 50.0)
 				{
-					bool HeadVisible = FVisible(pPlayer->v.origin + pPlayer->v.view_ofs, pEdict);
-					bool BodyVisible = FVisible(pPlayer->v.origin, pEdict);
+					const bool HeadVisible = FVisible(pPlayer->v.origin + pPlayer->v.view_ofs, pEdict);
+					const bool BodyVisible = FVisible(pPlayer->v.origin, pEdict);
 
 					if (!HeadVisible && !BodyVisible)
 					{
@@ -1141,7 +1123,7 @@ bool bot_t::UpdateSounds(edict_t *pPlayer)
 				if (IsTask(TASK_BIPOD) && (FInViewCone(&v_sound, pEdict) == FALSE))
 					return FALSE;
 
-				Vector bot_angles = UTIL_VecToAngles( v_sound );
+				const Vector bot_angles = UTIL_VecToAngles( v_sound );
 
 				pEdict->v.ideal_yaw = bot_angles.y;
 
@@ -1161,11 +1143,11 @@ bool bot_t::UpdateSounds(edict_t *pPlayer)
 */
 void UTIL_Radio(edict_t *pEdict, char *word)
 {
-	if ((pEdict == NULL) || (word == NULL))
+	if ((pEdict == nullptr) || (word == nullptr))
 		return;
 
-	FakeClientCommand(pEdict, "radio", NULL, NULL);	// activate the voice/radio gui
-	FakeClientCommand(pEdict, "radio", word, NULL);	// the message
+	FakeClientCommand(pEdict, "radio", nullptr, nullptr);	// activate the voice/radio gui
+	FakeClientCommand(pEdict, "radio", word, nullptr);	// the message
 }
 
 
@@ -1174,11 +1156,11 @@ void UTIL_Radio(edict_t *pEdict, char *word)
 */
 void UTIL_Voice(edict_t *pEdict, char *word)
 {
-	if ((pEdict == NULL) || (word == NULL))
+	if ((pEdict == nullptr) || (word == nullptr))
 		return;
 
-	FakeClientCommand(pEdict, "radio", NULL, NULL);	// activate the voice/radio gui -- It's probably useless, works well also without it
-	FakeClientCommand(pEdict, "voice", word, NULL);	// the message
+	FakeClientCommand(pEdict, "radio", nullptr, nullptr);	// activate the voice/radio gui -- It's probably useless, works well also without it
+	FakeClientCommand(pEdict, "voice", word, nullptr);	// the message
 }
 
 
@@ -1187,8 +1169,8 @@ void UTIL_Voice(edict_t *pEdict, char *word)
 */
 void UTIL_Say(edict_t *pEdict, char *message)
 {
-	if ((pEdict != NULL) && (message != NULL))
-		FakeClientCommand(pEdict, "say", message, NULL);
+	if ((pEdict != nullptr) && (message != nullptr))
+		FakeClientCommand(pEdict, "say", message, nullptr);
 }
 
 
@@ -1197,8 +1179,8 @@ void UTIL_Say(edict_t *pEdict, char *message)
 */
 void UTIL_TeamSay(edict_t *pEdict, char *message)
 {
-	if ((pEdict != NULL) && (message != NULL))
-		FakeClientCommand(pEdict, "say_team", message, NULL);
+	if ((pEdict != nullptr) && (message != nullptr))
+		FakeClientCommand(pEdict, "say_team", message, nullptr);
 }
 
 
@@ -1315,7 +1297,6 @@ bool IsBipodWeapon(int weapon)
 inline void SelectMainWeapon(bot_t *pBot)
 {
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
-	bot_weapon_t bot_weapon;
 	char this_one[64];
 	//float extra_delay = 0.0;
 	float extra_delay = 1.7f;	// default value that works with most weapons in FA 3.0											NEW CODE 094
@@ -1323,7 +1304,7 @@ inline void SelectMainWeapon(bot_t *pBot)
 	strcpy(this_one, "weapon_knife");
 
 	// we need to access weapon data in order to...
-	bot_weapon = weapon_defs[pBot->main_weapon];
+	bot_weapon_t bot_weapon = weapon_defs[pBot->main_weapon];
 
 	// get weapon name for the client command
 	strcpy(this_one, bot_weapon.szClassname);
@@ -1350,7 +1331,7 @@ inline void SelectMainWeapon(bot_t *pBot)
 
 
 	// calling the weapon name will select it
-	FakeClientCommand(pBot->pEdict, this_one, NULL, NULL);
+	FakeClientCommand(pBot->pEdict, this_one, nullptr, nullptr);
 	
 	// we must update shoot time to allow the engine to process it
 	// and prevent the bot from trying to use the weapon, because it isn't ready yet
@@ -1364,13 +1345,12 @@ inline void SelectMainWeapon(bot_t *pBot)
 inline void SelectBackupWeapon(bot_t *pBot)
 {
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
-	bot_weapon_t bot_weapon;
 	char this_one[64];
 	float extra_delay = 1.7f;	// (was 0.0)
 
 	strcpy(this_one, "weapon_knife");
 
-	bot_weapon = weapon_defs[pBot->backup_weapon];
+	bot_weapon_t bot_weapon = weapon_defs[pBot->backup_weapon];
 
 	strcpy(this_one, bot_weapon.szClassname);
 
@@ -1402,7 +1382,7 @@ inline void SelectBackupWeapon(bot_t *pBot)
 
 
 
-	FakeClientCommand(pBot->pEdict, this_one, NULL, NULL);
+	FakeClientCommand(pBot->pEdict, this_one, nullptr, nullptr);
 	pBot->f_shoot_time = gpGlobals->time + extra_delay;
 }
 
@@ -1413,13 +1393,12 @@ inline void SelectBackupWeapon(bot_t *pBot)
 inline void SelectGrenade(bot_t *pBot)
 {
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
-	bot_weapon_t bot_weapon;
 	char this_one[64];
 	float changing_delay = 1.2;
 
 	strcpy(this_one, "weapon_knife");
 
-	bot_weapon = weapon_defs[pBot->grenade_slot];
+	bot_weapon_t bot_weapon = weapon_defs[pBot->grenade_slot];
 
 	strcpy(this_one, bot_weapon.szClassname);
 
@@ -1455,7 +1434,7 @@ inline void SelectGrenade(bot_t *pBot)
 
 
 
-	FakeClientCommand(pBot->pEdict, this_one, NULL, NULL);
+	FakeClientCommand(pBot->pEdict, this_one, nullptr, nullptr);
 	pBot->f_shoot_time = gpGlobals->time + changing_delay;
 }
 
@@ -1503,7 +1482,7 @@ void UTIL_ChangeWeapon(bot_t *pBot)
 		}
 		else if (pBot->forced_usage == USE_KNIFE)
 		{
-			FakeClientCommand(pBot->pEdict, "weapon_knife", NULL, NULL);
+			FakeClientCommand(pBot->pEdict, "weapon_knife", nullptr, nullptr);
 			pBot->f_shoot_time = gpGlobals->time + 1.0f;
 		}
 
@@ -1732,7 +1711,7 @@ void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, FireMode_WTest wtest)
 	if ((pBot->current_weapon.iFireMode != new_mode) &&
 		(pBot->current_weapon.iFireMode != FM_NONE))
 	{
-		FakeClientCommand(pBot->pEdict, "firemode", NULL, NULL);
+		FakeClientCommand(pBot->pEdict, "firemode", nullptr, nullptr);
 
 		/*/
 #ifdef _DEBUG
@@ -1809,7 +1788,7 @@ void UTIL_ShowWeapon(bot_t *pBot)
 */
 bool UTIL_ShouldReload(bot_t *pBot, const char* loc)
 {
-	bot_current_weapon_t w = pBot->current_weapon;
+	const bot_current_weapon_t w = pBot->current_weapon;
 
 	// don't check things if the weapon isn't ready
 	if (pBot->weapon_action != W_READY)
@@ -1902,8 +1881,8 @@ bool UTIL_ShouldReload(bot_t *pBot, const char* loc)
 */
 void UTIL_CheckAmmoReserves(bot_t *pBot, const char* loc)
 {
-	int main_weap_id = pBot->main_weapon;
-	int backup_weap_id = pBot->backup_weapon;
+	const int main_weap_id = pBot->main_weapon;
+	const int backup_weap_id = pBot->backup_weapon;
 	extern bot_weapon_t weapon_defs[MAX_WEAPONS];
 
 	// don't check ammo when the weapon is NOT ready OR
@@ -2171,15 +2150,14 @@ int UTIL_FindBotByName(const char *name_string)
 {
 	char search_name[32];
 
-	if ((name_string != NULL) && (*name_string != 0))
+	if ((name_string != nullptr) && (*name_string != 0))
 		strcpy(search_name, name_string);
 	else
 		return -1;
 
-	int index;
 	char bot_name[32];
 	
-	for (index = 0; index < MAX_CLIENTS; index++)
+	for (int index = 0; index < MAX_CLIENTS; index++)
 	{
 		if (bots[index].is_used == FALSE)
 			continue;
@@ -2188,7 +2166,7 @@ int UTIL_FindBotByName(const char *name_string)
 		strcpy(bot_name, STRING(bots[index].pEdict->v.netname));
 		
 		// match this bot name (whole/part of it) with that we are looking for
-		if ((strstr(bot_name, search_name)) != NULL)
+		if ((strstr(bot_name, search_name)) != nullptr)
 		{
 			return index;
 		}
@@ -2244,15 +2222,14 @@ bool UTIL_KickBot(int which_one)
 	// random red or random blue
 	if ((which_one == 100 + TEAM_RED) || (which_one == 100 + TEAM_BLUE))
 	{
-		int i, j, this_one;
 		int adequate[32];
 
-		j = 0;
+		int j = 0;
 
 		// set back current team number (only 1 or 2 are valid team numbers)
 		which_one -= 100;
 
-		for (i = 0; i < MAX_CLIENTS; i++)
+		for (int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if ((bots[i].bot_team == which_one) && (bots[i].is_used))
 			{
@@ -2264,7 +2241,7 @@ bool UTIL_KickBot(int which_one)
 		if (j == 0)
 			return FALSE;
 
-		this_one = RANDOM_LONG(1, j) - 1;
+		const int this_one = RANDOM_LONG(1, j) - 1;
 
 		char cmd[80];
 
@@ -2278,10 +2255,10 @@ bool UTIL_KickBot(int which_one)
 	// random bot from any team
 	if (which_one == -100)
 	{
-		int i, in_game;
+		int in_game;
 		int adequate[32];
 		
-		i = in_game = 0;
+		int i = in_game = 0;
 
 		// count how many bots is in game
 		for (i = 0; i < MAX_CLIENTS; i++)
@@ -2378,12 +2355,12 @@ bool UTIL_KillBot(int which_one)
 */
 int UTIL_CountPlayers(int team)
 {
-	int i, num=0;
+	int num=0;
 
-	for (i = 0; i < MAX_CLIENTS; ++i)
+	for (int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		// skip non existent players
-		if (clients[i].pEntity == NULL)
+		if (clients[i].pEntity == nullptr)
 		{
 			continue;
 		}
@@ -2411,13 +2388,13 @@ int UTIL_CountPlayers(int team)
 */
 int UTIL_BalanceTeams()
 {
-	int i, actual_pl, bot_count, reds, blues, diff;
+	int bot_count, reds, blues;
 
-	actual_pl = bot_count = reds = blues = 0;
+	int actual_pl = bot_count = reds = blues = 0;
 
-	for (i = 0; i < MAX_CLIENTS; i++)
+	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (clients[i].pEntity == NULL)
+		if (clients[i].pEntity == nullptr)
 			continue;
 		else
 		{
@@ -2442,7 +2419,7 @@ int UTIL_BalanceTeams()
 		return -1;
 	// is there odd number of actual players
 	// get the difference
-	diff = reds - blues;
+	const int diff = reds - blues;
 
 //#ifdef _DEBUG
 //	ALERT(at_console, "<DEV DEBUG> UTIL_BalanceTeams() - clients %d | bots %d | reds %d | blues %d | diff %d\n",
@@ -2535,7 +2512,7 @@ int UTIL_DoTheBalance()
 					break;
 				}
 
-				FakeClientCommand(bots[bot_index].pEdict, "changeteam", NULL, NULL);
+				FakeClientCommand(bots[bot_index].pEdict, "changeteam", nullptr, nullptr);
 
 				state++;
 
@@ -2553,16 +2530,16 @@ int UTIL_DoTheBalance()
 			if (team == TEAM_RED)
 			{
 				if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
-					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "2", NULL);
+					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "2", nullptr);
 				else
-					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "3", NULL);
+					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "3", nullptr);
 			}
 			else if (team == TEAM_BLUE)
 			{
 				if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
-					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "1", NULL);
+					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "1", nullptr);
 				else
-					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "2", NULL);
+					FakeClientCommand(bots[bot_index].pEdict, "vguimenuoption", "2", nullptr);
 			}
 
 			state++;
@@ -2615,9 +2592,9 @@ int UTIL_DoTheBalance()
 	if (bots_to_go == 0)
 	{
 		if (is_dedicated_server)
-			PrintOutput(NULL, "teams balancing finished\n", MType::msg_info);
+			PrintOutput(nullptr, "teams balancing finished\n", MType::msg_info);
 		else
-			PrintOutput(NULL, "Teams balancing finished\n", MType::msg_info);
+			PrintOutput(nullptr, "Teams balancing finished\n", MType::msg_info);
 
 		// set those on last run
 		botmanager.ResetTeamsBalanceValue();
@@ -2935,19 +2912,19 @@ bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range)
 {
 	edict_t *pEdict = pBot->pEdict;
 
-	int player_team = UTIL_GetTeam(pInvoker);
-	int bot_team = UTIL_GetTeam(pEdict);
+	const int player_team = UTIL_GetTeam(pInvoker);
+	const int bot_team = UTIL_GetTeam(pEdict);
 
 	// teams doesn't match so break it
 	if (bot_team != player_team)
 		return FALSE;
 
 	// get the distance from the noise
-	float distance = (pEdict->v.origin - pInvoker->v.origin).Length();
+	const float distance = (pEdict->v.origin - pInvoker->v.origin).Length();
 
 	// set the ability of the bot to hear the noise, based on bot skill level
 	// (ie better bots can hear sounds from bigger distance)
-	float sensitivity = range - ((pBot->bot_skill + 1) * (range / 10));
+	const float sensitivity = range - ((pBot->bot_skill + 1) * (range / 10));
 
 	// is the bot close enough to hear it
 	if (distance < sensitivity)
@@ -2965,14 +2942,13 @@ bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range)
 int UTIL_RemoveFalsePaths(bool print_details)
 {
 	int num_of_removed_paths = 0;
-	int result = 0;																					// NEW CODE 094
 	char msg[64];
 
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
 		//																								NEW CODE 094
 		// first remove all invalid waypoints from this path
-		result = WaypointValidatePath(path_index);
+		int result = WaypointValidatePath(path_index);
 		//******************************************************************************************	NEW CODE 094 END
 
 		// is path length equal 1 (then the whole path is invalid)
@@ -2980,7 +2956,7 @@ int UTIL_RemoveFalsePaths(bool print_details)
 		{
 			// delete that path
 			// I'm using WaypointDeletePath() because DeleteWholePath() isn't known outside waypoint.cpp
-			if (WaypointDeletePath(NULL, path_index))
+			if (WaypointDeletePath(nullptr, path_index))
 			{
 				num_of_removed_paths++;
 
@@ -3203,16 +3179,15 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 		// we need more space for the whole body ... without this the bot would still hit the obstacle
 		// (basically add the body size to the range)
 		the_range += (float) 15;
-		
-		Vector new_origin;
-		edict_t *pent = NULL;
+
+		edict_t *pent = nullptr;
 		// the distance we will move the waypoint origin
-		float move_d = (float) 10;
+		const float move_d = (float) 10;
 		// value used to decrease the range
-		float dec_r = (float) 10;
+		const float dec_r = (float) 10;
 		
 		// first check for some important entities around the waypoint
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != NULL)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != nullptr)
 		{
 			// if there are bandages right next to the waypoint then do not reposition it
 			if ((strcmp(STRING(pent->v.classname), "item_bandage") == 0))
@@ -3245,7 +3220,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 			dont_move = true;
 		
 		// init the new origin with the original waypoint position for the first run
-		new_origin = waypoints[wpt_index].origin;
+		Vector new_origin = waypoints[wpt_index].origin;
 		
 		// first check for obstacles using standard waypoint origin
 		SelfControlledWaypointReposition(the_range, new_origin, move_d, dec_r, dont_move, pEdict);
@@ -3277,7 +3252,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 		}
 		
 		// check for door entity and make the waypoint a door waypoint if it is right in the doorway
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != NULL)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != nullptr)
 		{
 			if ((strcmp(STRING(pent->v.classname), "func_door") == 0) ||
 				(strcmp(STRING(pent->v.classname), "func_door_rotating") == 0) ||
@@ -3288,7 +3263,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 			}
 		}
 		
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 50)) != NULL)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 50)) != nullptr)
 		{
 			if (strcmp(STRING(pent->v.classname), "ammobox") == 0)
 			{
@@ -3351,7 +3326,7 @@ bool UTIL_IsDontMoveWpt(edict_t *pEdict, int wpt_index, bool passed)
 		// the bot just passed it (probably stading at it, but already have next wpt)
 		if ((waypoints[wpt_index].flags & W_FL_SNIPER) && (passed))
 		{
-			float dist = (pEdict->v.origin - waypoints[wpt_index].origin).Length();
+			const float dist = (pEdict->v.origin - waypoints[wpt_index].origin).Length();
 
 			// is still in wpt range
 			if (dist <= waypoints[wpt_index].range)
@@ -3368,13 +3343,13 @@ bool UTIL_IsDontMoveWpt(edict_t *pEdict, int wpt_index, bool passed)
 */
 int UTIL_GetLadderDir(bot_t *pBot)
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 
-	while ((pent = UTIL_FindEntityInSphere(pent, pBot->pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pBot->pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != nullptr)
 	{
 		if (strcmp("func_ladder", STRING(pent->v.classname)) == 0)
 		{
-			Vector ladder_origin = VecBModelOrigin(pent);
+			const Vector ladder_origin = VecBModelOrigin(pent);
 
 #ifdef _DEBUG
 			if (botdebugger.IsDebugPaths() || botdebugger.IsDebugWaypoints())
@@ -3402,14 +3377,13 @@ int UTIL_GetLadderDir(bot_t *pBot)
 */
 bool UTIL_CheckForwardForBreakable(edict_t *pEdict)
 {
-	Vector v_src, v_dest;
 	TraceResult tr;
 				
 	UTIL_MakeVectors(pEdict->v.v_angle);
 	// we're using just origin here, because if the brekable is a ventilation cover the head of the bot
 	// can be higher then the breakable itself
-	v_src = pEdict->v.origin;
-	v_dest = v_src + gpGlobals->v_forward * 250;
+	const Vector v_src = pEdict->v.origin;
+	const Vector v_dest = v_src + gpGlobals->v_forward * 250;
 				
 	UTIL_TraceLine(v_src, v_dest, dont_ignore_monsters, pEdict, &tr);
 
@@ -3441,11 +3415,11 @@ bool UTIL_CheckForwardForBreakable(edict_t *pEdict)
 */
 bool UTIL_CheckForBreakableAround(bot_t *pBot)
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 	edict_t *pEdict = pBot->pEdict;
 
 	// search the surrounding for entities
-	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, EXTENDED_SEARCH_RADIUS)) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, EXTENDED_SEARCH_RADIUS)) != nullptr)
 	{
 		// handle only these two entities
 		if ((strcmp(STRING(pent->v.classname), "func_breakable") != 0) &&
@@ -3502,7 +3476,7 @@ bool UTIL_CheckForBreakableAround(bot_t *pBot)
 */
 bool UTIL_CheckForUsablesAround(bot_t *pBot)
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 	char item_name[64];
 	Vector entity_origin;
 	float search_radius;//																			NEW CODE 094
@@ -3527,17 +3501,17 @@ bool UTIL_CheckForUsablesAround(bot_t *pBot)
 		search_radius = PLAYER_SEARCH_RADIUS;
 
 	// search the surrounding for entities
-	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, search_radius)) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, search_radius)) != nullptr)
 	{
 		strcpy(item_name, STRING(pent->v.classname));
 
 		if ((strcmp("ammobox", item_name) == 0) || (strcmp("momentary_rot_button", item_name) == 0))
 		{
 			// make vector to entity
-			Vector entity = pent->v.origin - pEdict->v.origin;
+			const Vector entity = pent->v.origin - pEdict->v.origin;
 
 			// make angles from vector to entity
-			Vector bot_angles = UTIL_VecToAngles(entity);
+			const Vector bot_angles = UTIL_VecToAngles(entity);
 
 			// look at the entity at correct angle
 			pEdict->v.idealpitch = -bot_angles.x;
@@ -3576,9 +3550,9 @@ bool UTIL_CheckForUsablesAround(bot_t *pBot)
 		if ((strcmp("func_tankcontrols", item_name) == 0) || (strcmp("func_button", item_name) == 0) ||
 			(strcmp("button_target", item_name) == 0))
 		{
-			Vector entity = entity_origin - pEdict->v.origin;
+			const Vector entity = entity_origin - pEdict->v.origin;
 
-			Vector bot_angles = UTIL_VecToAngles(entity);
+			const Vector bot_angles = UTIL_VecToAngles(entity);
 
 			pEdict->v.idealpitch = -bot_angles.x;
 			BotFixIdealPitch(pEdict);
@@ -3637,21 +3611,21 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 		return FALSE;
 
 	// if the bot is being used AND his user isn't the wounded one
-	if ((pBot->pBotUser != NULL) && (pBot->pBotUser != pWounded))
+	if ((pBot->pBotUser != nullptr) && (pBot->pBotUser != pWounded))
 	{
 		// in 25% of time stay with your current "user" (ie ignore the wouded teammate)
 		if (RANDOM_LONG(1, 100) <= 25)
 			return FALSE;
 	}
 
-	int player_team = UTIL_GetTeam(pWounded);
-	int bot_team = UTIL_GetTeam(pEdict);
+	const int player_team = UTIL_GetTeam(pWounded);
+	const int bot_team = UTIL_GetTeam(pEdict);
 
 	// don't heal your enemies
 	if (bot_team != player_team)
 		return FALSE;
 
-	float distance = (pEdict->v.origin - pWounded->v.origin).Length();
+	const float distance = (pEdict->v.origin - pWounded->v.origin).Length();
 
 	if (passive)
 		sensitivity = 350 - ((pBot->bot_skill + 1) * 50);		// was 550
@@ -3666,7 +3640,7 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 		// then ignore the call
 		if ((pBot->bot_bandages <= 1) || (pBot->sniping_time > gpGlobals->time) ||
 			pBot->IsTask(TASK_BIPOD) || pBot->IsTask(TASK_USETANK) ||
-			((pBot->pBotEnemy != NULL) && (pBot->pBotEnemy->v.health < 50) &&
+			((pBot->pBotEnemy != nullptr) && (pBot->pBotEnemy->v.health < 50) &&
 			(RANDOM_LONG(1, 100) > 50)))
 		{
 			// don't say this that much
@@ -3689,8 +3663,8 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 			}
 		}
 
-		Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
-		Vector v_patient = pWounded->v.origin + pWounded->v.view_ofs;
+		const Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
+		const Vector v_patient = pWounded->v.origin + pWounded->v.view_ofs;
 		TraceResult tr;
 
 		UTIL_TraceLine(v_bothead, v_patient, ignore_monsters, pEdict, &tr);
@@ -3703,9 +3677,9 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 			pBot->pBotEnemy = pWounded;
 			pBot->f_bot_see_enemy_time = gpGlobals->time;
 
-			Vector v_wounded = (v_patient - v_bothead);
+			const Vector v_wounded = (v_patient - v_bothead);
 
-			Vector wounded_angles = UTIL_VecToAngles(v_wounded);
+			const Vector wounded_angles = UTIL_VecToAngles(v_wounded);
 
 			// face the wounded soldier
 			pEdict->v.ideal_yaw = wounded_angles.y;
@@ -3743,11 +3717,11 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 	edict_t *pEdict = pBot->pEdict;
 
 	if (pBot->IsTask(TASK_HEALHIM) || (RANDOM_LONG(1, 100) <= 20) ||
-		((pBot->pBotUser != NULL) && (RANDOM_LONG(1, 100) <= 25)))
+		((pBot->pBotUser != nullptr) && (RANDOM_LONG(1, 100) <= 25)))
 		return FALSE;
 
-	int player_team = UTIL_GetTeam(pWounded);
-	int bot_team = UTIL_GetTeam(pEdict);
+	const int player_team = UTIL_GetTeam(pWounded);
+	const int bot_team = UTIL_GetTeam(pEdict);
 
 	if (bot_team != player_team)
 		return FALSE;
@@ -3764,14 +3738,14 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 	if (pBot->pBotEnemy == pWounded)
 		return TRUE;
 
-	float distance = (pEdict->v.origin - pWounded->v.origin).Length();
+	const float distance = (pEdict->v.origin - pWounded->v.origin).Length();
 
 	// 300 for best bots and goes down with worse skill
-	float sensitivity = 325 - ((pBot->bot_skill + 1) * 25);
+	const float sensitivity = 325 - ((pBot->bot_skill + 1) * 25);
 
 	if (distance < sensitivity)
 	{
-		if ((pBot->pBotEnemy != NULL) && (pBot->pBotEnemy->v.health < 50) &&
+		if ((pBot->pBotEnemy != nullptr) && (pBot->pBotEnemy->v.health < 50) &&
 			(RANDOM_LONG(1, 100) > 50))
 		{
 			return FALSE;
@@ -3785,17 +3759,17 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 				return FALSE;
 		}
 
-		Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
-		Vector v_patient = pWounded->v.origin;
+		const Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
+		const Vector v_patient = pWounded->v.origin;
 		TraceResult tr;
 
 		UTIL_TraceLine(v_bothead, v_patient, ignore_monsters, pEdict, &tr);
 
 		if ((tr.flFraction >= 1.0) ||
 			((tr.flFraction >= 0.95) && (strcmp("bodyque", STRING(tr.pHit->v.classname)) == 0)))
-		{			
-			Vector v_wounded = (v_patient - v_bothead);
-			Vector wounded_angles = UTIL_VecToAngles(v_wounded);
+		{
+			const Vector v_wounded = (v_patient - v_bothead);
+			const Vector wounded_angles = UTIL_VecToAngles(v_wounded);
 
 			pEdict->v.ideal_yaw = wounded_angles.y;
 			BotFixIdealYaw(pEdict);
@@ -3824,7 +3798,7 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 */
 bool UTIL_PatientNeedsTreatment(edict_t *pPatient)
 {
-	int bot_index = UTIL_GetBotIndex(pPatient);
+	const int bot_index = UTIL_GetBotIndex(pPatient);
 
 	// ignore the patient if he's under water
 	if (pPatient->v.waterlevel == 3)
@@ -3891,12 +3865,12 @@ char *strlwr(char *str)
 */
 bool IsStringValid(char *str)
 {
-	if ((str != NULL) && (strlen(str) > 3) && (strchr(str, '<') == NULL) &&
-		(strchr(str, '>') == NULL) && (strchr(str, '{') == NULL) && (strchr(str, '}') == NULL) &&
-		(strchr(str, '[') == NULL) && (strchr(str, ']') == NULL) && (strchr(str, '(') == NULL) &&
-		(strchr(str, ')') == NULL) && (strchr(str, '+') == NULL) && (strchr(str, '=') == NULL) &&
-		(strchr(str, '_') == NULL) && (strchr(str, '|') == NULL) && (strchr(str, '~') == NULL) &&
-		(strchr(str, '*') == NULL) && (strchr(str, '/') == NULL) && (strchr(str, '\\') == NULL))
+	if ((str != nullptr) && (strlen(str) > 3) && (strchr(str, '<') == nullptr) &&
+		(strchr(str, '>') == nullptr) && (strchr(str, '{') == nullptr) && (strchr(str, '}') == nullptr) &&
+		(strchr(str, '[') == nullptr) && (strchr(str, ']') == nullptr) && (strchr(str, '(') == nullptr) &&
+		(strchr(str, ')') == nullptr) && (strchr(str, '+') == nullptr) && (strchr(str, '=') == nullptr) &&
+		(strchr(str, '_') == nullptr) && (strchr(str, '|') == nullptr) && (strchr(str, '~') == nullptr) &&
+		(strchr(str, '*') == nullptr) && (strchr(str, '/') == nullptr) && (strchr(str, '\\') == nullptr))
 		return TRUE;
 
 	return FALSE;
@@ -3910,10 +3884,9 @@ bool IsStringValid(char *str)
 void ProcessTheName(char *name)
 {
 	// check name length and if it is too long try to cut it to something useful
-	if ((name != NULL) && (strlen(name) > 6))
+	if ((name != nullptr) && (strlen(name) > 6))
 	{
 		char temp_name[BOT_NAME_LEN];
-		char *useful_part;
 		char *seperators = " <>)([]}{+=_~*|/\\";
 
 		// reverse the name first so we can work with it from behind,
@@ -3923,12 +3896,12 @@ void ProcessTheName(char *name)
 		strrev(name);
 		
 		// cut the first part based on seperators
-		useful_part = strtok(name, seperators);
+		char* useful_part = strtok(name, seperators);
 
 		// check if this part is valid name
 		if (IsStringValid(useful_part))
 		{
-			int len = strlen(useful_part);
+			const int len = strlen(useful_part);
 
 			// check name ends and remove anything that isn't an alphabetical letter or digit
 			if ((isalnum(useful_part[len-1])) == FALSE)
@@ -3953,11 +3926,11 @@ void ProcessTheName(char *name)
 		else
 		{
 			int safety_stop = 0;
-			while ((useful_part = strtok(NULL, seperators)) != NULL)
+			while ((useful_part = strtok(nullptr, seperators)) != nullptr)
 			{
 				if (IsStringValid(useful_part))
 				{
-					int len = strlen(useful_part);
+					const int len = strlen(useful_part);
 					
 					if ((isalnum(useful_part[len-1])) == FALSE)
 						useful_part[len-1] = '\0';
@@ -4001,7 +3974,7 @@ void ProcessTheName(char *name)
 */
 void ShortenIt(char *name)
 {
-	if (((name != NULL) && (strlen(name) <= 12)) || (name == NULL))
+	if (((name != nullptr) && (strlen(name) <= 12)) || (name == nullptr))
 		return;
 
 	// the name is still too long so cut it to only a few chars
@@ -4023,7 +3996,7 @@ void ShortenIt(char *name)
 */
 void UTIL_HumanizeTheName(const char* original_name, char *name)
 {
-	if (original_name != NULL)
+	if (original_name != nullptr)
 		strncpy(name, original_name, BOT_NAME_LEN);
 	
 	// just in case something went wrong
@@ -4157,7 +4130,7 @@ void HudNotify(char *msg, bool islogging)
 {
 	extern edict_t *listenserver_edict;
 
-	if (msg == NULL)
+	if (msg == nullptr)
 		return;
 
 #ifdef DEBUG																	// NEW CODE 094 (remove it)
@@ -4185,8 +4158,8 @@ void HudNotify(char *msg, bool islogging)
 	// engine printing to hud notify area can only accept 128 characters including the terminating one
 	// so we must cut the message here to prevent the overflow
 	// otherwise the console won't format the text correctly (new line character is missing)
-	
-	int length = strlen(msg);
+
+	const int length = strlen(msg);
 	if (length > 127)
 	{
 		msg[126] = '\n';
@@ -4202,7 +4175,7 @@ void HudNotify(char *msg, bool islogging, bot_t *pBot)
 {
 	extern edict_t *listenserver_edict;
 
-	if (msg == NULL)
+	if (msg == nullptr)
 		return;
 
 #ifdef DEBUG																	// NEW CODE 094
@@ -4251,7 +4224,7 @@ void HudNotify(char *msg, bool islogging, bot_t *pBot)
 	if (islogging)
 		UTIL_DebugInFile(msg);
 
-	int length = strlen(msg);
+	const int length = strlen(msg);
 	if (length > 127)
 	{
 		msg[126] = '\n';
@@ -4303,11 +4276,10 @@ void UTIL_HighlightTrace(Vector v_source, Vector v_dest, edict_t *pEdict)
 void UTIL_DebugInFile(char *msg)
 {
 	char filename[256];
-	FILE *f;
 
-	UTIL_MarineBotFileName(filename, PUBLIC_DEBUG_FILE, NULL);
+	UTIL_MarineBotFileName(filename, PUBLIC_DEBUG_FILE, nullptr);
 
-	f = fopen(filename, "a");
+	FILE* f = fopen(filename, "a");
 	
 	fprintf(f, "***new record(time:%f)(map:%s)***\n", gpGlobals->time, STRING(gpGlobals->mapname));
 	fprintf(f, msg);

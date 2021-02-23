@@ -80,7 +80,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;  // switch back to idle
 
-			FakeClientCommand(pEdict, "vguimenuoption", "0", NULL);	// just press "okay"
+			FakeClientCommand(pEdict, "vguimenuoption", "0", nullptr);	// just press "okay"
 
 			return;
 		}
@@ -100,15 +100,15 @@ void bot_t::BotStartGame()
 			}
 
 			if (bot_skin == 1)
-				FakeClientCommand(pEdict, "changeskin", "0", NULL);
+				FakeClientCommand(pEdict, "changeskin", "0", nullptr);
 			else if (bot_skin == 2)
-				FakeClientCommand(pEdict, "changeskin", "1", NULL);
+				FakeClientCommand(pEdict, "changeskin", "1", nullptr);
 			else if (bot_skin == 3)
-				FakeClientCommand(pEdict, "changeskin", "2", NULL);
+				FakeClientCommand(pEdict, "changeskin", "2", nullptr);
 			else if (bot_skin == 4)
-				FakeClientCommand(pEdict, "changeskin", "3", NULL);
+				FakeClientCommand(pEdict, "changeskin", "3", nullptr);
 			else if (bot_skin == 5)
-				FakeClientCommand(pEdict, "changeskin", "4", NULL);
+				FakeClientCommand(pEdict, "changeskin", "4", nullptr);
 
 			// was the team NOT specified so generate it
 			if ((bot_team != 1) && (bot_team != 2))
@@ -122,16 +122,16 @@ void bot_t::BotStartGame()
 			{
 				// handle Firearms 2.9 and 3.0
 				if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
-					FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);	// join red team
+					FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);	// join red team
 				else
-					FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+					FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 			}
 			else
 			{
 				if ((g_mod_version == FA_29) || (g_mod_version == FA_30))
-					FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);	// join blue team
+					FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);	// join blue team
 				else
-					FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+					FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 			}
 
 			return;
@@ -155,10 +155,10 @@ void bot_t::BotStartGame()
 				// ADDED - debug also for Listen server and system debug by Frank McNeil
 				char temp[64];
 
-				if (conf != NULL)
+				if (conf != nullptr)
 				{
 					//process custom config kota@
-					SI custom_section_i = conf->sectionList.find("custom_config");
+					const SI custom_section_i = conf->sectionList.find("custom_config");
 #ifdef _DEBUG
 					//@@@@@@@
 					//PrintOutput(NULL, "*** BotStartGame() - find custom_config\n", msg_null);
@@ -168,7 +168,7 @@ void bot_t::BotStartGame()
 						Section *cust_sect_p = custom_section_i->second;
 						
 						// to deal with compiler warning signed/unsigned mismatch
-						int max_classes = cust_sect_p->sectionList.size();
+						const int max_classes = cust_sect_p->sectionList.size();
 						
 						// check for invalid class value ...
 						if ((bot_class < 1) || (bot_class > max_classes))
@@ -180,9 +180,9 @@ void bot_t::BotStartGame()
 						// convert bot class to string number
 						sprintf(temp, "class%d", bot_class);
 
-						FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+						FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 
-						SI class_sect_i = cust_sect_p->sectionList.find(temp);
+						const SI class_sect_i = cust_sect_p->sectionList.find(temp);
 						if (class_sect_i != cust_sect_p->sectionList.end())
 						{
 #ifdef _DEBUG
@@ -203,7 +203,7 @@ void bot_t::BotStartGame()
 								//@@@@@@@@@@@@@
 								//PrintOutput(NULL, "BotStartGame() - FA25 menu based spawning entered\n", msg_null);
 #endif
-								FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+								FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 								return;
 							}
@@ -243,7 +243,7 @@ void bot_t::BotStartGame()
 				if (bot_class == 1)
 				{
 					//this will spawn assault
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "7", "3");
@@ -265,7 +265,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 2)
 				{
 					//this will spawn machinegunner
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "9", "2");
@@ -288,7 +288,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 3)
 				{
 					//this will spawn grenadier
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "3");
@@ -309,7 +309,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 4)
 				{
 					//this will spawn specialist
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "1");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "4");
@@ -338,7 +338,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 5)
 				{
 					//this will spawn combat sniper
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "1");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "8", "2");
@@ -365,7 +365,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 6)
 				{
 					//this will spawn medic
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "3");
@@ -392,7 +392,7 @@ void bot_t::BotStartGame()
 				else if (bot_class == 7)
 				{
 					//this will spawn scout
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "3");
@@ -413,7 +413,7 @@ void bot_t::BotStartGame()
 				else
 				{
 					//this will spawn veteran
-					FakeClientCommand(pEdict, "usingpreconfig", NULL, NULL);
+					FakeClientCommand(pEdict, "usingpreconfig", nullptr, nullptr);
 					FakeClientCommand(pEdict, "loadpreconfig", "1", "3");
 					FakeClientCommand(pEdict, "loadpreconfig", "2", "2");
 					FakeClientCommand(pEdict, "loadpreconfig", "7", "4");
@@ -436,7 +436,7 @@ void bot_t::BotStartGame()
 			BotFinishSkillsSpawning(this);
 
 			// finish spawning
-			FakeClientCommand(pEdict, "finishedpreconfig", NULL, NULL);
+			FakeClientCommand(pEdict, "finishedpreconfig", nullptr, nullptr);
 
 			// bot has now joined the game (doesn't need to be started)
 			not_started = 0;
@@ -458,7 +458,7 @@ void bot_t::BotStartGame()
 			start_action = MSG_FA_IDLE;
 
 			// use the custom class pointer only if exists
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				// init class pointer
 				Section *class_p = pcust_class;
@@ -471,7 +471,7 @@ void bot_t::BotStartGame()
 			}
 			// otherwise we need to spawn some armor so why not to take the first one
 			else
-				FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+				FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 			return;
 		}
@@ -481,7 +481,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -492,7 +492,7 @@ void bot_t::BotStartGame()
 			}
 
 			// we have to confirm this menu to continue to next section
-			FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 			return;
 		}
@@ -502,7 +502,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -512,7 +512,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 			return;
 		}
@@ -522,7 +522,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -532,7 +532,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -542,7 +542,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -552,7 +552,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -562,7 +562,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -572,7 +572,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -582,7 +582,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -592,7 +592,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -602,7 +602,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -612,7 +612,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -622,7 +622,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -632,7 +632,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "9", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "9", nullptr);
 
 			return;
 		}
@@ -642,7 +642,7 @@ void bot_t::BotStartGame()
 		{
 			start_action = MSG_FA_IDLE;
 
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -652,7 +652,7 @@ void bot_t::BotStartGame()
 				}
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 			return;
 		}
@@ -666,7 +666,7 @@ void bot_t::BotStartGame()
 
 			// if the pointer to custom class exist use it
 			// otherwise the code logic will spawn one skill randomly
-			if (pcust_class != NULL)
+			if (pcust_class != nullptr)
 			{
 				Section *class_p = pcust_class;
 				
@@ -683,7 +683,7 @@ void bot_t::BotStartGame()
 				char the_skill[4];
 				sprintf(the_skill, "%d", BotGenerateSkill(this) -1);
 				
-				FakeClientCommand(pEdict, "setskill", the_skill, NULL);
+				FakeClientCommand(pEdict, "setskill", the_skill, nullptr);
 
 #ifdef _DEBUG
 				//@@@@@@@@@@@@@@@
@@ -726,7 +726,7 @@ void bot_t::BotStartGame()
 				bot_fa_skill |= STEALTH;
 			}
 
-			FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 
 			// bot has now joined the game
 			not_started = 0;
@@ -810,7 +810,7 @@ void BotFinishSkillsSpawning(bot_t *pBot)
 #endif
 
 	// spawn one or more skills to finish spawning if bot do NOT have any
-	int number_of_skills = NumberOfFASkills(pBot);
+	const int number_of_skills = NumberOfFASkills(pBot);
 	
 	if ((pBot->bot_fa_skill == 0) || ((internals.GetFASkillSystem() == 1.0) && (number_of_skills < 1)) ||
 		((internals.GetFASkillSystem() == 2.0) && (number_of_skills < 4)) || (internals.GetFASkillSystem() == 3.0))
@@ -834,7 +834,7 @@ void BotFinishSkillsSpawning(bot_t *pBot)
 
 			// with system 2.0 we can spawn 4 skills
 			// so check how many skills bot already have
-			int still_need = 4 - number_of_skills;
+			const int still_need = 4 - number_of_skills;
 			
 			// and spawn the rest we need
 			for (int i = 0; i < still_need; i++)
@@ -1033,7 +1033,7 @@ inline void BotSetBehaviour(bot_t *pBot)
 	{
 		strcpy(behaviour_byte2,"common_soldier");
 
-		int chance = RANDOM_LONG(1, 100);
+		const int chance = RANDOM_LONG(1, 100);
 
 		// common soldiers behaves 33 on 33 on 33
 		if (chance > 66)
@@ -1676,7 +1676,7 @@ void ProcessCustomConfig(bot_t *pBot, const char *line_buffer)
 	if (isnt(bank, "-1") && isnt(bank, "1") && isnt(bank, "2") && isnt(bank, "3") && isnt(bank, "4") &&
 		isnt(bank, "23"))
 	{
-		int new_weapon = SetMainWeapon(bank, slot);
+		const int new_weapon = SetMainWeapon(bank, slot);
 
 		// we should try to rearrange weapons before we set this weapon as a main weapon
 		// without this method we can lose m82, for example, because if there's already
@@ -1793,15 +1793,15 @@ void FA25SpawnBaseArmor(bot_t *pBot, const char *line_buffer)
 
 	if (strcmp(line_buffer, "light_armor") == 0)
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "1", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "1", nullptr);
 	}
 	else if (strcmp(line_buffer, "medium_armor") == 0)
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	else if (strcmp(line_buffer, "heavy_armor") == 0)
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 }
 
@@ -1816,15 +1816,15 @@ void FA25SpawnAdditionalArmor(bot_t *pBot, const char *line_buffer)
 
 	if ((strcmp(line_buffer, "armor_helmet") == 0) || (strcmp(line_buffer, "helmet") == 0))
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "armor_arms") == 0) || (strcmp(line_buffer, "arms") == 0))
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 	if ((strcmp(line_buffer, "armor_legs") == 0) || (strcmp(line_buffer, "legs") == 0))
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "4", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "4", nullptr);
 	}
 }
 
@@ -1841,7 +1841,7 @@ void FA25SpawnItems(bot_t *pBot, const char *line_buffer)
 	{
 		pBot->grenade_slot = fa_weapon_frag;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	// concussion is nearly same weapon so we could spawn flashbang
 	if ((strcmp(line_buffer, "concussion_grenade") == 0) ||
@@ -1849,23 +1849,23 @@ void FA25SpawnItems(bot_t *pBot, const char *line_buffer)
 	{
 		pBot->grenade_slot = fa_weapon_flashbang;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 	if ((strcmp(line_buffer, "stiel_grenade") == 0) || (strcmp(line_buffer, "stg24") == 0))
 	{
 		pBot->grenade_slot = fa_weapon_stg24;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "4", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "4", nullptr);
 	}
 	if ((strcmp(line_buffer, "claymore_mine") == 0) || (strcmp(line_buffer, "claymore") == 0))
 	{
 		pBot->claymore_slot = fa_weapon_claymore;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "5", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "5", nullptr);
 	}
 	if (strcmp(line_buffer, "bandages") == 0)
 	{
-		FakeClientCommand(pEdict, "vguimenuoption", "6", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "6", nullptr);
 	}
 }
 
@@ -1883,35 +1883,35 @@ void FA25SpawnSidearms(bot_t *pBot, const char *line_buffer)
 	{
 		pBot->backup_weapon = fa_weapon_coltgov;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "colt_anaconda") == 0) ||
 		(strcmp(line_buffer, "anaconda") == 0) || (strcmp(line_buffer, "rvsascp") == 0))
 	{
 		pBot->backup_weapon = fa_weapon_anaconda;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 	if ((strcmp(line_buffer, "ber_93r") == 0) ||
 		(strcmp(line_buffer, "93r") == 0) || (strcmp(line_buffer, "sa3rb") == 0))
 	{
 		pBot->backup_weapon = fa_weapon_ber93r;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "4", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "4", nullptr);
 	}
 	if ((strcmp(line_buffer, "ber_92f") == 0) ||
 		(strcmp(line_buffer, "92f") == 0) || (strcmp(line_buffer, "sasil") == 0))
 	{
 		pBot->backup_weapon = fa_weapon_ber92f;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "5", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "5", nullptr);
 	}
 	if ((strcmp(line_buffer, "desert_eagle") == 0) ||
 		(strcmp(line_buffer, "deagle") == 0) || (strcmp(line_buffer, "aesa") == 0))
 	{
 		pBot->backup_weapon = fa_weapon_desert;
 
-		FakeClientCommand(pEdict, "vguimenuoption", "6", NULL);
+		FakeClientCommand(pEdict, "vguimenuoption", "6", nullptr);
 	}
 }
 
@@ -1928,13 +1928,13 @@ void FA25SpawnShotguns(bot_t *pBot, const char *line_buffer)
 		(strcmp(line_buffer, "remington") == 0) || (strcmp(line_buffer, "tac12") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_benelli))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "saiga_12k") == 0) ||
 		(strcmp(line_buffer, "12k") == 0) || (strcmp(line_buffer, "autoshot") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_saiga))
-			FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 }
 
@@ -1961,30 +1961,30 @@ void FA25SpawnSMGs(bot_t *pBot, const char *line_buffer)
 			the_weapon = fa_weapon_mp5k;
 
 		if (CanSpawnIt(pBot, the_weapon))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "hk_mp5") == 0) ||
 		(strcmp(line_buffer, "mp5") == 0) || (strcmp(line_buffer, "tacsmg") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_mp5a5))
-			FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 	if ((strcmp(line_buffer, "mc51") == 0) || (strcmp(line_buffer, "bfsmg") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_mc51))
-			FakeClientCommand(pEdict, "vguimenuoption", "4", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "4", nullptr);
 	}
 	// we can also use uzi token to spawn this weapon
 	if ((strcmp(line_buffer, "uzi") == 0) || (strcmp(line_buffer, "m11") == 0) ||
 		(strcmp(line_buffer, "akimbo") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m11))
-			FakeClientCommand(pEdict, "vguimenuoption", "5", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "5", nullptr);
 	}
 	if ((strcmp(line_buffer, "bizon") == 0) || (strcmp(line_buffer, "hcmsmg") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_bizon))
-			FakeClientCommand(pEdict, "vguimenuoption", "6", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "6", nullptr);
 	}
 }
 
@@ -2000,43 +2000,43 @@ void FA25SpawnRifles(bot_t *pBot, const char *line_buffer)
 	if ((strcmp(line_buffer, "ak47") == 0) || (strcmp(line_buffer, "arbt") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_ak47))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "famas") == 0) || (strcmp(line_buffer, "artac") == 0))
 	{
 #ifndef NOFAMAS
 		if (CanSpawnIt(pBot, fa_weapon_famas))
-			FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 #endif
 	}
 	if ((strcmp(line_buffer, "hk_g3a3") == 0) || (strcmp(line_buffer, "tacarlcm") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_g3a3))
-			FakeClientCommand(pEdict, "vguimenuoption", "4", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "4", nullptr);
 	}
 	if ((strcmp(line_buffer, "hk_g36e") == 0) || (strcmp(line_buffer, "natoarscp") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_g36e))
-			FakeClientCommand(pEdict, "vguimenuoption", "5", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "5", nullptr);
 	}
 	// we can also use ak74 to spawn this weapon
 	if ((strcmp(line_buffer, "colt_m16") == 0) || (strcmp(line_buffer, "m16") == 0) ||
 		(strcmp(line_buffer, "argl") == 0) || (strcmp(line_buffer, "ak74") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m16))
-			FakeClientCommand(pEdict, "vguimenuoption", "6", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "6", nullptr);
 	}
 	if ((strcmp(line_buffer, "m4") == 0) || (strcmp(line_buffer, "carbine") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m4))
-			FakeClientCommand(pEdict, "vguimenuoption", "7", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "7", nullptr);
 	}
 	// we can also use m14 token to spawn this weapon
 	if ((strcmp(line_buffer, "m14") == 0) || (strcmp(line_buffer, "aug") == 0) ||
 		(strcmp(line_buffer, "bparscp") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_aug))
-			FakeClientCommand(pEdict, "vguimenuoption", "8", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "8", nullptr);
 	}
 }
 
@@ -2056,13 +2056,13 @@ void FA25SpawnSnipes(bot_t *pBot, const char *line_buffer)
 		(strcmp(line_buffer, "srscp") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_psg1))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 	if ((strcmp(line_buffer, "barrett_m82") == 0) ||
 		(strcmp(line_buffer, "m82") == 0) || (strcmp(line_buffer, "atsrscp") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m82))
-			FakeClientCommand(pEdict, "vguimenuoption", "3", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "3", nullptr);
 	}
 }
 
@@ -2082,7 +2082,7 @@ void FA25SpawnMGuns(bot_t *pBot, const char *line_buffer)
 		(strcmp(line_buffer, "hcmmg") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m60))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 }
 
@@ -2099,7 +2099,7 @@ void FA25SpawnGLs(bot_t *pBot, const char *line_buffer)
 		(strcmp(line_buffer, "m79") == 0) || (strcmp(line_buffer, "40mmgl") == 0))
 	{
 		if (CanSpawnIt(pBot, fa_weapon_m79))
-			FakeClientCommand(pEdict, "vguimenuoption", "2", NULL);
+			FakeClientCommand(pEdict, "vguimenuoption", "2", nullptr);
 	}
 }
 
@@ -2110,11 +2110,9 @@ void FA25SpawnGLs(bot_t *pBot, const char *line_buffer)
 */
 bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 {
-	int number_of_skills;
-
 	edict_t *pEdict = pBot->pEdict;
 
-	number_of_skills = NumberOfFASkills(pBot);
+	const int number_of_skills = NumberOfFASkills(pBot);
 	
 	if ((strcmp(line_buffer, "marksmanship1") == 0) && !(pBot->bot_fa_skill & MARKS1))
 	{
@@ -2125,7 +2123,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{
 			pBot->bot_fa_skill |= MARKS1;		// set also FA_skill that are spawned
 
-			FakeClientCommand(pEdict, "setskill", "0", NULL);
+			FakeClientCommand(pEdict, "setskill", "0", nullptr);
 		}
 
 		return TRUE;
@@ -2141,14 +2139,14 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 			{
 				pBot->bot_fa_skill |= MARKS2;
 
-				FakeClientCommand(pEdict, "setskill", "1", NULL);
+				FakeClientCommand(pEdict, "setskill", "1", nullptr);
 			}
 			// otherwise take the marksmanship1 first
 			else
 			{
 				pBot->bot_fa_skill |= MARKS1;
 
-				FakeClientCommand(pEdict, "setskill", "0", NULL);
+				FakeClientCommand(pEdict, "setskill", "0", nullptr);
 			}
 		}
 		
@@ -2162,7 +2160,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{
 			pBot->bot_fa_skill |= NOMEN;
 
-			FakeClientCommand(pEdict, "setskill", "2", NULL);
+			FakeClientCommand(pEdict, "setskill", "2", nullptr);
 		}
 
 		return TRUE;		
@@ -2175,7 +2173,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{			
 			pBot->bot_fa_skill |= BATTAG;
 
-			FakeClientCommand(pEdict, "setskill", "3", NULL);
+			FakeClientCommand(pEdict, "setskill", "3", nullptr);
 		}
 		
 		return TRUE;
@@ -2188,7 +2186,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{		
 			pBot->bot_fa_skill |= LEADER;
 
-			FakeClientCommand(pEdict, "setskill", "4", NULL);
+			FakeClientCommand(pEdict, "setskill", "4", nullptr);
 		}
 		
 		return TRUE;
@@ -2201,7 +2199,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{
 			pBot->bot_fa_skill |= FAID;
 
-			FakeClientCommand(pEdict, "setskill", "5", NULL);
+			FakeClientCommand(pEdict, "setskill", "5", nullptr);
 		}
 
 		return TRUE;
@@ -2216,13 +2214,13 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 			{
 				pBot->bot_fa_skill |= MEDIC;
 
-				FakeClientCommand(pEdict, "setskill", "6", NULL);
+				FakeClientCommand(pEdict, "setskill", "6", nullptr);
 			}
 			else
 			{
 				pBot->bot_fa_skill |= FAID;
 
-				FakeClientCommand(pEdict, "setskill", "5", NULL);
+				FakeClientCommand(pEdict, "setskill", "5", nullptr);
 			}
 		}
 		
@@ -2236,7 +2234,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{		
 			pBot->bot_fa_skill |= ARTY1;
 
-			FakeClientCommand(pEdict, "setskill", "7", NULL);
+			FakeClientCommand(pEdict, "setskill", "7", nullptr);
 		}
 		
 		return TRUE;
@@ -2251,13 +2249,13 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 			{
 				pBot->bot_fa_skill |= ARTY2;
 
-				FakeClientCommand(pEdict, "setskill", "8", NULL);
+				FakeClientCommand(pEdict, "setskill", "8", nullptr);
 			}
 			else
 			{
 				pBot->bot_fa_skill |= ARTY1;
 
-				FakeClientCommand(pEdict, "setskill", "7", NULL);
+				FakeClientCommand(pEdict, "setskill", "7", nullptr);
 			}
 		}
 		
@@ -2271,7 +2269,7 @@ bool BotSpawnSkills(bot_t *pBot, const char *line_buffer)
 		{
 			pBot->bot_fa_skill |= STEALTH;
 
-			FakeClientCommand(pEdict, "setskill", "9", NULL);
+			FakeClientCommand(pEdict, "setskill", "9", nullptr);
 		}
 
 		return TRUE;

@@ -21,7 +21,7 @@
 #ifndef WAYPOINT_H
 #define WAYPOINT_H
 
-#include <limits.h>
+#include <climits>
 
 #define MAX_WAYPOINTS 2048		// the maximum of waypoints for a map
 
@@ -340,14 +340,14 @@ public:
 	trigger_event_gamestate_t() { Init(); }
 	void Init (void);
 	void Reset (int i = -1);
-	inline void SetName (TriggerId new_name) { name = new_name; }
-	inline TriggerId GetName (void) { return name; }
-	inline void SetUsed (bool flag) { used = flag; }
-	inline bool GetUsed (void) { return used; }
-	inline void SetTriggered (bool flag) { triggered = flag; }
-	inline bool GetTriggered (void) { return triggered; }
-	inline void SetTime (float new_time = gpGlobals->time) { time = (float) new_time; }
-	inline float GetTime (void) { return (float) time; }
+	void SetName (TriggerId new_name) { name = new_name; }
+	TriggerId GetName (void) const { return name; }
+	void SetUsed (bool flag) { used = flag; }
+	bool GetUsed (void) const { return used; }
+	void SetTriggered (bool flag) { triggered = flag; }
+	bool GetTriggered (void) const { return triggered; }
+	void SetTime (float new_time = gpGlobals->time) { time = (float) new_time; }
+	float GetTime (void) const { return (float) time; }
 
 private:
 	TriggerId		name;			// it's ID - the glue to the trigger structure
@@ -371,40 +371,40 @@ class waypointsbrowser_t
 public:
 	waypointsbrowser_t();
 	void ResetOnMapChange(void);
-	inline void SetShowWaypoints(bool newVal) { waypoints_on = newVal; }
-	inline bool IsShowWaypoints(void) { return waypoints_on; }
-	inline void ResetShowWaypoints(void) { waypoints_on = false; }
-	inline void SetShowPaths(bool newVal) { paths_on = newVal; }
-	inline bool IsShowPaths(void) { return paths_on; }
-	inline void ResetShowPaths(void) { paths_on = false; }
-	inline void SetCheckAims(bool newVal) { check_aim_connections = newVal; }
-	inline bool IsCheckAims(void) { return check_aim_connections; }
-	inline void ResetCheckAims(void) { check_aim_connections = false; }
-	inline void SetCheckCross(bool newVal) { check_cross_connections = newVal; }
-	inline bool IsCheckCross(void) { return check_cross_connections; }
-	inline void ResetCheckCross(void) { check_cross_connections = false; }
-	inline void SetCheckRanges(bool newVal) { check_waypoints_ranges = newVal; }
-	inline bool IsCheckRanges(void) { return check_waypoints_ranges; }
-	inline void ResetCheckRanges(void) { check_waypoints_ranges = false; }
-	inline void SetAutoWaypointing(bool newVal) { auto_waypointing = newVal; }
-	inline bool IsAutoWaypointing(void) { return auto_waypointing; }
-	inline void ResetAutoWaypointing(void) { auto_waypointing = false; }
-	inline void SetAutoAddToPath(bool newVal) { auto_add_to_path = newVal; }
-	inline bool IsAutoAddToPath(void) { return auto_add_to_path; }
-	inline void ResetAutoAddToPath(void) { auto_add_to_path = false; }
-	inline void SetWaypointsDrawDistance(float newVal) { waypoints_draw_distance = newVal; }
-	inline float GetWaypointsDrawDistance(void) { return waypoints_draw_distance; }
-	inline void ResetWaypointsDrawDistance(void) { waypoints_draw_distance = (float)800.0; }
-	inline void SetAutoWaypointingDistance(float newVal) { auto_waypointing_distance = newVal; }
-	inline float GetAutoWaypointingDistance(void) { return auto_waypointing_distance; }
-	inline void ResetAutoWaypointingDistance(void) { auto_waypointing_distance = (float)200.0; }
-	inline void SetCompassIndex(int newVal) { waypoint_compass_index = newVal; }
-	inline int GetCompassIndex(void) { return waypoint_compass_index; }
-	inline void ResetCompassIndex(void) { waypoint_compass_index = NO_VAL; }
-	inline void SetPathToHighlight(int newVal) { path_to_highlight = newVal; }
-	inline int GetPathToHighlight(void) { return path_to_highlight; }
-	inline void ResetPathToHighlight(void) { path_to_highlight = HIGHLIGHT_DISABLED; }
-	inline bool IsPathToHighlightAPathIndex(void) { return ((path_to_highlight >= 0) && (path_to_highlight < num_w_paths)); }
+	void SetShowWaypoints(bool newVal) { waypoints_on = newVal; }
+	bool IsShowWaypoints(void) const { return waypoints_on; }
+	void ResetShowWaypoints(void) { waypoints_on = false; }
+	void SetShowPaths(bool newVal) { paths_on = newVal; }
+	bool IsShowPaths(void) const { return paths_on; }
+	void ResetShowPaths(void) { paths_on = false; }
+	void SetCheckAims(bool newVal) { check_aim_connections = newVal; }
+	bool IsCheckAims(void) const { return check_aim_connections; }
+	void ResetCheckAims(void) { check_aim_connections = false; }
+	void SetCheckCross(bool newVal) { check_cross_connections = newVal; }
+	bool IsCheckCross(void) const { return check_cross_connections; }
+	void ResetCheckCross(void) { check_cross_connections = false; }
+	void SetCheckRanges(bool newVal) { check_waypoints_ranges = newVal; }
+	bool IsCheckRanges(void) const { return check_waypoints_ranges; }
+	void ResetCheckRanges(void) { check_waypoints_ranges = false; }
+	void SetAutoWaypointing(bool newVal) { auto_waypointing = newVal; }
+	bool IsAutoWaypointing(void) const { return auto_waypointing; }
+	void ResetAutoWaypointing(void) { auto_waypointing = false; }
+	void SetAutoAddToPath(bool newVal) { auto_add_to_path = newVal; }
+	bool IsAutoAddToPath(void) const { return auto_add_to_path; }
+	void ResetAutoAddToPath(void) { auto_add_to_path = false; }
+	void SetWaypointsDrawDistance(float newVal) { waypoints_draw_distance = newVal; }
+	float GetWaypointsDrawDistance(void) const { return waypoints_draw_distance; }
+	void ResetWaypointsDrawDistance(void) { waypoints_draw_distance = (float)800.0; }
+	void SetAutoWaypointingDistance(float newVal) { auto_waypointing_distance = newVal; }
+	float GetAutoWaypointingDistance(void) const { return auto_waypointing_distance; }
+	void ResetAutoWaypointingDistance(void) { auto_waypointing_distance = (float)200.0; }
+	void SetCompassIndex(int newVal) { waypoint_compass_index = newVal; }
+	int GetCompassIndex(void) const { return waypoint_compass_index; }
+	void ResetCompassIndex(void) { waypoint_compass_index = NO_VAL; }
+	void SetPathToHighlight(int newVal) { path_to_highlight = newVal; }
+	int GetPathToHighlight(void) const { return path_to_highlight; }
+	void ResetPathToHighlight(void) { path_to_highlight = HIGHLIGHT_DISABLED; }
+	bool IsPathToHighlightAPathIndex(void) const { return ((path_to_highlight >= 0) && (path_to_highlight < num_w_paths)); }
 
 private:
 	bool waypoints_on;				// to show waypoints
@@ -462,7 +462,7 @@ bool  WaypointAutoSave(void);
 int	  WaypointGetSystemVersion(void);
 bool  IsFlagSet(int flag, int wpt_index, int team = TEAM_NONE);
 int   WaypointGetPriority(int wpt_index, int team);
-float WaypointGetWaitTime(int wpt_index, int team, const char* loc = NULL);
+float WaypointGetWaitTime(int wpt_index, int team, const char* loc = nullptr);
 int	  WaypointFindAvailable(bot_t *pBot);
 int	  WaypointFindFirst(bot_t *pBot, float range, int skip_this_index);
 int	  WaypointFindNearestAiming(bot_t *pBot, Vector *v_origin);

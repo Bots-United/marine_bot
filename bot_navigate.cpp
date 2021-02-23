@@ -27,15 +27,15 @@
 #pragma warning(disable: 4005 91)
 #endif
 
-#include <string.h>
+#include <cstring>
 
 #include "extdll.h"
 #include "util.h"
 #include "cbase.h"
 
-#include <stdio.h>
+#include <cstdio>
 #include <sys/types.h>
-#include <math.h>
+#include <cmath>
 
 #include "bot.h"
 #include "bot_func.h"
@@ -68,20 +68,17 @@ void BotFixIdealPitch(edict_t *pEdict)
 float BotChangePitch( bot_t *pBot, float speed )
 {
 	edict_t *pEdict = pBot->pEdict;
-	float ideal;
-	float current;
 	float current_180;  // current +/- 180 degrees
-	float diff;
 
-	float bipod_top_limit = 20.0;
-	float bipod_bottom_limit = 45.0;
+	const float bipod_top_limit = 20.0;
+	const float bipod_bottom_limit = 45.0;
 
 	// turn from the current v_angle pitch to the idealpitch by selecting
 	// the quickest way to turn to face that direction
 
-	current = pEdict->v.v_angle.x;
-	
-	ideal = pEdict->v.idealpitch;
+	float current = pEdict->v.v_angle.x;
+
+	const float ideal = pEdict->v.idealpitch;
 
 	// is bot using bipod so limit his turn angles
 	if (pBot->IsTask(TASK_BIPOD))
@@ -91,13 +88,13 @@ float BotChangePitch( bot_t *pBot, float speed )
 
 		// is current angle bigger than top limit angle (while the bot is looking upwards)
 		// OR is current angle bigger than bottom limit angle (while the bot is looking downwards)
-		if (((fabs(current) > bipod_top_limit) && (current < 0)) ||
-			((fabs(current) > bipod_bottom_limit) && (current > 0)))
+		if (((std::fabs(current) > bipod_top_limit) && (current < 0)) ||
+			((std::fabs(current) > bipod_bottom_limit) && (current > 0)))
 			current = pEdict->v.vuser1.x;	// reset to original value
 	}
 
 	// find the difference in the current and ideal angle
-	diff = fabs((double) current - ideal);
+	const float diff = fabs((double)current - ideal);
 
 	// check if the bot is already facing the idealpitch direction
 	if (diff <= 1)
@@ -111,11 +108,9 @@ float BotChangePitch( bot_t *pBot, float speed )
 	// ie. we need to slow down worse bots more than better bots
 	if (pBot->IsSubTask(ST_FACEENEMY))
 	{
-		float speed_tweak = 0.0;
-
 		// so we just take some constant and multiply it by the skill
 		// which means no difference for best bots because skill is zero based variable
-		speed_tweak = 4 * pBot->bot_skill;
+		const float speed_tweak = 4 * pBot->bot_skill;
 
 		// and then we can modify the turning speed
 		speed = speed - speed_tweak;
@@ -183,21 +178,18 @@ void BotFixIdealYaw(edict_t *pEdict)
 float BotChangeYaw( bot_t *pBot, float speed )
 {
 	edict_t *pEdict = pBot->pEdict;
-	float ideal;
-	float current;
 	float current_180;  // current +/- 180 degrees
-	float diff;
 
 	// turn from the current v_angle yaw to the ideal_yaw by selecting
 	// the quickest way to turn to face that direction
 
-	current = pEdict->v.v_angle.y;
+	float current = pEdict->v.v_angle.y;
 
-	ideal = pEdict->v.ideal_yaw;
+	const float ideal = pEdict->v.ideal_yaw;
 
 	if (pBot->IsTask(TASK_BIPOD))
 	{
-		float bipod_limit = 45.0;
+		const float bipod_limit = 45.0;
 
 		// in pEdict->v.vuser1 is stored v_view angle when player started using bipod
 		// (ie the direction player looked when he used "bipod" command)
@@ -211,14 +203,12 @@ float BotChangeYaw( bot_t *pBot, float speed )
 
 	if (pBot->IsSubTask(ST_FACEENEMY))
 	{
-		float speed_tweak = 0.0;
-
-		speed_tweak = 4 * pBot->bot_skill;
+		const float speed_tweak = 4 * pBot->bot_skill;
 
 		speed = speed - speed_tweak;
 	}
 
-	diff = fabs((double) current - ideal);
+	const float diff = fabs((double)current - ideal);
 
 	// the bot is basically facing the direction we wanted so we can remove the flag
 	if (diff < 4)
@@ -309,16 +299,15 @@ Vector GenerateOrigin(int wpt_index)
 	{
 		return waypoints[wpt_index].origin;
 	}
-	
-	float d_x, d_y, wpt_range;
+
 	Vector new_origin = waypoints[wpt_index].origin;
 
 	// get the range out of this wpt
-	wpt_range = waypoints[wpt_index].range;
+	const float wpt_range = waypoints[wpt_index].range;
 
 	// make the new x,y position
-	d_x = RANDOM_FLOAT(1, wpt_range - 1);
-	d_y = RANDOM_FLOAT(1, wpt_range - 1);
+	float d_x = RANDOM_FLOAT(1, wpt_range - 1);
+	float d_y = RANDOM_FLOAT(1, wpt_range - 1);
 
 	// in 50% of time use also negative values for fake position
 	if (RANDOM_LONG(1, 100) < 50)
@@ -384,12 +373,10 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	
 
 	// if the path ends AND is only one way path
-	if ((p->next == NULL) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_ONE))
+	if ((p->next == nullptr) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_ONE))
 	{
-		int next_wpt = -1;
-
 		// search for waypoints around
-		next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
+		const int next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
 
 		// is any new waypoint in range
 		if (next_wpt != -1)
@@ -430,13 +417,13 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		}
 	}
 	// if the path ends AND it's two way path use the path in opposite direction
-	else if ((p->next == NULL) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_TWO))
+	else if ((p->next == nullptr) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_TWO))
 	{
 		// if path ends with goback and similar "turnback" waypoints
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
 			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 		{
-			if (p->prev != NULL)
+			if (p->prev != nullptr)
 			{
 				// change the direction bot had
 				pBot->opposite_path_dir = TRUE;
@@ -457,9 +444,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		// otherwise try to find any new waypoint and path
 		else
 		{
-			int next_wpt = -1;
-
-			next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
+			const int next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
 
 			if (next_wpt != -1)
 			{
@@ -483,7 +468,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 			{
 				pBot->wpt_wait_time = gpGlobals->time + RANDOM_FLOAT(15.0, 60.0);
 
-				if (p->prev != NULL)
+				if (p->prev != nullptr)
 				{
 					pBot->opposite_path_dir = TRUE;
 
@@ -503,7 +488,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		}	
 	}
 	// if the path ends AND it's a patrol path use the path in opposite direction
-	else if ((p->next == NULL) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_PATROL))
+	else if ((p->next == nullptr) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_PATROL))
 	{
 		// if path ends with these waypoints do nothing (further code does all we need)
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
@@ -513,9 +498,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		// if there is a chance to leave this path
 		else if (RANDOM_LONG(1, 100) < 15)
 		{
-			int next_wpt = -1;
-
-			next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
+			const int next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
 
 			if (next_wpt != -1)
 			{
@@ -543,7 +526,7 @@ int ForwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	// otherwise get next waypoint to continue to
 	else
 	{
-		if (p->next != NULL)
+		if (p->next != nullptr)
 		{
 			path_next_wpt = p->next->wpt_index;
 
@@ -583,13 +566,13 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	}
 
 	// if reached path start change back to standard path moves
-	if ((p->prev == NULL) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_TWO))
+	if ((p->prev == nullptr) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_TWO))
 	{
 		// if path ends with goback and similar "turnback" waypoints
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
 			WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) != 0)
 		{
-			if (p->next != NULL)
+			if (p->next != nullptr)
 			{
 				// change the direction bot had
 				pBot->opposite_path_dir = FALSE;
@@ -601,9 +584,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		// otherwise try to find any new waypoint and path
 		else
 		{
-			int next_wpt = -1;
-
-			next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
+			const int next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
 
 			if (next_wpt != -1)
 			{
@@ -630,7 +611,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 			{
 				pBot->wpt_wait_time = gpGlobals->time + RANDOM_FLOAT(15.0, 60.0);
 
-				if (p->next != NULL)
+				if (p->next != nullptr)
 				{
 					pBot->opposite_path_dir = FALSE;
 
@@ -650,7 +631,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		}
 	}
 	// if reached path start change back to standard path moves
-	else if ((p->prev == NULL) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_PATROL))
+	else if ((p->prev == nullptr) && (w_paths[pBot->curr_path_index]->flags & P_FL_WAY_PATROL))
 	{
 		// if path ends with a turback do nothing (further code does all we need)
 		if (waypoints[pBot->curr_wpt_index].flags & PATH_TURNBACK &&
@@ -660,9 +641,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 		// if there is a chance to leave this path
 		else if (RANDOM_LONG(1, 100) < 25)
 		{
-			int next_wpt = -1;
-
-			next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
+			const int next_wpt = WaypointSearchNewInRange(pBot, p->wpt_index, pBot->curr_path_index);
 
 			if (next_wpt != -1)
 			{
@@ -695,7 +674,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 	// otherwise get next (this time from previous node in llist) waypoint to head to
 	else
 	{
-		if (p->prev != NULL)
+		if (p->prev != nullptr)
 		{
 			path_next_wpt = p->prev->wpt_index;
 
@@ -713,7 +692,7 @@ int BackwardPathMove(bot_t *pBot, W_PATH *p, int &path_next_wpt, bool &path_end)
 */
 void AssignPathBasedBehaviour(bot_t *pBot, int wpt_index = -1)
 {
-	if (pBot->curr_path_index == -1 || w_paths[pBot->curr_path_index] == NULL)
+	if (pBot->curr_path_index == -1 || w_paths[pBot->curr_path_index] == nullptr)
 		return;
 
 	// if actual path is PATROL path store last waypoint index (to return to it after combat)
@@ -781,10 +760,10 @@ int BotOnPath(bot_t *pBot)
 	bool found = FALSE;
 	bool found2 = FALSE;
 	bool path_end = TRUE;
-	W_PATH *p = NULL;
+	W_PATH *p = nullptr;
 
 	// get pointer to path node that holds current waypoint (ie. find current waypoint in path)
-	if ((p = FindPointInPath (pBot->curr_wpt_index, pBot->curr_path_index)) != NULL)
+	if ((p = FindPointInPath (pBot->curr_wpt_index, pBot->curr_path_index)) != nullptr)
 	// CAN'T USE NOW
 	//if ((p = GetWaypointFromPath (pBot, pBot->curr_wpt_index, pBot->curr_path_index)) != NULL)
 	{
@@ -796,7 +775,7 @@ int BotOnPath(bot_t *pBot)
 		// check all paths for current waypoint
 		if (CheckPossiblePath(pBot, pBot->curr_wpt_index))
 		{
-			if ((p = FindPointInPath (pBot->curr_wpt_index, pBot->curr_path_index)) != NULL )
+			if ((p = FindPointInPath (pBot->curr_wpt_index, pBot->curr_path_index)) != nullptr )
 			// CAN'T USE NOW
 			// if ((p = GetWaypointFromPath (pBot, pBot->curr_wpt_index, pBot->curr_path_index)) != NULL )
 			{
@@ -806,7 +785,7 @@ int BotOnPath(bot_t *pBot)
 	}
 
 	// we found nothing ie current waypoint isn't in any path
-	if (p == NULL)
+	if (p == nullptr)
 	{
 		// update path history
 		pBot->prev_path_index = pBot->curr_path_index;
@@ -818,7 +797,7 @@ int BotOnPath(bot_t *pBot)
 	// is standard path move (start -> end)
 	if ((pBot->opposite_path_dir == FALSE) && (path_next_wpt == -1))
 	{
-		int forward_status = ForwardPathMove(pBot, p, path_next_wpt, path_end);
+		const int forward_status = ForwardPathMove(pBot, p, path_next_wpt, path_end);
 		
 		if (forward_status != 0)
 		{
@@ -829,7 +808,7 @@ int BotOnPath(bot_t *pBot)
 	// is opposite direction path move (end -> start)
 	if ((pBot->opposite_path_dir) && (path_next_wpt == -1))
 	{
-		int backward_status = BackwardPathMove(pBot, p, path_next_wpt, path_end);
+		const int backward_status = BackwardPathMove(pBot, p, path_next_wpt, path_end);
 
 		if (backward_status != 0)
 		{
@@ -845,13 +824,13 @@ int BotOnPath(bot_t *pBot)
 		if (IsFlagSet(W_FL_GOBACK, pBot->curr_wpt_index, pBot->bot_team) && !path_end)
 		{
 			// clear opposite_dir flag and set next waypoint in llist
-			if ((pBot->opposite_path_dir) && (p->next != NULL))
+			if ((pBot->opposite_path_dir) && (p->next != nullptr))
 			{
 				pBot->opposite_path_dir = FALSE;
 				path_next_wpt = p->next->wpt_index;
 			}
 			// otherwise set opposite direction flag and use prev node waypoint
-			else if ((pBot->opposite_path_dir == FALSE) && (p->prev != NULL))
+			else if ((pBot->opposite_path_dir == FALSE) && (p->prev != nullptr))
 			{
 				pBot->opposite_path_dir = TRUE;
 				path_next_wpt = p->prev->wpt_index;
@@ -905,9 +884,7 @@ int BotOnPath(bot_t *pBot)
 */
 bool BotFindWaypoint(bot_t *pBot, bool ladder)
 {
-	int next_waypoint;
-	
-	next_waypoint = -1;
+	int next_waypoint = -1;
 
 	//																						NOTE: As of now this cannot happen!!!
 	//					It should probably be changed to check for movetype == MOVETYPE_FLY
@@ -951,13 +928,11 @@ bool BotFindWaypoint(bot_t *pBot, bool ladder)
 */
 bool BotHeadTowardWaypoint( bot_t *pBot )
 {
-	int found;
 	float wpt_distance, wpt_range;
 	bool in_wpt_range;		// when bot reaches the wpt range
 	bool past_the_wpt;		// if bot run past current wpt set this and then double check if really reach its range
 	bool is_next_wpt;		// do we have next wpt to head to
 	int unreachable_wpt_index = -1;	// prevents the bot to take the same wpt where he got stuck before
-	float wpt_distance2D;	// prevents z-coord problems (like when dead body under wpt etc.)
 	bool use_only_planar;	// in cases when we need to test just the 2D distance to waypoint (eg. tiny wpt range)			NEW CODE 094
 	char dbgmsg[128];		// allows printing feedback for waypointer who's testing his work
 
@@ -1107,7 +1082,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	// no waypoint so search for some
 	if (pBot->curr_wpt_index == -1)
 	{
-		found = WaypointFindFirst(pBot, MAX_WPT_DIST, unreachable_wpt_index);
+		int found = WaypointFindFirst(pBot, MAX_WPT_DIST, unreachable_wpt_index);
 
 		// didn't found any possible waypoint
 		if (found == -1)
@@ -1162,7 +1137,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		wpt_distance = (pEdict->v.origin - pBot->wpt_origin).Length();
 
 		// 2D distance (planar - ie we ignore z-coord)
-		wpt_distance2D = (pEdict->v.origin - pBot->wpt_origin).Length2D();
+		const float wpt_distance2D = (pEdict->v.origin - pBot->wpt_origin).Length2D();
 
 		// get this waypoint range
 		wpt_range = waypoints[pBot->curr_wpt_index].range;
@@ -1407,15 +1382,13 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			// first time the bot got to this waypoint?
 			if (!pBot->IsTask(TASK_WPTACTION) && (pBot->wpt_action_time < gpGlobals->time))
 			{
-				float total_time = 0.0;
-
 				// check if we need any additional ammo/mags
 				UTIL_CheckAmmoReserves(pBot, "HeadTowardWpt() -> current wpt is AMMOBOX");
 
 				// estimated delay to take both mags (main+backup)
 				// is multiplied by the amount of needed mags
 				//total_time = 1.7 * (pBot->take_main_mags + pBot->take_backup_mags);
-				total_time = (float) pBot->take_main_mags + (float) pBot->take_backup_mags;
+				float total_time = (float)pBot->take_main_mags + (float)pBot->take_backup_mags;
 				total_time *= 1.7;
 
 				// if total_time is 0 then the bot is carrying all mags he can
@@ -1493,7 +1466,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			//if (pBot->v_door == Vector(0, 0, 0))
 			if (pBot->v_door == g_vecZero)
 			{
-				edict_t *pent = NULL;
+				edict_t *pent = nullptr;
 				char door_types[64];
 				
 				//@@@@@@@@@@@@@@@
@@ -1515,7 +1488,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				// therefore we are checking if previous wpt was NOT a 'door' wpt
 				if ((waypoints[pBot->prev_wpt_index.get()].flags & (W_FL_DOOR | W_FL_DOORUSE)) == FALSE)
 				{
-					while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+					while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != nullptr)
 					{
 						strcpy(door_types, STRING(pent->v.classname));
 						
@@ -1531,7 +1504,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 							// that are partially open or are closing at the moment
 							// (using the real door origin in this case would cause that
 							// the bot will try facing the doors and will get stuck there)
-							int next_waypoint = pBot->GetNextWaypoint();
+							const int next_waypoint = pBot->GetNextWaypoint();
 							
 							if (next_waypoint != -1)
 								door_entity = waypoints[next_waypoint].origin;
@@ -1541,8 +1514,8 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 							
 							// save door coords
 							pBot->v_door = door_entity;
-							
-							Vector bot_angles = UTIL_VecToAngles(door_entity);
+
+							const Vector bot_angles = UTIL_VecToAngles(door_entity);
 							pEdict->v.ideal_yaw = bot_angles.y;
 							BotFixIdealYaw(pEdict);
 
@@ -1719,10 +1692,8 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				//(pBot->wpt_action_time < gpGlobals->time) &&								NEW CODE 094 (prev code)
 				//(gpGlobals->time - 0.5 > pBot->wpt_action_time))
 			{
-				float total_time = 0.0;
-
 				// use wait time from this waypoint as the action time
-				total_time = WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
+				const float total_time = WaypointGetWaitTime(pBot->curr_wpt_index, pBot->bot_team);
 
 				// if total_time is 0 then generate some time randomly
 				if (total_time == 0.0)
@@ -1863,9 +1834,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			// are there any paths for this map
 			if (num_w_paths > 0)
 			{
-				int result;
-
-				result = BotOnPath(pBot);
+				const int result = BotOnPath(pBot);
 
 				if (result != -1)
 				{
@@ -1974,9 +1943,9 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	if (pEdict->v.movetype != MOVETYPE_FLY)
 	{
 		// keep turning towards the waypoint
-		Vector v_direction = pBot->wpt_origin - pEdict->v.origin;
+		const Vector v_direction = pBot->wpt_origin - pEdict->v.origin;
 
-		Vector v_angles = UTIL_VecToAngles(v_direction);
+		const Vector v_angles = UTIL_VecToAngles(v_direction);
 			
 		pEdict->v.idealpitch = -v_angles.x;
 		BotFixIdealPitch(pEdict);
@@ -1988,8 +1957,8 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 	// so allow him to face next waypoint
 	else if ((pEdict->v.movetype == MOVETYPE_FLY) && pBot->waypoint_top_of_ladder)
 	{
-		Vector v_direction = pBot->wpt_origin - pEdict->v.origin;
-		Vector v_angles = UTIL_VecToAngles(v_direction);
+		const Vector v_direction = pBot->wpt_origin - pEdict->v.origin;
+		const Vector v_angles = UTIL_VecToAngles(v_direction);
 
 		pEdict->v.ideal_yaw = v_angles.y;
 		BotFixIdealYaw(pEdict);
@@ -2004,7 +1973,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 */
 bool BotHandleLadder(bot_t *pBot, float moved_distance)
 {
-	edict_t *pent = NULL;
+	edict_t *pent = nullptr;
 	edict_t *pEdict = pBot->pEdict;
 	float end_wpt_distance;
 	bool bot_stuck_on_ladder;
@@ -2038,7 +2007,7 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 		// otherwise use the ladder origin to tell the bot the right direction
 		else
 		{
-			while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != NULL)
+			while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, PLAYER_SEARCH_RADIUS)) != nullptr)
 			{
 				if (strcmp("func_ladder", STRING(pent->v.classname)) == 0)
 				{
@@ -2417,12 +2386,11 @@ bool BotCantStrafeLeft(edict_t *pEdict)
 {
 	Vector v_src, v_left;
 	TraceResult tr;
-	bool trace_head, trace_waist;
 
 	UTIL_MakeVectors(pEdict->v.v_angle);
 
-	trace_head = FALSE;
-	trace_waist = FALSE;
+	bool trace_head = FALSE;
+	bool trace_waist = FALSE;
 
 	// is bot fully proned send only one traceline
 	if (pEdict->v.flags & FL_PRONED)
@@ -2474,12 +2442,11 @@ bool BotCantStrafeRight(edict_t *pEdict)
 {
 	Vector v_src, v_left;
 	TraceResult tr;
-	bool trace_head, trace_waist;
 
 	UTIL_MakeVectors(pEdict->v.v_angle);
 
-	trace_head = FALSE;
-	trace_waist = FALSE;
+	bool trace_head = FALSE;
+	bool trace_waist = FALSE;
 
 	if (pEdict->v.flags & FL_PRONED)
 	{
@@ -2522,7 +2489,6 @@ bool BotCantStrafeRight(edict_t *pEdict)
 */
 bool BotFollowTeammate(bot_t *pBot)
 {
-	bool user_visible = FALSE;
 	edict_t *pEdict = pBot->pEdict;
 	Vector vec_end;
 
@@ -2538,19 +2504,19 @@ bool BotFollowTeammate(bot_t *pBot)
 	if (IsAlive(pBot->pBotUser) == FALSE)
 	{
 		// no one to follow
-		pBot->pBotUser = NULL;
+		pBot->pBotUser = nullptr;
 		
 		return FALSE;
 	}
 
 	vec_end = pBot->pBotUser->v.origin + pBot->pBotUser->v.view_ofs;
 
-	user_visible = FInViewCone(&vec_end, pEdict) && FVisible(vec_end, pEdict);
+	bool user_visible = FInViewCone(&vec_end, pEdict) && FVisible(vec_end, pEdict);
 
 	// not in FOV and visible so check if user is quite close at least
 	if (user_visible == FALSE)
 	{
-		float dist = (pEdict->v.origin - pBot->pBotUser->v.origin).Length();
+		const float dist = (pEdict->v.origin - pBot->pBotUser->v.origin).Length();
 
 		// if the user is close set that he is still visible
 		if (dist < 300)
@@ -2560,14 +2526,14 @@ bool BotFollowTeammate(bot_t *pBot)
 	// check if the "user" is still visible
 	if ((user_visible) || (pBot->f_bot_use_time + 2.0 > gpGlobals->time))
 	{
-		Vector bot_angles, aim_vec;
+		Vector aim_vec;
 
 		// update use time if "user" is visible
 		if (user_visible)
 			pBot->f_bot_use_time = gpGlobals->time;
 
 		// how far away is the "user"?
-		float f_distance = (pBot->pBotUser->v.origin - pEdict->v.origin).Length();
+		const float f_distance = (pBot->pBotUser->v.origin - pEdict->v.origin).Length();
 		
 		// don't move if close enough
 		if (f_distance < 115)
@@ -2585,7 +2551,7 @@ bool BotFollowTeammate(bot_t *pBot)
 		// does the bot just stand still
 		if ((pBot->move_speed == SPEED_NO) && (pBot->f_aim_at_target_time < gpGlobals->time))
 		{
-			int direction = RANDOM_LONG(1, 100);
+			const int direction = RANDOM_LONG(1, 100);
 			UTIL_MakeVectors(pBot->pEdict->v.v_angle);
 
 			// watch the right
@@ -2621,8 +2587,8 @@ bool BotFollowTeammate(bot_t *pBot)
 			aim_vec = pBot->pBotUser->v.origin - pEdict->v.origin;
 			pBot->wpt_origin = aim_vec;
 		}
-		
-		bot_angles = UTIL_VecToAngles(pBot->wpt_origin);
+
+		const Vector bot_angles = UTIL_VecToAngles(pBot->wpt_origin);
 		pEdict->v.ideal_yaw = bot_angles.y;
 		BotFixIdealYaw(pEdict);
 
@@ -2631,7 +2597,7 @@ bool BotFollowTeammate(bot_t *pBot)
 	else
 	{
 		// person to follow has gone out of sight
-		pBot->pBotUser = NULL;
+		pBot->pBotUser = nullptr;
 	}
 	
 	return FALSE;
@@ -2668,10 +2634,10 @@ bool BotMedicGetToPatient(bot_t *pBot)
 		return FALSE;
 	}
 
-	float distance = (pEdict->v.origin - pBot->pBotEnemy->v.origin).Length();
+	const float distance = (pEdict->v.origin - pBot->pBotEnemy->v.origin).Length();
 
 	// check if the patient is visible
-	Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
+	const Vector v_bothead = pEdict->v.origin + pEdict->v.view_ofs;
 	Vector v_patient = pBot->pBotEnemy->v.origin + pBot->pBotEnemy->v.view_ofs;
 	TraceResult tr;
 
@@ -2700,8 +2666,8 @@ bool BotMedicGetToPatient(bot_t *pBot)
 			pBot->f_bot_see_enemy_time = gpGlobals->time;
 
 		// face him
-		Vector v_patient = pBot->pBotEnemy->v.origin - pEdict->v.origin;
-		Vector bot_angles = UTIL_VecToAngles(v_patient);
+		const Vector v_patient = pBot->pBotEnemy->v.origin - pEdict->v.origin;
+		const Vector bot_angles = UTIL_VecToAngles(v_patient);
 		
 		pEdict->v.ideal_yaw = bot_angles.y;
 		BotFixIdealYaw(pEdict);
@@ -2750,8 +2716,7 @@ bool BotMedicGetToPatient(bot_t *pBot)
 bool BotMedicGetToCorpse(bot_t *pBot, float &distance)
 {
 	edict_t *pEdict = pBot->pEdict;
-	edict_t *pent = NULL;
-	float radius;
+	edict_t *pent = nullptr;
 	bool found_it = FALSE;
 
 	if ((pEdict->v.waterlevel != 2) && (pEdict->v.waterlevel != 3))
@@ -2761,10 +2726,10 @@ bool BotMedicGetToCorpse(bot_t *pBot, float &distance)
 	}
 
 	// the search radius is based on bot skill
-	radius = 325 - ((pBot->bot_skill + 1) * 25);
+	const float radius = 325 - ((pBot->bot_skill + 1) * 25);
 
 	// check if the bodyque is still there
-	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, radius )) != NULL)
+	while ((pent = UTIL_FindEntityInSphere(pent, pEdict->v.origin, radius )) != nullptr)
 	{
 		char item_name[64];
 		strcpy(item_name, STRING(pent->v.classname));
@@ -2782,8 +2747,8 @@ bool BotMedicGetToCorpse(bot_t *pBot, float &distance)
 		return FALSE;
 
 	distance = (pEdict->v.origin - pBot->pBotEnemy->v.origin).Length();
-	Vector v_corpse = pBot->pBotEnemy->v.origin - pEdict->v.origin;
-	Vector bot_angles = UTIL_VecToAngles(v_corpse);
+	const Vector v_corpse = pBot->pBotEnemy->v.origin - pEdict->v.origin;
+	const Vector bot_angles = UTIL_VecToAngles(v_corpse);
 	
 	pEdict->v.ideal_yaw = bot_angles.y;
 	BotFixIdealYaw(pEdict);
@@ -2817,13 +2782,11 @@ bool BotMedicGetToCorpse(bot_t *pBot, float &distance)
 void BotEvadeClaymore(bot_t *pBot)
 {
 	edict_t *pEdict = pBot->pEdict;
-	Vector vecClay;
-	float distance_to_mine = 9999;
 
-	vecClay = pBot->v_ground_item - pEdict->v.origin;
+	const Vector vecClay = pBot->v_ground_item - pEdict->v.origin;
 
 	// get the distance to claymore
-	distance_to_mine = vecClay.Length();
+	const float distance_to_mine = vecClay.Length();
 
 	// the bot is quite far from the claymore so we can use standard navigation
 	// needs to be a bit bigger than botfinditem() search radius to prevent 
@@ -3168,10 +3131,8 @@ void BotUnderWater( bot_t *pBot )
       // there is a surface the bot can jump up onto to get out of the
       // water.  bots DON'T like water!
 
-      Vector v_src, v_forward;
       TraceResult tr;
-      int contents;
-   
+
       // swim up towards the surface
       pEdict->v.v_angle.x = -60;  // look upwards
    
@@ -3184,8 +3145,8 @@ void BotUnderWater( bot_t *pBot )
       // look from eye position straight forward (remember: the bot is looking
       // upwards at a 60 degree angle so TraceLine will go out and up...
    
-      v_src = pEdict->v.origin + pEdict->v.view_ofs;  // EyePosition()
-      v_forward = v_src + gpGlobals->v_forward * 90;
+      Vector v_src = pEdict->v.origin + pEdict->v.view_ofs;  // EyePosition()
+      Vector v_forward = v_src + gpGlobals->v_forward * 90;
    
       // trace from the bot's eyes straight forward...
       UTIL_TraceLine( v_src, v_forward, dont_ignore_monsters,
@@ -3195,7 +3156,7 @@ void BotUnderWater( bot_t *pBot )
       if (tr.flFraction >= 1.0)
       {
          // find out what the contents is of the end of the trace...
-         contents = UTIL_PointContents( tr.vecEndPos );
+         int contents = UTIL_PointContents(tr.vecEndPos);
    
          // check if the trace endpoint is in open space...
          if (contents == CONTENTS_EMPTY)
@@ -3343,14 +3304,13 @@ void BotUseLift( bot_t *pBot, float moved_distance )
 bool BotStuckInCorner( bot_t *pBot )
 {
    TraceResult tr;
-   Vector v_src, v_dest;
    edict_t *pEdict = pBot->pEdict;
    
    UTIL_MakeVectors( pEdict->v.v_angle );
 
    // trace 45 degrees to the right...
-   v_src = pEdict->v.origin;
-   v_dest = v_src + gpGlobals->v_forward*20 + gpGlobals->v_right*20;
+   Vector v_src = pEdict->v.origin;
+   Vector v_dest = v_src + gpGlobals->v_forward * 20 + gpGlobals->v_right * 20;
 
    UTIL_TraceLine( v_src, v_dest, dont_ignore_monsters,
                    pEdict->v.pContainingEntity, &tr);
@@ -3375,19 +3335,18 @@ bool BotStuckInCorner( bot_t *pBot )
 void BotTurnAtWall( bot_t *pBot, TraceResult *tr )
 {
    edict_t *pEdict = pBot->pEdict;
-   Vector Normal;
-   float Y, Y1, Y2, D1, D2, Z;
+   float Z;
 
    // Find the normal vector from the trace result.  The normal vector will
    // be a vector that is perpendicular to the surface from the TraceResult.
 
-   Normal = UTIL_VecToAngles(tr->vecPlaneNormal);
+   Vector Normal = UTIL_VecToAngles(tr->vecPlaneNormal);
 
    // Since the bot keeps it's view angle in -180 < x < 180 degrees format,
    // and since TraceResults are 0 < x < 360, we convert the bot's view
    // angle (yaw) to the same format at TraceResult.
 
-   Y = pEdict->v.v_angle.y;
+   float Y = pEdict->v.v_angle.y;
    Y = Y + 180;
    if (Y > 359) Y -= 360;
 
@@ -3406,14 +3365,14 @@ void BotTurnAtWall( bot_t *pBot, TraceResult *tr )
    // least amount of turning (saves time) and have the bot head off in that
    // direction.
 
-   Y1 = Normal.y - 90;
+   float Y1 = Normal.y - 90;
    if (RANDOM_LONG(1, 100) <= 50)
    {
       Y1 = Y1 - RANDOM_FLOAT(5.0, 20.0);
    }
    if (Y1 < 0) Y1 += 360;
 
-   Y2 = Normal.y + 90;
+   float Y2 = Normal.y + 90;
    if (RANDOM_LONG(1, 100) <= 50)
    {
       Y2 = Y2 + RANDOM_FLOAT(5.0, 20.0);
@@ -3423,9 +3382,9 @@ void BotTurnAtWall( bot_t *pBot, TraceResult *tr )
    // D1 and D2 are the difference (in degrees) between the bot's current
    // angle and Y1 or Y2 (respectively).
 
-   D1 = fabs((double) Y - Y1);
+   float D1 = fabs((double)Y - Y1);
    if (D1 > 179) D1 = fabs((double) D1 - 360);
-   D2 = fabs((double) Y - Y2);
+   float D2 = fabs((double)Y - Y2);
    if (D2 > 179) D2 = fabs((double) D2 - 360);
 
    // If difference 1 (D1) is more than difference 2 (D2) then the bot will
@@ -3560,17 +3519,16 @@ bool IsDeathFall(edict_t *pEdict)
 	// of death fall. We send one trace line a few units in front of the bot.
 
 	TraceResult tr;
-	Vector v_source, v_dest;
 
 	// NOTE: Try to use MakeVectors when the bot goes up the hill
 	// because now usually that farther trace ends with deathfall danger warning which is bug
 	//UTIL_MakeVectors(pEdict->v.v_angle);
 
 	// we have to trace in front of the bot to allow him to react
-	v_source = pEdict->v.origin + pEdict->v.view_ofs + gpGlobals->v_forward * 75;
+	const Vector v_source = pEdict->v.origin + pEdict->v.view_ofs + gpGlobals->v_forward * 75;
 	
 	// 250 units long fall is right about not to break the leg
-	v_dest = v_source - pEdict->v.view_ofs + Vector(0, 0, -250);
+	const Vector v_dest = v_source - pEdict->v.view_ofs + Vector(0, 0, -250);
 
 	UTIL_TraceLine(v_source, v_dest, dont_ignore_monsters, pEdict->v.pContainingEntity, &tr);
 
@@ -3615,12 +3573,11 @@ bool TraceJumpUp(bot_t *pBot, int height)
    // that the bot can not get onto.
 
    TraceResult tr;
-   Vector v_jump, v_source, v_dest;
    edict_t *pEdict = pBot->pEdict;
 
    // convert current view angle to vectors for TraceLine math...
 
-   v_jump = pEdict->v.v_angle;
+   Vector v_jump = pEdict->v.v_angle;
    v_jump.x = 0;  // reset pitch to 0 (level horizontally)
    v_jump.z = 0;  // reset roll to 0 (straight up and down)
 
@@ -3629,8 +3586,8 @@ bool TraceJumpUp(bot_t *pBot, int height)
    // use center of the body first...
 
    // check one unit above the height
-   v_source = pEdict->v.origin + Vector(0, 0, -36 + height + 1);
-   v_dest = v_source + gpGlobals->v_forward * 24;
+   Vector v_source = pEdict->v.origin + Vector(0, 0, -36 + height + 1);
+   Vector v_dest = v_source + gpGlobals->v_forward * 24;
 
    // trace a line forward at maximum jump height...
    UTIL_TraceLine( v_source, v_dest, dont_ignore_monsters,
@@ -3674,7 +3631,7 @@ bool TraceJumpUp(bot_t *pBot, int height)
 
    // (108 minus the jump limit height which is height - 36)
    // * -1 because we need negative value
-   int bottom = (108 - (height - 36)) * -1;
+   const int bottom = (108 - (height - 36)) * -1;
 
    // end point of trace is <bottom> units straight down from start...
    v_dest = v_source + Vector(0, 0, bottom);
@@ -3742,12 +3699,11 @@ bool BotCanDuckUnder( bot_t *pBot )
    // we can duck under it.
 
    TraceResult tr;
-   Vector v_duck, v_source, v_dest;
    edict_t *pEdict = pBot->pEdict;
 
    // convert current view angle to vectors for TraceLine math...
 
-   v_duck = pEdict->v.v_angle;
+   Vector v_duck = pEdict->v.v_angle;
    v_duck.x = 0;  // reset pitch to 0 (level horizontally)
    v_duck.z = 0;  // reset roll to 0 (straight up and down)
 
@@ -3756,8 +3712,8 @@ bool BotCanDuckUnder( bot_t *pBot )
    // use center of the body first...
 
    // duck height is 36, so check one unit above that (37)
-   v_source = pEdict->v.origin + Vector(0, 0, -36 + 37);
-   v_dest = v_source + gpGlobals->v_forward * 24;
+   Vector v_source = pEdict->v.origin + Vector(0, 0, -36 + 37);
+   Vector v_dest = v_source + gpGlobals->v_forward * 24;
 
    // trace a line forward at duck height...
    UTIL_TraceLine( v_source, v_dest, dont_ignore_monsters,
@@ -3863,15 +3819,14 @@ void BotRandomTurn( bot_t *pBot )
 bool BotCheckWallOnLeft( bot_t *pBot )
 {
    edict_t *pEdict = pBot->pEdict;
-   Vector v_src, v_left;
    TraceResult tr;
 
    UTIL_MakeVectors( pEdict->v.v_angle );
 
    // do a trace to the left...
 
-   v_src = pEdict->v.origin;
-   v_left = v_src + gpGlobals->v_right * -40;  // 40 units to the left
+   const Vector v_src = pEdict->v.origin;
+   const Vector v_left = v_src + gpGlobals->v_right * -40;  // 40 units to the left
 
    UTIL_TraceLine( v_src, v_left, dont_ignore_monsters,
                    pEdict->v.pContainingEntity, &tr);
@@ -3892,15 +3847,14 @@ bool BotCheckWallOnLeft( bot_t *pBot )
 bool BotCheckWallOnRight( bot_t *pBot )
 {
    edict_t *pEdict = pBot->pEdict;
-   Vector v_src, v_right;
    TraceResult tr;
 
    UTIL_MakeVectors( pEdict->v.v_angle );
 
    // do a trace to the right...
 
-   v_src = pEdict->v.origin;
-   v_right = v_src + gpGlobals->v_right * 40;  // 40 units to the right
+   const Vector v_src = pEdict->v.origin;
+   const Vector v_right = v_src + gpGlobals->v_right * 40;  // 40 units to the right
 
    UTIL_TraceLine( v_src, v_right, dont_ignore_monsters,
                    pEdict->v.pContainingEntity, &tr);

@@ -34,8 +34,8 @@
 
 #ifndef __linux__
 
-HINSTANCE h_Library = NULL;
-HGLOBAL h_global_argv = NULL;
+HINSTANCE h_Library = nullptr;
+HGLOBAL h_global_argv = nullptr;
 void FreeNameFuncGlobals(void);
 void LoadSymbols(char *filename);
 
@@ -60,9 +60,9 @@ int g_mod_version;
 // set to false by default if steam found then set to true
 bool is_steam = FALSE;
 
-GETENTITYAPI other_GetEntityAPI = NULL;
-GETNEWDLLFUNCTIONS other_GetNewDLLFunctions = NULL;
-GIVEFNPTRSTODLL other_GiveFnptrsToDll = NULL;
+GETENTITYAPI other_GetEntityAPI = nullptr;
+GETNEWDLLFUNCTIONS other_GetNewDLLFunctions = nullptr;
+GIVEFNPTRSTODLL other_GiveFnptrsToDll = nullptr;
 
 
 #ifndef __linux__
@@ -145,7 +145,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 	{
 		pos = 0;
  
-		if (strchr(game_dir, '/') != NULL)
+		if (strchr(game_dir, '/') != nullptr)
 		{
 			// scan backwards till first directory separator...
 			while ((pos) && (game_dir[pos] != '/'))
@@ -221,7 +221,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 
 		fl = fopen(temp_filename,"r");
 
-		if (fl != NULL)
+		if (fl != nullptr)
 		{
 			char line_string_buffer[80];
 
@@ -235,7 +235,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 					fgets (temp , 60, fl);			// get a few chars after the "game" string
 
 					// is there a word "Firearms" in the "game" string
-					if ((strstr(temp, "Firearms") != NULL) || (strstr(temp, "FireArms") != NULL))
+					if ((strstr(temp, "Firearms") != nullptr) || (strstr(temp, "FireArms") != nullptr))
 					{
 						strcpy(the_game, "firearms");
 
@@ -286,7 +286,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 		fl = fopen(temp_filename,"r");
 		
 		// code by *** Shrike ***
-		if (fl != NULL)
+		if (fl != nullptr)
 		{
 			while (fscanf (fl, "%s", compare) != EOF)	// scan line strings
 			{
@@ -428,7 +428,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 
    other_GetEntityAPI = (GETENTITYAPI)GetProcAddress(h_Library, "GetEntityAPI");
 
-   if (other_GetEntityAPI == NULL)
+   if (other_GetEntityAPI == nullptr)
    {
       // Can't find GetEntityAPI!
 
@@ -462,7 +462,7 @@ extern "C" void DLLEXPORT GiveFnptrsToDll( enginefuncs_t* pengfuncsFromEngine, g
 
    other_GiveFnptrsToDll = (GIVEFNPTRSTODLL)GetProcAddress(h_Library, "GiveFnptrsToDll");
 
-   if (other_GiveFnptrsToDll == NULL)
+   if (other_GiveFnptrsToDll == nullptr)
    {
       // Can't find GiveFnptrsToDll!
 

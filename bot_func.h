@@ -32,7 +32,7 @@ class SetupBaseType_float : public SetupBaseType
 		SetupBaseType_float(float &c_val) : val(c_val) {}
 		void set(std::string &str_val)
 		{
-			val = float(strtod(str_val.c_str(), NULL));
+			val = static_cast<float>(strtod(str_val.c_str(), nullptr));
 		}
 };
 
@@ -102,8 +102,8 @@ void BotEvadeClaymore(bot_t *pBot);
 
 Vector BotBodyTarget(bot_t *pBot);
 void BotPlantClaymore(bot_t *pBot);
-void BotMergeClips(bot_t *pBot, const char* loc = NULL);
-void BotUseBipod(bot_t *pBot, bool forced_call, const char* loc = NULL);
+void BotMergeClips(bot_t *pBot, const char* loc = nullptr);
+void BotUseBipod(bot_t *pBot, bool forced_call, const char* loc = nullptr);
 float SetBipodHandlingTime(int weapon, bool deploying);
 
 // util.cpp functions
@@ -152,8 +152,8 @@ bool IsBipodWeapon(int weapon);
 void UTIL_ChangeWeapon(bot_t *pBot);
 void UTIL_ChangeFireMode(bot_t *pBot, int new_mode, FireMode_WTest wtest);
 void UTIL_ShowWeapon(bot_t *pBot);
-bool UTIL_ShouldReload(bot_t *pBot, const char* loc = NULL);
-void UTIL_CheckAmmoReserves(bot_t *pBot, const char* loc = NULL);
+bool UTIL_ShouldReload(bot_t *pBot, const char* loc = nullptr);
+void UTIL_CheckAmmoReserves(bot_t *pBot, const char* loc = nullptr);
 int UTIL_FindBotByName(const char *name_string);
 bool UTIL_KickBot(int which_one);
 bool UTIL_KillBot(int which_one);
@@ -165,9 +165,9 @@ int UTIL_ChangeAimSkillLevel(int skill_level);
 //int UTIL_GetIDFromName(const char *weapon_name);		// NOT USED
 bool UTIL_IsStealth(edict_t *pEdict);
 bool UTIL_CanMountSilencer(bot_t *pBot);
-bool UTIL_GoProne(bot_t *pBot, const char* loc = NULL);
-void SetStance(bot_t *pBot, int flag, const char* loc = NULL);
-void SetStance(bot_t *pBot, int flag, bool is_forced_stance, const char* loc = NULL);
+bool UTIL_GoProne(bot_t *pBot, const char* loc = nullptr);
+void SetStance(bot_t *pBot, int flag, const char* loc = nullptr);
+void SetStance(bot_t *pBot, int flag, bool is_forced_stance, const char* loc = nullptr);
 bool UTIL_HeardIt(bot_t *pBot, edict_t *pInvoker, float range);
 int UTIL_RemoveFalsePaths(bool print_details);
 int UTIL_CheckPathsForProblems(bool log_in_file);

@@ -258,7 +258,6 @@ void BotClient_FA_AmmoX(void *p, int bot_index)
 	static int state = 0;   // current state machine state
 	static int index;
 	static int ammount;
-	int ammo_index;
 
 	if (state == 0)
 	{
@@ -273,7 +272,7 @@ void BotClient_FA_AmmoX(void *p, int bot_index)
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;  // store it away
 
-		ammo_index = bots[bot_index].current_weapon.iId;
+		const int ammo_index = bots[bot_index].current_weapon.iId;
 
 		// update the ammo counts for this weapon
 		bots[bot_index].current_weapon.iAmmo1 =
@@ -294,7 +293,6 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 	static int state = 0;   // current state machine state
 	static int index;
 	static int ammount;
-	int ammo_index;
 
 	if (state == 0)
 	{
@@ -309,7 +307,7 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;
 
-		ammo_index = bots[bot_index].current_weapon.iId;
+		const int ammo_index = bots[bot_index].current_weapon.iId;
 
 		// update the ammo counts for this weapon
 		bots[bot_index].current_weapon.iAmmo1 =
@@ -325,9 +323,7 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 */
 void BotClient_FA_WeaponPickup(void *p, int bot_index)
 {
-	int index;
-
-	index = *(int *)p;
+	const int index = *(int*)p;
 
 #ifdef DEBUG
 
@@ -736,15 +732,15 @@ void BotClient_FA_Damage(void *p, int bot_index)
 			// prevents the bot to "dance" on such object
 			//
 			// NOTE: This should be changed to allow the bot to evade such object
-			if ((pDmgEnt != NULL) && (strcmp(STRING(pDmgEnt->v.classname), "trigger_hurt") == 0))
+			if ((pDmgEnt != nullptr) && (strcmp(STRING(pDmgEnt->v.classname), "trigger_hurt") == 0))
 				return;
 
 			// react only on damage taken from another player's gunfire
 			// at least for now
-			if ((pDmgEnt != NULL) && (strcmp(STRING(pDmgEnt->v.classname), "player") == 0))
+			if ((pDmgEnt != nullptr) && (strcmp(STRING(pDmgEnt->v.classname), "player") == 0))
 			{
-				int enemy_team = UTIL_GetTeam(bots[bot_index].pEdict->v.dmg_inflictor);
-				int bot_team = UTIL_GetTeam(bots[bot_index].pEdict);
+				const int enemy_team = UTIL_GetTeam(bots[bot_index].pEdict->v.dmg_inflictor);
+				const int bot_team = UTIL_GetTeam(bots[bot_index].pEdict);
 				
 				// try to warn the teammate who's shooting at you
 				if ((enemy_team == bot_team) && (RANDOM_LONG(1, 100) <= 35) &&		// was 25
@@ -754,12 +750,10 @@ void BotClient_FA_Damage(void *p, int bot_index)
 				}
 			}
 
-			float curr_enemy_dist, new_enemy_dist;
-
-			curr_enemy_dist = new_enemy_dist = 9999.0;
+			float new_enemy_dist;
 
 			// get the vector to new enemy
-			Vector v_new_enemy = damage_origin - bots[bot_index].pEdict->v.origin;
+			const Vector v_new_enemy = damage_origin - bots[bot_index].pEdict->v.origin;
 
 			// get the distance to new enemy
 			new_enemy_dist = v_new_enemy.Length();
@@ -768,7 +762,7 @@ void BotClient_FA_Damage(void *p, int bot_index)
 			if (bots[bot_index].pBotEnemy)
 			{
 				// get the distance for current enemy
-				curr_enemy_dist = (bots[bot_index].pBotEnemy->v.origin -
+				const float curr_enemy_dist = (bots[bot_index].pBotEnemy->v.origin -
 					bots[bot_index].pEdict->v.origin).Length();
 
 				// is current enemy closer than the new enemy AND does the bot see him
@@ -803,7 +797,7 @@ void BotClient_FA_Damage(void *p, int bot_index)
 				return;
 			
 			// face the attacker (ie. the new enemy)
-			Vector bot_angles = UTIL_VecToAngles(v_new_enemy);
+			const Vector bot_angles = UTIL_VecToAngles(v_new_enemy);
 			bots[bot_index].pEdict->v.ideal_yaw = bot_angles.y;
 
 			BotFixIdealYaw(bots[bot_index].pEdict);
@@ -904,12 +898,11 @@ void BotClient_FA_TextMsg(void *p, int bot_index)
 	{
 		state = 0;
 
-		int pos;
 		char the_text[256];
 
 		// get the message and its length engine sends
 		strcpy(the_text, (char *)p);
-		pos = strlen(the_text);
+		int pos = strlen(the_text);
 
 		// remove '\n' sign from its end
 		the_text[pos - 1] = 0;
@@ -1219,13 +1212,13 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 		// get the message the engine sends
 		strcpy(the_text, (char *)p);
 
-		if (strstr(the_text, "Force occupies") != NULL)
+		if (strstr(the_text, "Force occupies") != nullptr)
 		{
 			UpdateWaypointData();
 		}
 
 		// is this message just a generic header (ie. is there going to be inserted an additional string in this message)
-		if (strstr(the_text, "%s") != NULL)
+		if (strstr(the_text, "%s") != nullptr)
 		{
 			// then gets us to the additional string that gets send in this case
 			state++;
@@ -1255,19 +1248,19 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 		char *pch = strstr(the_text, "%s");
 
 		// this should not happen, but if it does report it and do NOT continue as it may result in errors
-		if (pch == NULL)
+		if (pch == nullptr)
 		{
 			UTIL_DebugInFile("FATextMsgForAll() -> state 2 -> pch is NULL\n");
 			return;
 		}
-		if (the_item == NULL)
+		if (the_item == nullptr)
 		{
 			UTIL_DebugInFile("FATextMsgForAll() -> state 2 -> the item is NULL\n");
 			return;
 		}
 
 		// holds the position of the %s marker ... NOT an array based index!
-		int pos = (pch - the_text);
+		const int pos = (pch - the_text);
 		int len = strlen(the_text);
 
 		// make a copy of the original message past the %s marker
@@ -1280,13 +1273,13 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 		len = strlen(the_item);
 
 		// insert the 2nd string to its position
-		if (strncpy(pch, the_item, len) != NULL)
+		if (strncpy(pch, the_item, len) != nullptr)
 		{
 			// we have to terminate it before the next append
 			the_text[pos+len] = '\0';
 
 			// add the trailing part of the original message back
-			if (strcat(the_text, temp_text) != NULL)
+			if (strcat(the_text, temp_text) != nullptr)
 			{
 				// finally terminate the message ... just in case
 				len = strlen(the_text);
@@ -1404,7 +1397,7 @@ void SetHarakiri(int team) {
 	}
 	for (int i=0; i<gpGlobals->maxClients; ++i)
 	{
-		if (bots[i].pEdict!= NULL && bots[i].pEdict->v.team == team)
+		if (bots[i].pEdict!= nullptr && bots[i].pEdict->v.team == team)
 		{
 			//ALERT(at_console, "@@@@@@ SetHarakiri i=%d team=%d harakiri=%d\n", 
 			//	i, bots[i].pEdict->v.team, bots[i].harakiri);
@@ -1428,7 +1421,6 @@ void SetHarakiri(int team) {
 void BotClient_FA_Reins(void *p, int bot_index)
 {
 	static int state = 0;   // current state machine state
-	int team_gamers;
 
 	if (state == 0)
 	{
@@ -1454,8 +1446,10 @@ void BotClient_FA_Reins(void *p, int bot_index)
 //		Next thing is that you need to add it also to BotClient_FA_BrokenLeg() due to
 //		differences in FA versions
 
-	if(*(int *)p<=0) { //reinforcements is ended. 
-		team_gamers = UTIL_CountPlayers(TEAM_BLUE - state);
+	if(*(int *)p<=0)
+	{
+		//reinforcements is ended. 
+		const int team_gamers = UTIL_CountPlayers(TEAM_BLUE - state);
 		//ALERT(at_console, "REINF change p=%d auto_balance=%d state=%d team_gamers=%d\n", 
 			//*(int*)p, override_auto_balance, state, team_gamers);
 		if (team_gamers==0)
@@ -1500,7 +1494,6 @@ void BotClient_FA_ScreenFade(void *p, int bot_index)
 	static int duration;
 	static int hold_time;
 	static int fade_flags;
-	int length;
 
 	if (state == 0)
 	{
@@ -1521,7 +1514,7 @@ void BotClient_FA_ScreenFade(void *p, int bot_index)
 	{
 		state = 0;
 
-		length = (duration + hold_time) / 4096;
+		const int length = (duration + hold_time) / 4096;
 		bots[bot_index].blinded_time = gpGlobals->time + length - 2.0;
 	}
 	else

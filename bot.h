@@ -21,6 +21,8 @@
 #ifndef BOT_H
 #define BOT_H
 
+#include <cmath>
+
 #include "Config.h"
 #include "defines.h"
 
@@ -119,9 +121,9 @@ void ClientCommand( edict_t *pEntity );
 void FakeClientCommand(edict_t *pBot, char *arg1, char *arg2, char *arg3);
 void UTIL_BuildFileName(char *filename, char *arg1, char *arg2, bool separator);
 
-const char *Cmd_Args( void );
+const char *Cmd_Args();
 const char *Cmd_Argv( int argc );
-int Cmd_Argc( void );
+int Cmd_Argc();
 
 
 // total bot difficulty levels (ie max number that can be used for skill arg when spawning bot)
@@ -379,7 +381,7 @@ const int ROUTE_LENGTH = 1;//32;// NOTE: This is code by kota@ - I'm not going t
 class HistoryPoint
 {
 public:
-	HistoryPoint() { index = -1; next = prev = NULL; }
+	HistoryPoint() { index = -1; next = prev = nullptr; }
 	int index;
 	HistoryPoint *next;
 	HistoryPoint *prev;
@@ -398,12 +400,11 @@ public:
 	WptHistory()
 	{
 		size=5;
-		HistoryPoint *cur;
 		start = end = new HistoryPoint;
 		
 		for (int i=0; i<size; ++i) 
 		{
-			cur = new HistoryPoint;
+			HistoryPoint* cur = new HistoryPoint;
 			cur->next = end;
 			end->prev = cur;
 			end = cur;
@@ -414,20 +415,17 @@ public:
 	}
 	~WptHistory()
 	{
-		//FILE *f = fopen("\\debug1.txt", "a+");
-		//fprintf(f, "==@= desctructor\n");
-		//fclose(f);
-		HistoryPoint *cur, *tmp;
-		cur = start;
+		HistoryPoint* cur = start;
 		while (cur->next == start){
-			tmp = cur;
+			HistoryPoint* tmp = cur;
 			cur = cur->next;
 			delete tmp;
 		}
 		delete cur; //the last element.
-		end = start = NULL;
+		end = start = nullptr;
 	}
-	void print(){
+
+	static void print(){
 #ifdef _DEBUG
 		HistoryPoint *cur;
 		//FILE *f = fopen("\\debug1.txt", "a+");
@@ -445,7 +443,9 @@ public:
 		//fclose(f);
 #endif	
 	}
-	inline int get(int j=0) {
+
+	int get(int j=0) const
+	{
 		HistoryPoint *cur = start;
 		for (int i=0; i<j && cur!=end; ++i)
 		{
@@ -453,11 +453,13 @@ public:
 		}
 		return (cur!=end) ? cur->index : -1;
 	}
-	inline void clear() {
+
+	void clear() {
 		end = start;
 		end->index = -1;
 	}
-	inline void push(int wpt_index) {
+
+	void push(int wpt_index) {
 		start = start->prev;
 		start->index = wpt_index;
 		if (start==end)
@@ -466,7 +468,7 @@ public:
 		}
 		
 	}
-	bool check(int wpt_index)
+	bool check(int wpt_index) const
 	{
 		HistoryPoint *cur = start;
 		while (cur != end) 
@@ -485,35 +487,37 @@ class bot_t
 {
 public:
 	bot_t();
-	void BotSpawnInit(void);
-	void BotThink(void);
-	void BotStartGame(void);
-	void BotPressFireToRespawn(void);
-	void BotSpeak(int msg_type, const char *target = NULL);
+	void BotSpawnInit();
+	void BotThink();
+	void BotStartGame();
+	void BotPressFireToRespawn();
+	void BotSpeak(int msg_type, const char *target = nullptr);
 	void CheckMedicGuildTag();
 	void BotDoMedEvac(float distance);
-	float BotSetSpeed(void);
+	float BotSetSpeed() const;
 	bool UpdateSounds(edict_t *pPlayer);
-	void FacepItem(void);
-	void ResetAims(const char* loc = NULL);
-	void TargetAimWaypoint(const char* loc = NULL);
-	void BotWaitHere(void);
-	void ReloadWeapon(const char* loc = NULL);
-	void SetReloadTime(void);
-	bool CheckMainWeaponOutOfAmmo(const char* loc = NULL);
-	bool CheckBackupWeaponOutOfAmmo(const char* loc = NULL);
-	void DecideNextWeapon(const char* loc = NULL);
-	void BotSelectMainWeapon(const char* loc = NULL);
-	edict_t *BotFindEnemy(void);
+	void FacepItem();
+	void ResetAims(const char* loc = nullptr);
+	void TargetAimWaypoint(const char* loc = nullptr);
+	void BotWaitHere();
+	void ReloadWeapon(const char* loc = nullptr);
+	void SetReloadTime();
+	bool CheckMainWeaponOutOfAmmo(const char* loc = nullptr);
+	bool CheckBackupWeaponOutOfAmmo(const char* loc = nullptr);
+	void DecideNextWeapon(const char* loc = nullptr);
+	void BotSelectMainWeapon(const char* loc = nullptr);
+	edict_t *BotFindEnemy();
 	bool IsIgnorePath(int path_index = -1);
-	int GetNextWaypoint(void);
-	float GetEffectiveRange(int weapon_index = -1);
-	void BotForgetEnemy(void);
-	inline void clear_path()// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
+	int GetNextWaypoint() const;
+	float GetEffectiveRange(int weapon_index = -1) const;
+	void BotForgetEnemy();
+
+	void clear_path()// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 	{
 		point_list[0] = -1;
 	};
-	inline void SetBehaviour(int behaviour)
+
+	void SetBehaviour(int behaviour)
 	{
 		bot_behaviour |= behaviour;
 	};
@@ -522,11 +526,13 @@ public:
 		if (bot_behaviour & behaviour)
 			bot_behaviour &= ~behaviour;
 	};
-	inline bool IsBehaviour(int behaviour)
+
+	bool IsBehaviour(int behaviour) const
 	{
 		return (bot_behaviour & behaviour) == behaviour;
 	}
-	inline void SetTask(int task)
+
+	void SetTask(int task)
 	{
 		bot_tasks |= task;
 	};
@@ -535,11 +541,13 @@ public:
 		if (bot_tasks & task)
 			bot_tasks &= ~task;
 	};
-	inline bool IsTask(int task)
+
+	bool IsTask(int task) const
 	{
 		return (bot_tasks & task) == task;
 	}
-	inline void SetSubTask(int subtask)
+
+	void SetSubTask(int subtask)
 	{
 		bot_subtasks |= subtask;
 	};
@@ -548,11 +556,13 @@ public:
 		if (bot_subtasks & subtask)
 			bot_subtasks &= ~subtask;
 	};
-	inline bool IsSubTask(int subtask)
+
+	bool IsSubTask(int subtask) const
 	{
 		return (bot_subtasks & subtask) == subtask;
 	}
-	inline void SetNeed(int need)
+
+	void SetNeed(int need)
 	{
 		bot_needs |= need;
 	};
@@ -561,27 +571,33 @@ public:
 		if (bot_needs & need)
 			bot_needs &= ~need;
 	};
-	inline bool IsNeed(int need)
+
+	bool IsNeed(int need) const
 	{
 		return (bot_needs & need) == need;
 	}
-	inline void SetDontMoveTime(float time)
+
+	void SetDontMoveTime(float time)
 	{
 		f_dontmove_time = gpGlobals->time + time;
 	};
-	inline void ClearDontMoveTime(void)
+
+	void ClearDontMoveTime()
 	{
 		f_dontmove_time = gpGlobals->time;
 	};
-	inline void IncChangedDirection(void)
+
+	void IncChangedDirection()
 	{
 		changed_direction = changed_direction + 1;
 	};
-	inline void ResetChangedDirection(void)
+
+	void ResetChangedDirection()
 	{
 		changed_direction = 0;
 	};
-	inline void SetPauseTime(float time = (float) 0.0)
+
+	void SetPauseTime(float time = (float) 0.0)
 	{
 		f_pause_time = gpGlobals->time + time;
 	};
@@ -590,9 +606,10 @@ public:
 		if (time == 0.0)
 			f_pause_time = time;
 		else
-			f_pause_time = gpGlobals->time - (float)fabs(time);
+			f_pause_time = gpGlobals->time - static_cast<float>(std::fabs(time));
 	};
-	inline void SetWaitTime(float time = (float) 0.0)
+
+	void SetWaitTime(float time = (float) 0.0)
 	{
 		wpt_wait_time = gpGlobals->time + time;
 	};
@@ -601,25 +618,29 @@ public:
 		if (time == 0.0)
 			wpt_wait_time = time;
 		else
-			wpt_wait_time = gpGlobals->time - (float)fabs(time);
+			wpt_wait_time = gpGlobals->time - static_cast<float>(std::fabs(time));
 	};
-	inline void UseWeapon(int weapon = USE_KNIFE)
+
+	void UseWeapon(int weapon = USE_KNIFE)
 	{
 		forced_usage = weapon;
 	}
-	inline bool NotSeenEnemyfor(float time = (float) 0.0)		// not seen enemy for (time) seconds
+
+	bool NotSeenEnemyfor(float time = (float) 0.0) const
+	// not seen enemy for (time) seconds
 	{
 		return ((f_bot_see_enemy_time > 0) && ((f_bot_see_enemy_time + time) < gpGlobals->time));
 	}
-	void SetDontCheckStuck(const char* loc = NULL, float time = (float)1.0);
+	void SetDontCheckStuck(const char* loc = nullptr, float time = (float)1.0);
 	// true when the bot is going to/resume from prone
-	inline bool IsGoingProne(void)
+	bool IsGoingProne() const
 	{
 		// time from calling the command to a moment when FA allows firing from the gun (based on test in FA 3.0)
 		// battlefield agility doesn't have any effect on this time (despite the fact that they say so)
 		return (f_go_prone_time + 1.2 > gpGlobals->time);
 	}
-	inline void SetWeaponStatus(int status)
+
+	void SetWeaponStatus(int status)
 	{
 		weapon_status |= status;
 	}
@@ -628,7 +649,8 @@ public:
 		if (weapon_status & status)
 			weapon_status &= ~status;
 	};
-	inline bool IsWeaponStatus(int status)
+
+	bool IsWeaponStatus(int status) const
 	{
 		return (weapon_status & status) == status;
 	}

@@ -26,7 +26,7 @@
 
 client_t::client_t()
 {
-	pEntity = NULL;
+	pEntity = nullptr;
 	client_is_human = false;
 	client_bleeds = false;
 	max_speed_time = -1.0;

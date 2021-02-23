@@ -39,8 +39,8 @@ extern enginefuncs_t g_engfuncs;
 int debug_engine = 0;
 char debug_fname[256];		// allow debugging into any location within HL folder
 
-void (*botMsgFunction)(void *, int) = NULL;
-void (*botMsgEndFunction)(void *, int) = NULL;
+void (*botMsgFunction)(void *, int) = nullptr;
+void (*botMsgEndFunction)(void *, int) = nullptr;
 int botMsgIndex;
 
 // messages created in RegUserMsg which will be "caught"
@@ -302,7 +302,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnEmitSound: edict=%p sound=%s channel=%d volume=%.2f attenuation=%.2f fFlags=%d, pitch=%d (gametime=%.3f)\n",entity,sample,channel,volume,attenuation,fFlags,pitch,gpGlobals->time); fclose(fp); }
 
 		// did the bot heard a grenade that has been just thrown
-		if (strstr(sample, "fuze.wav") != NULL)
+		if (strstr(sample, "fuze.wav") != nullptr)
 		{
 			// muted message holds a pointer to the invoker
 			if (volume == 0.0)
@@ -326,7 +326,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is someone bleeding?
-		else if (strstr(sample, "bleed.wav") != NULL)
+		else if (strstr(sample, "bleed.wav") != nullptr)
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
@@ -389,7 +389,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is someone merging magazines?
-		else if (strstr(sample, "mergemags.wav") != NULL)
+		else if (strstr(sample, "mergemags.wav") != nullptr)
 		{
 			// can it really be heard?
 			if (volume > 0.0)
@@ -439,7 +439,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is someone yelling for a medic?
-		else if (strstr(sample, "voice_medic") != NULL)
+		else if (strstr(sample, "voice_medic") != nullptr)
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
@@ -457,7 +457,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is any medic close AND this bot is bleeding?
-		else if ((strstr(sample, "voice_medhere.wav") != NULL) || (strstr(sample, "voice_treatyou.wav") != NULL))
+		else if ((strstr(sample, "voice_medhere.wav") != nullptr) || (strstr(sample, "voice_treatyou.wav") != nullptr))
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
@@ -500,7 +500,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// is there a downed soldier yelling for help?
-		else if (strstr(sample, "gr_pain") != NULL)
+		else if (strstr(sample, "gr_pain") != nullptr)
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
@@ -519,7 +519,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 		}
 
 		// does someone call for cover?
-		else if (strstr(sample, "voice_coverme.wav") != NULL)
+		else if (strstr(sample, "voice_coverme.wav") != nullptr)
 		{
 			for (index=0; index < MAX_CLIENTS; index++)
             {
@@ -532,7 +532,7 @@ void pfnEmitSound(edict_t *entity, int channel, const char *sample, /*int*/float
 						continue;
 
 					// is this bot already "used" so ignore the call
-					if (bots[index].pBotUser != NULL)
+					if (bots[index].pBotUser != nullptr)
 						continue;
 
 					// can this bot hear the call
@@ -686,20 +686,18 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 {
 	if (gpGlobals->deathmatch)
 	{
-		int index = -1;
-
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMessageBegin: edict=%p dest=%d type=%d (gametime=%.3f)\n", ed, msg_dest, msg_type, gpGlobals->time); fclose(fp); }
 
 		
 		if (ed)
 		{
-			index = UTIL_GetBotIndex(ed);
+			const int index = UTIL_GetBotIndex(ed);
 
 			// is this message for a bot?
 			if (index != -1)
 			{
-				botMsgFunction = NULL;     // no msg function until known otherwise
-				botMsgEndFunction = NULL;  // no msg end function until known otherwise
+				botMsgFunction = nullptr;     // no msg function until known otherwise
+				botMsgEndFunction = nullptr;  // no msg end function until known otherwise
 				botMsgIndex = index;       // index of bot receiving message
 				
 				if (mod_id == FIREARMS_DLL)
@@ -730,7 +728,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 
 						// ugly technique to handle this message
 						if (botMsgFunction)
-							(*botMsgFunction)((void *)NULL, botMsgIndex);
+							(*botMsgFunction)((void *)nullptr, botMsgIndex);
 					}
 					else if (msg_type == message_BrokenLeg)	// code for FA 2.65 and versions below
 						botMsgFunction = BotClient_FA_BrokenLeg;
@@ -759,7 +757,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 		}
 		else if (msg_dest == MSG_ALL)
 		{
-			botMsgFunction = NULL;  // no msg function until known otherwise
+			botMsgFunction = nullptr;  // no msg function until known otherwise
 			botMsgIndex = -1;       // index of bot receiving message (none)
 			
 			if (mod_id == FIREARMS_DLL)
@@ -781,11 +779,11 @@ void pfnMessageEnd(void)
 		if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnMessageEnd:\n"); fclose(fp); }
 
 		if (botMsgEndFunction)
-			(*botMsgEndFunction)(NULL, botMsgIndex);  // NULL indicated msg end
+			(*botMsgEndFunction)(nullptr, botMsgIndex);  // NULL indicated msg end
 		
 		// clear out the bot message function pointers...
-		botMsgFunction = NULL;
-		botMsgEndFunction = NULL;
+		botMsgFunction = nullptr;
+		botMsgEndFunction = nullptr;
 	}
 	
 	(*g_engfuncs.pfnMessageEnd)();
@@ -1023,9 +1021,7 @@ void* pfnGetModelPtr(edict_t* pEdict)
 }
 int pfnRegUserMsg(const char *pszName, int iSize)
 {
-   int msg;
-
-   msg = (*g_engfuncs.pfnRegUserMsg)(pszName, iSize);
+	const int msg = (*g_engfuncs.pfnRegUserMsg)(pszName, iSize);
 
    if (gpGlobals->deathmatch)
    {
@@ -1128,7 +1124,7 @@ void pfnClientPrintf( edict_t* pEdict, PRINT_TYPE ptype, const char *szMsg )
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnClientPrintf: %s\n", szMsg); fclose(fp); }
 
    // don't print it for nonexistent clients
-   if (pEdict == NULL)
+   if (pEdict == nullptr)
 	   return;
 
    (*g_engfuncs.pfnClientPrintf)(pEdict, ptype, szMsg);
@@ -1194,7 +1190,7 @@ void pfnSetView(const edict_t *pClient, const edict_t *pViewent )
 	// NOTE: This seems to finally FIXED the bloody trigger_camera crash on obj_armory
 	//		 Although I'm not sure whether this won't affect things like HLTV.
 
-	if (pClient != NULL)
+	if (pClient != nullptr)
 	{
 		if (UTIL_GetBotIndex((edict_t *)pClient) != -1)
 		{
@@ -1277,9 +1273,7 @@ void pfnSetClientMaxspeed(const edict_t *pEdict, float fNewMaxspeed)
    {
       if (mod_id == FIREARMS_DLL)
       {
-		  int index;
-
-		  index = UTIL_GetBotIndex((edict_t *) pEdict);
+	      int index = UTIL_GetBotIndex((edict_t*)pEdict);
 
 		  // is this edict a bot?
 		  if (index != -1)

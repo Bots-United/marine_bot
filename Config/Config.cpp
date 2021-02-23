@@ -28,7 +28,7 @@ using namespace std;
 //extern FILE *conf_in;
 
 std::string Section :: getVal(const std::string key) const {
-    CII ii = item.find(key);
+	const CII ii = item.find(key);
     if (ii == item.end()) {
        throw errGetVal(key);
     }
@@ -39,14 +39,14 @@ std::string Section :: getVal(const std::string key) const {
 
 
 Section * parceConfig(char *confFileName) {
-    if (confFileName == NULL) {
+    if (confFileName == nullptr) {
 	conf_in = stdin;
     }
     else {
 	conf_in = fopen(confFileName, "r");
     }
-    if (conf_in == NULL) {
-	return NULL;
+    if (conf_in == nullptr) {
+	return nullptr;
     }
 
     Section *conf_p = new Section;
@@ -68,15 +68,15 @@ Section * parceConfig(char *confFileName) {
 	if (conf_parse((void*) &pp)!=0) {
 	    printf(" in file %s\n", ce.f_name.c_str());
 	    delete conf_p;
-	    conf_p = NULL;
+	    conf_p = nullptr;
 	    fclose(conf_in);
 	    break;
 	}
 	fclose(conf_in);
       }
     } catch(...) {
-	if (conf_p != NULL) delete conf_p;
-	conf_p = NULL;
+	if (conf_p != nullptr) delete conf_p;
+	conf_p = nullptr;
 	fclose(conf_in);
     }
     return conf_p;
@@ -85,7 +85,7 @@ Section * parceConfig(char *confFileName) {
 Section :: ~Section() {
     for (SI p = sectionList.begin();
 	    p != sectionList.end(); 
-	    p++) {
+	    ++p) {
 	delete (p->second);
     }
 }
@@ -95,7 +95,7 @@ void printSection(Section *sect, int level) {
 	int i=0;
     for (CI p = sect->sectionList.begin();
 	    p != sect->sectionList.end(); 
-	    p++) {
+	    ++p) {
 		for (i=0; i<level; i++) {
 			cout << "   ";
 		}
@@ -110,7 +110,7 @@ void printSection(Section *sect, int level) {
     typedef map<string, string>::const_iterator CIV;
     for (CIV pi = sect->item.begin();
 			pi != sect->item.end(); 
-			pi++) {
+			++pi) {
 		for (i=0; i<level; i++) {
 			cout << "   ";
 		}

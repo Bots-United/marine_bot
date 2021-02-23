@@ -46,9 +46,9 @@ extern void *h_Library;
 #endif
 
 // globals
-WORD *p_Ordinals = NULL;
-DWORD *p_Functions = NULL;
-DWORD *p_Names = NULL;
+WORD *p_Ordinals = nullptr;
+DWORD *p_Functions = nullptr;
+DWORD *p_Names = nullptr;
 char *p_FunctionNames[MAX_SYMBOLS];
 int num_ordinals;
 unsigned long base_offset;
@@ -195,9 +195,9 @@ void getMSVCName(char *out_name, char *in_name)
 
    if (in_name[0] == '?')  // is this a MSVC C++ mangled name?
    {
-      if ((pos = strstr(in_name, "@@")) != NULL)
+      if ((pos = strstr(in_name, "@@")) != nullptr)
       {
-         int len = pos - in_name;
+	      const int len = pos - in_name;
 
          strcpy(out_name, &in_name[1]);  // strip off the leading '?'
          out_name[len-1] = 0;  // terminate string at the "@@"
@@ -230,9 +230,9 @@ void LoadSymbols(char *filename)
    char msg[80];
 
    for (i=0; i < num_ordinals; i++)
-      p_FunctionNames[i] = NULL;
+      p_FunctionNames[i] = nullptr;
 
-   if ((bfp=fopen(filename, "rb")) == NULL)
+   if ((bfp=fopen(filename, "rb")) == nullptr)
    {
       sprintf(msg, "DLL file %s not found!", filename);
       ALERT(at_error, msg);
@@ -346,7 +346,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Ordinals = (WORD *)malloc(num_ordinals * sizeof(WORD))) == NULL)
+   if ((p_Ordinals = (WORD *)malloc(num_ordinals * sizeof(WORD))) == nullptr)
    {
       ALERT(at_error, "error allocating memory for ordinals section!");
       return;
@@ -369,7 +369,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Functions = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == NULL)
+   if ((p_Functions = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == nullptr)
    {
       ALERT(at_error, "error allocating memory for export address section!");
       return;
@@ -394,7 +394,7 @@ void LoadSymbols(char *filename)
       return;
    }
 
-   if ((p_Names = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == NULL)
+   if ((p_Names = (DWORD *)malloc(num_ordinals * sizeof(DWORD))) == nullptr)
    {
       FreeNameFuncGlobals();
 
@@ -424,7 +424,7 @@ void LoadSymbols(char *filename)
          {
             FgetString(function_name, bfp);
 
-            if ((p_FunctionNames[i] = (char *)malloc(strlen(function_name)+1)) == NULL)
+            if ((p_FunctionNames[i] = (char *)malloc(strlen(function_name)+1)) == nullptr)
                error = TRUE;
             else
                getMSVCName(p_FunctionNames[i], function_name);

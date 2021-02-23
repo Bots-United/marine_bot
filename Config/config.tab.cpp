@@ -340,7 +340,7 @@ static const char *const yytname[] =
   "$end", "error", "$undefined", "STRING", "QSTRING", "ATTRIBUTE", "SET", 
   "SECTION_BEGIN", "SECTION_END", "INCLUDE_FILE", "EOF_FILE", "';'", 
   "$accept", "point_list", "section", "section_start", "section_end", 
-  "item", "value", "include_file", "end_of_file", 0
+  "item", "value", "include_file", "end_of_file", nullptr
 };
 #endif
 
@@ -992,13 +992,13 @@ yyreduce:
 	{
 	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
 	    sprintf(section_name, " %06d", cur_sect->sectionList.size());
-	    Section *new_sect = NULL;
+	    Section *new_sect = nullptr;
 	    try {
 		new_sect = new Section();
 	    } catch (...) {
-		new_sect = NULL;
+		new_sect = nullptr;
 	    }
-	    if (new_sect != NULL) {
+	    if (new_sect != nullptr) {
 		cur_sect->sectionList.insert(make_pair(std::string(section_name), new_sect)); 
 		cur_sect = new_sect;
 		((ParserParam *) param_p)->sect_stack.push(cur_sect);
@@ -1014,13 +1014,13 @@ yyreduce:
 	/*conf_parse((void*)&((Section *) section_p)->sectionList);*/
 	{
 	    Section *cur_sect = ((ParserParam *) param_p)->sect_stack.top();
-	    Section *new_sect = NULL;
+	    Section *new_sect = nullptr;
 	    try {
 		new_sect = new Section();
 	    } catch (...) {
-		new_sect = NULL;
+		new_sect = nullptr;
 	    }
-	    if (new_sect != NULL) {
+	    if (new_sect != nullptr) {
 		cur_sect->sectionList.insert(make_pair(yyvsp[-1].val, new_sect)); 
 		cur_sect = new_sect;
 		((ParserParam *) param_p)->sect_stack.push(cur_sect);
@@ -1090,7 +1090,7 @@ yyreduce:
 	//printf("INCLUDE_FILE %s\n", );
 	{
 	    FILE *new_in = fopen(yyvsp[0].val, "r");
-	    if ( new_in != NULL) {
+	    if ( new_in != nullptr) {
 		((ParserParam *) param_p)->in_stack.push(conf_in);
 		conf_in = new_in;
 		delete(yyvsp[0].val);
@@ -1187,7 +1187,7 @@ yyerrlab:
 	  yysize += yystrlen ("parse error, unexpected ") + 1;
 	  yysize += yystrlen (yytname[yytype]);
 	  yymsg = (char *) YYSTACK_ALLOC (yysize);
-	  if (yymsg != 0)
+	  if (yymsg != nullptr)
 	    {
 	      char *yyp = yystpcpy (yymsg, "parse error, unexpected ");
 	      yyp = yystpcpy (yyp, yytname[yytype]);

@@ -100,14 +100,14 @@ int fa_weapon_pkm =			default_ID;
 
 
 // bot_combat functions prototypes
-bool InitFABaseWeapons(void);
-bool InitFASameWeapons(void);
-bool InitFA24Weapons(void);
-bool InitFA25Weapons(void);
-bool InitFA26Weapons(void);
-bool InitFA27Weapons(void);
-bool InitFA28Weapons(void);
-bool InitFA29Weapons(void);
+bool InitFABaseWeapons();
+bool InitFASameWeapons();
+bool InitFA24Weapons();
+bool InitFA25Weapons();
+bool InitFA26Weapons();
+bool InitFA27Weapons();
+bool InitFA28Weapons();
+bool InitFA29Weapons();
 void BotReactions(bot_t *pBot);
 inline void DontSeeEnemyActions(bot_t *pBot);
 void BotFireMountedGun(Vector v_enemy, bot_t *pBot);
@@ -123,7 +123,7 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance);
 /*
 * inits a few weapons that have same ID in all FA versions
 */
-bool InitFABaseWeapons(void)
+bool InitFABaseWeapons()
 {
 	fa_weapon_knife =		FAB_WEAPON_KNIFE;
 	fa_weapon_coltgov =		FAB_WEAPON_COLTGOV;
@@ -150,7 +150,7 @@ bool InitFABaseWeapons(void)
 /*
 * inits a few weapons that have same ID in more than one version
 */
-bool InitFASameWeapons(void)
+bool InitFASameWeapons()
 {
 	fa_weapon_mp5a5 =		FA25_WEAPON_MP5A5;
 	fa_weapon_m79 =			FA25_WEAPON_M79;
@@ -185,7 +185,7 @@ bool InitFASameWeapons(void)
 /*
 * inits all FA24 versions, we can't use the same weapons init method because of sterling
 */
-bool InitFA24Weapons(void)
+bool InitFA24Weapons()
 {
 	fa_weapon_mp5k =		FA24_WEAPON_MP5K;
 	fa_weapon_mp5a5 =		FA25_WEAPON_MP5A5;
@@ -229,7 +229,7 @@ bool InitFA24Weapons(void)
 /*
 * inits all FA25 versions
 */
-bool InitFA25Weapons(void)
+bool InitFA25Weapons()
 {
 	bool prev_inits = FALSE;
 
@@ -260,7 +260,7 @@ bool InitFA25Weapons(void)
 /*
 * inits all FA26 (2.65 as well) versions
 */
-bool InitFA26Weapons(void)
+bool InitFA26Weapons()
 {
 	bool prev_inits = FALSE;
 
@@ -290,7 +290,7 @@ bool InitFA26Weapons(void)
 /*
 * inits all FA27 versions
 */
-bool InitFA27Weapons(void)
+bool InitFA27Weapons()
 {
 	bool prev_inits = FALSE;
 
@@ -320,7 +320,7 @@ bool InitFA27Weapons(void)
 /*
 * inits all FA28 versions
 */
-bool InitFA28Weapons(void)
+bool InitFA28Weapons()
 {
 	fa_weapon_mp5a5 =		FA28_WEAPON_MP5A5;
 	fa_weapon_bizon =		FA28_WEAPON_BIZON;
@@ -364,7 +364,7 @@ bool InitFA28Weapons(void)
 /*
 * inits all FA29 versions
 */
-bool InitFA29Weapons(void)
+bool InitFA29Weapons()
 {
 	bool prev_inits = FALSE;
 
@@ -385,7 +385,7 @@ bool InitFA29Weapons(void)
 /*
 * inits the right weapon set based on mod version
 */
-bool InitFAWeapons(void)
+bool InitFAWeapons()
 {
 	bool a_problem = FALSE;
 
@@ -483,7 +483,7 @@ void BotWeaponArraysInit(Section *conf_weapons)
 	bool modif=true;
 	char msg[1024];
 
-	if (conf_weapons == NULL)	//init all weapons to 0
+	if (conf_weapons == nullptr)	//init all weapons to 0
 	{
 		for (index = 0; index < MAX_WEAPONS; ++index)
 		{
@@ -528,7 +528,7 @@ void BotWeaponArraysInit(Section *conf_weapons)
 				{
 					sprintf(msg, "** missing variable '%s'", er_val.key.c_str());
 
-					PrintOutput(NULL, msg, MType::msg_error);
+					PrintOutput(nullptr, msg, MType::msg_error);
 				}
 				if (modif==true) 
 				{
@@ -633,7 +633,7 @@ bool bot_t::CheckBackupWeaponOutOfAmmo(const char* loc)
 * returns the max effective range of given weapon
 * it takes the current weapon by default
 */
-float bot_t::GetEffectiveRange(int weapon_index)
+float bot_t::GetEffectiveRange(int weapon_index) const
 {
 	//																					NEW CODE 094
 	if (weapon_index == NO_VAL)
@@ -651,9 +651,7 @@ float bot_t::GetEffectiveRange(int weapon_index)
 	if (weapon_index == NO_VAL)
 		return 0.0;
 
-	float range;
-
-	range = bot_weapon_select[weapon_index].max_effective_distance;
+	float range = bot_weapon_select[weapon_index].max_effective_distance;
 
 	// see if we do limit the max distance the bot can see (ie. view distance)
 	// if so and the weapon effective range is bigger then the limit
@@ -730,7 +728,7 @@ void BotReactions(bot_t *pBot)
 	}
 	
 	float react_time = externals.GetReactionTime();
-	int skill = pBot->bot_skill + 1;	// array based
+	const int skill = pBot->bot_skill + 1;	// array based
 
 	// we are using skill level 3 as a default level so its reaction time isn't changed
 	// but other skill levels should be modified
@@ -898,7 +896,7 @@ void bot_t::BotForgetEnemy(void)
 #endif
 
 	// don't have an enemy anymore so null out the pointer
-	pBotEnemy = NULL;	
+	pBotEnemy = nullptr;	
 	// clear his backed up position
 	v_last_enemy_position = g_vecZero;//Vector(0, 0, 0);	
 	// reset wait & watch time
@@ -941,13 +939,11 @@ void bot_t::BotForgetEnemy(void)
 edict_t * bot_t::BotFindEnemy()
 {
 	Vector vecEnd;
-	edict_t *pNewEnemy;
-	edict_t *pPrevEnemy = NULL;		// previous enemy
+	edict_t *pPrevEnemy = nullptr;		// previous enemy
 	float nearest_distance;
-	int clients;
 
 	// does the bot already have an enemy?
-	if (pBotEnemy != NULL)
+	if (pBotEnemy != nullptr)
 	{
 		vecEnd = pBotEnemy->v.origin + pBotEnemy->v.view_ofs;
 
@@ -1004,7 +1000,7 @@ edict_t * bot_t::BotFindEnemy()
 				//	return (pBotEnemy);
 				//}
 
-				float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
+				const float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
 
 				// don't attack distant enemy
 				if (enemy_distance > ENEMY_DIST_GOALITEM)
@@ -1017,7 +1013,7 @@ edict_t * bot_t::BotFindEnemy()
 			// the enemy probably won't attack this bot so forget about him
 			if (IsTask(TASK_AVOID_ENEMY))
 			{
-				float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
+				const float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
 				if (enemy_distance > GetEffectiveRange() && (enemy_distance > RANGE_MELEE))
 				{
 					BotForgetEnemy();
@@ -1026,7 +1022,7 @@ edict_t * bot_t::BotFindEnemy()
 			}
 			if (IsTask(TASK_IGNORE_ENEMY))
 			{
-				float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
+				const float enemy_distance = (pBotEnemy->v.origin - pEdict->v.origin).Length();
 				if (enemy_distance > RANGE_MELEE)
 				{
 					BotForgetEnemy();
@@ -1035,9 +1031,9 @@ edict_t * bot_t::BotFindEnemy()
 			}
 
 			// check for position and visibility first
-			bool InFOV = FInViewCone( &vecEnd, pEdict );
+			const bool InFOV = FInViewCone( &vecEnd, pEdict );
 			bool IsVisible = false;
-			int decide_visibility = FPlayerVisible( vecEnd, pEdict );
+			const int decide_visibility = FPlayerVisible( vecEnd, pEdict );
 			
 			// decide visibility based on current weapon
 			// we don't want bots trying to shoot an enemy through fence with a weapon that cannot do it (eg. small arms)
@@ -1079,8 +1075,8 @@ edict_t * bot_t::BotFindEnemy()
 				else
 				{
 					// face the enemy
-					Vector v_enemy = pBotEnemy->v.origin - pEdict->v.origin;
-					Vector bot_angles = UTIL_VecToAngles( v_enemy );
+					const Vector v_enemy = pBotEnemy->v.origin - pEdict->v.origin;
+					const Vector bot_angles = UTIL_VecToAngles( v_enemy );
 					
 					pEdict->v.ideal_yaw = bot_angles.y;
 					BotFixIdealYaw(pEdict);
@@ -1114,7 +1110,7 @@ edict_t * bot_t::BotFindEnemy()
 				if (f_bot_wait_for_enemy_time < gpGlobals->time)
 				{
 					// generate the percentage chance
-					int do_watch = RANDOM_LONG(1, 100);
+					const int do_watch = RANDOM_LONG(1, 100);
 					
 					// in 30% should attacking bot keep watching that direction
 					// and wait if enemy become visible again
@@ -1213,8 +1209,8 @@ edict_t * bot_t::BotFindEnemy()
 					else
 					{
 						// face the last known position of this enemy
-						Vector v_enemy_last_p = v_last_enemy_position - pEdict->v.origin;
-						Vector bot_angles = UTIL_VecToAngles(v_enemy_last_p);
+						const Vector v_enemy_last_p = v_last_enemy_position - pEdict->v.origin;
+						const Vector bot_angles = UTIL_VecToAngles(v_enemy_last_p);
 						
 						pEdict->v.ideal_yaw = bot_angles.y;
 						BotFixIdealYaw(pEdict);
@@ -1227,12 +1223,12 @@ edict_t * bot_t::BotFindEnemy()
 		}	// END enemy is alive
 	}	// END pBot->pBotEnemy != NULL
 
-	pNewEnemy = NULL;
+	edict_t* pNewEnemy = nullptr;
 
-	if (pNewEnemy == NULL)
+	if (pNewEnemy == nullptr)
 	{
 		// if the bot already has an enemy try to find someone else who's closer
-		if (pPrevEnemy != NULL)
+		if (pPrevEnemy != nullptr)
 		{
 			if (f_bot_wait_for_enemy_time < gpGlobals->time)
 				nearest_distance = (pPrevEnemy->v.origin - pEdict->v.origin).Length();
@@ -1272,7 +1268,7 @@ edict_t * bot_t::BotFindEnemy()
 			nearest_distance = ENEMY_DIST_GOALITEM;
 
 		// search the world for players
-		for (clients = 1; clients <= gpGlobals->maxClients; clients++)
+		for (int clients = 1; clients <= gpGlobals->maxClients; clients++)
 		{
 			edict_t *pPlayer = INDEXENT(clients);
 
@@ -1293,8 +1289,8 @@ edict_t * bot_t::BotFindEnemy()
 				// is team play enabled?
 				if (internals.GetTeamPlay() > 0.0)
 				{
-					int player_team = UTIL_GetTeam(pPlayer);
-					int bot_team = UTIL_GetTeam(pEdict);
+					const int player_team = UTIL_GetTeam(pPlayer);
+					const int bot_team = UTIL_GetTeam(pEdict);
 
 					// don't target your teammates or players from unknown team
 					if ((bot_team == player_team) || (player_team == TEAM_NONE))
@@ -1302,7 +1298,7 @@ edict_t * bot_t::BotFindEnemy()
 				}
 
 				// get the distance
-				float player_distance = (pPlayer->v.origin - pEdict->v.origin).Length();
+				const float player_distance = (pPlayer->v.origin - pEdict->v.origin).Length();
 
 				// skip players that are farther than nearest distance limit
 				if (player_distance > nearest_distance)
@@ -1311,7 +1307,7 @@ edict_t * bot_t::BotFindEnemy()
 				vecEnd = pPlayer->v.origin + pPlayer->v.view_ofs;
 
 				bool IsVisible = false;
-				int decide_visibility = FPlayerVisible( vecEnd, pEdict );
+				const int decide_visibility = FPlayerVisible( vecEnd, pEdict );
 				
 				switch (decide_visibility)
 				{
@@ -1337,7 +1333,7 @@ edict_t * bot_t::BotFindEnemy()
 					nearest_distance = player_distance;
 					pNewEnemy = pPlayer;
 
-					pBotUser = NULL;  // don't follow user when enemy found
+					pBotUser = nullptr;  // don't follow user when enemy found
 				}
 			}
 		}
@@ -1346,8 +1342,8 @@ edict_t * bot_t::BotFindEnemy()
 	if (pNewEnemy)
 	{
 		// face the enemy
-		Vector v_enemy = pNewEnemy->v.origin - pEdict->v.origin;
-		Vector bot_angles = UTIL_VecToAngles( v_enemy );
+		const Vector v_enemy = pNewEnemy->v.origin - pEdict->v.origin;
+		const Vector bot_angles = UTIL_VecToAngles( v_enemy );
 
 		pEdict->v.ideal_yaw = bot_angles.y;
 		BotFixIdealYaw(pEdict);
@@ -1356,11 +1352,11 @@ edict_t * bot_t::BotFindEnemy()
 
 		// had the bot an enemy even before AND was it exactly this one
 		// so break it right now
-		if ((pPrevEnemy != NULL) && (pNewEnemy == pPrevEnemy))
+		if ((pPrevEnemy != nullptr) && (pNewEnemy == pPrevEnemy))
 			return (pPrevEnemy);
 
 		// had the bot an enemy before then we have to clear all values
-		if (pPrevEnemy != NULL)
+		if (pPrevEnemy != nullptr)
 			BotForgetEnemy();
 
 		// has to be here because the reaction code uses it
@@ -1388,7 +1384,7 @@ edict_t * bot_t::BotFindEnemy()
 
 		// warn comrades only if had no enemy before
 		// (i.e. if completely new enemy) AND is chance to speak
-		if (!externals.GetDontSpeak() && (pPrevEnemy == NULL) &&
+		if (!externals.GetDontSpeak() && (pPrevEnemy == nullptr) &&
 			((speak_time + RANDOM_FLOAT(25.5, 59.0)) < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 50))
 		{
 			UTIL_Voice(pEdict, "getdown");
@@ -1409,7 +1405,7 @@ edict_t * bot_t::BotFindEnemy()
 
 		// we have to clear dontmove flag ie if bot is NOT near any of small range wpts or
 		// his waypoint isn't dont move waypoint
-		int last_wpt = prev_wpt_index.get();
+		const int last_wpt = prev_wpt_index.get();
 
 		if (IsTask(TASK_DONTMOVEINCOMBAT) && (crowded_wpt_index == -1) &&
 			(UTIL_IsSmallRange(curr_wpt_index) == FALSE) && // the bot is heading towards to it
@@ -1431,7 +1427,7 @@ edict_t * bot_t::BotFindEnemy()
 
 		}
 
-		pPrevEnemy = NULL;	// null out pointer just for sure
+		pPrevEnemy = nullptr;	// null out pointer just for sure
 	}
 
 	DontSeeEnemyActions(this);
@@ -1680,7 +1676,7 @@ float ModYawAngle(float yaw_angle)
 */
 float AngleYaw90(float yaw_angle)
 {
-	return fabs(90 - fabs(yaw_angle));
+	return fabs(90 - std::fabs(yaw_angle));
 }
 
 
@@ -1705,7 +1701,7 @@ float RotateYawAngle(float yaw_angle)
 	if (yaw_angle >= 0 && yaw_angle <= 180)
 		new_angle = -180 + yaw_angle;
 	else
-		new_angle = 180 - fabs(yaw_angle);
+		new_angle = 180 - std::fabs(yaw_angle);
 
 	return new_angle;
 }
@@ -1866,10 +1862,10 @@ int FindExposure(float hit_angle)
 */
 float MakeFakeOriginCoordinate(float hit_angle, int weapon_ID = default_ID)
 {
-	float h_face = FindWeaponModifier(weapon_ID, 0);
-	float h_back = FindWeaponModifier(weapon_ID, 1);
-	float h_right = FindWeaponModifier(weapon_ID, 2);
-	float h_left = FindWeaponModifier(weapon_ID, 3);
+	const float h_face = FindWeaponModifier(weapon_ID, 0);
+	const float h_back = FindWeaponModifier(weapon_ID, 1);
+	const float h_right = FindWeaponModifier(weapon_ID, 2);
+	const float h_left = FindWeaponModifier(weapon_ID, 3);
 	float one_degree = 0.0;
 
 	// always keep the angles valid (ie. from -180 to +180)
@@ -1900,13 +1896,13 @@ float MakeFakeOriginCoordinate(float hit_angle, int weapon_ID = default_ID)
 	else if (hit_angle < 0 && hit_angle >= -90)
 	{
 		one_degree = (h_face - h_left) / 90;
-		h_mod = h_face - fabs(hit_angle) * one_degree;
+		h_mod = h_face - std::fabs(hit_angle) * one_degree;
 	}
 	// increase the vector when turning from left side to back
 	else if (hit_angle < -90 && hit_angle >= -180)
 	{
 		one_degree = (h_back - h_left) / 90;
-		h_mod = h_left + fabs(hit_angle + 90) * one_degree;
+		h_mod = h_left + std::fabs(hit_angle + 90) * one_degree;
 	}
 
 	return h_mod;
@@ -2453,9 +2449,9 @@ Vector BotBodyTarget(bot_t *pBot)
 		if (foe_distance <= 100)
 		{
 			target = target_origin + target_head;
-			d_x = RANDOM_FLOAT(-2, 2) * f_scale;
-			d_y = RANDOM_FLOAT(-2, 2) * f_scale;
-			d_z = RANDOM_FLOAT(-2, 2) * f_scale;
+			d_x = RANDOM_FLOAT(-5, 5) * f_scale;
+			d_y = RANDOM_FLOAT(-5, 5) * f_scale;
+			d_z = RANDOM_FLOAT(-5, 5) * f_scale;
 		}
 		// otherwise use standard skill based aiming
 		else
@@ -2476,7 +2472,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 1:
 					// GOOD, offset a little for x, y, and z
-					if (hs_percentage > 50)
+					if (hs_percentage > 40)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
@@ -2486,7 +2482,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
-					if (hs_percentage > 66)
+					if (hs_percentage > 50)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
@@ -2625,9 +2621,9 @@ Vector BotBodyTarget(bot_t *pBot)
 /*
 * using the mounted gun
 */
-void BotFireMountedGun(Vector v_enemy, bot_t *pBot)
+void BotFireMountedGun(const Vector v_enemy, bot_t *pBot)
 {
-	float distance = v_enemy.Length();  // how far away is the enemy?
+	const float distance = v_enemy.Length();  // how far away is the enemy?
 
 	// is enemy close so use full-auto fire
 	if (distance < 1000)
@@ -2654,17 +2650,14 @@ void BotFireMountedGun(Vector v_enemy, bot_t *pBot)
 /*
 * fire main weapon (assuming enough ammo exists for that weapon and checking effective range)
 */
-int BotFireWeapon( Vector v_enemy, bot_t *pBot )
+int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 {
-	bot_weapon_select_t *pSelect = NULL;
-	bot_fire_delay_t *pDelay = NULL;
-
-	pSelect = &bot_weapon_select[0];
-	pDelay = &bot_fire_delay[0];
+	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
+	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
 
 	edict_t *pEdict = pBot->pEdict;
 	bool press_trigger;
-	float distance = v_enemy.Length2D();  // how far away is the enemy (ignoring his z-coord)?
+	const float distance = v_enemy.Length2D();  // how far away is the enemy (ignoring his z-coord)?
 	int weaponID;//, select_index;
 
 	// this is for handling M203/GP25 attachment, the time is based on in game tests in FA 3.0,
@@ -3252,16 +3245,13 @@ int BotFireWeapon( Vector v_enemy, bot_t *pBot )
 /*
 * use knife - checking max usable distance
 */
-int BotUseKnife( Vector v_enemy, bot_t *pBot )
+int BotUseKnife( const Vector v_enemy, bot_t *pBot )
 {
-	bot_weapon_select_t *pSelect = NULL;
-	bot_fire_delay_t *pDelay = NULL;
-
-	pSelect = &bot_weapon_select[0];
-	pDelay = &bot_fire_delay[0];
+	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
+	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
 
 	edict_t *pEdict = pBot->pEdict;
-	float distance = v_enemy.Length2D();
+	const float distance = v_enemy.Length2D();
 
 #ifdef _DEBUG
 	if (in_bot_dev_level2)
@@ -3292,7 +3282,7 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 
 	if (distance <= pSelect[pBot->current_weapon.iId].max_effective_distance)
 	{
-		int skill = pBot->bot_skill;
+		const int skill = pBot->bot_skill;
 		float base_delay, min_delay, max_delay; 
 
 		// 2/3 of the time use primary attack
@@ -3355,16 +3345,13 @@ int BotUseKnife( Vector v_enemy, bot_t *pBot )
 * use grenade - checking min(safe) and max distance, setting grenades_used flag
 * handles changes between varios FA versions
 */
-int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
+int BotThrowGrenade( const Vector v_enemy, bot_t *pBot )
 {
-	bot_weapon_select_t *pSelect = NULL;
-	bot_fire_delay_t *pDelay = NULL;
-	
-	pSelect = &bot_weapon_select[0];
-	pDelay = &bot_fire_delay[0];
+	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
+	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
 
 	edict_t *pEdict = pBot->pEdict;
-	float distance = v_enemy.Length2D();
+	const float distance = v_enemy.Length2D();
 
 #ifdef _DEBUG
 	if (in_bot_dev_level2)
@@ -3543,12 +3530,12 @@ int BotThrowGrenade( Vector v_enemy, bot_t *pBot )
 			// then set the correct shoot time for standard weapon
 			if (pBot->grenade_action == ALTW_PREPARED)
 			{
-				int skill = pBot->bot_skill;
+				const int skill = pBot->bot_skill;
 				
 				// set shoot time to prevent firing weapon immediatelly after the bot threw the grenade
-				float base = pDelay[pBot->current_weapon.iId].primary_base_delay;
-				float min = pDelay[pBot->current_weapon.iId].primary_min_delay[skill];
-				float max = pDelay[pBot->current_weapon.iId].primary_max_delay[skill];
+				const float base = pDelay[pBot->current_weapon.iId].primary_base_delay;
+				const float min = pDelay[pBot->current_weapon.iId].primary_min_delay[skill];
+				const float max = pDelay[pBot->current_weapon.iId].primary_max_delay[skill];
 				
 				pBot->f_shoot_time = gpGlobals->time + base + RANDOM_FLOAT(min, max);
 				pBot->grenade_action = ALTW_NOTUSED;
@@ -3651,11 +3638,11 @@ inline void IsChanceToAdvance(bot_t *pBot)
 	float since_last_advance, min_delay, max_delay;
 
 	// generate basic chance
-	int chance = RANDOM_LONG(1, 100);
+	const int chance = RANDOM_LONG(1, 100);
 	int skill_modifier = 0;
 
 	// get bot skill level
-	int skill = pBot->bot_skill;
+	const int skill = pBot->bot_skill;
 
 	if (pBot->current_weapon.iId == fa_weapon_knife)
 	{
@@ -3750,13 +3737,12 @@ inline void CheckStance(bot_t *pBot, float enemy_distance)
 {
 	edict_t *pEdict = pBot->pEdict;
 	edict_t *pEnemy = pBot->pBotEnemy;
-	Vector v_botshead, v_enemy;
 	TraceResult tr;
 
 	// look through bots eyes
-	v_botshead = pEdict->v.origin + pEdict->v.view_ofs;
+	Vector v_botshead = pEdict->v.origin + pEdict->v.view_ofs;
 	// at enemy head
-	v_enemy = pEnemy->v.origin + pEnemy->v.view_ofs;
+	const Vector v_enemy = pEnemy->v.origin + pEnemy->v.view_ofs;
 
 	// don't try to go prone if enemy is close
 	if (enemy_distance < 800)		// was 500
@@ -4115,7 +4101,6 @@ bool IsEnemyTooClose(bot_t *pBot, float enemy_distance)
 */
 void BotShootAtEnemy( bot_t *pBot )
 {
-	float foe_distance;
 	edict_t *pEdict = pBot->pEdict;
 	Vector v_enemy;
 	bool out_of_bipod_limit = FALSE;
@@ -4204,7 +4189,7 @@ void BotShootAtEnemy( bot_t *pBot )
 		// the yaw limit, is just put the pEdict->v.vuser1.y value into pEdict->v.v_angle.y
 		// (yaw variable) so bot will look again to initial bipod angle
 
-		float bipod_limit = 45.0;
+		const float bipod_limit = 45.0;
 
 		// is bot trying to turn more than bipod allows so limit his yaw
 		if (fabs((double)pEdict->v.vuser1.y - pEdict->v.v_angle.y) > bipod_limit)
@@ -4237,13 +4222,13 @@ void BotShootAtEnemy( bot_t *pBot )
 
 	v_enemy.z = 0;  // ignore z component (up & down)
 
-	foe_distance = v_enemy.Length();  // how far away is the enemy scum?
+	const float foe_distance = v_enemy.Length();  // how far away is the enemy scum?
 
 	// if current enemy is quite far AND is right time AND NOT using sniper rifle check for closer one
 	if ((foe_distance > 500) && (pBot->search_closest_time <= gpGlobals->time) &&
 		(UTIL_IsSniperRifle(pBot->current_weapon.iId) == FALSE))
 	{
-		int skill = pBot->bot_skill;
+		const int skill = pBot->bot_skill;
 		float time_delay[BOT_SKILL_LEVELS] = {1.5, 2.0, 4.0, 7.0, 12.0};
 
 		pBot->SetTask(TASK_FIND_ENEMY);
@@ -4283,8 +4268,8 @@ void BotShootAtEnemy( bot_t *pBot )
 
 		// NOTE: these delays should be based on bot_skill value
 		// FIX ME Fix me FIXME
-		float min_delay = 2.5;
-		float max_delay = 5.0;
+		const float min_delay = 2.5;
+		const float max_delay = 5.0;
 		pBot->f_check_stance_time = gpGlobals->time + RANDOM_FLOAT(min_delay, max_delay);
 	}
 
@@ -4352,9 +4337,7 @@ void BotShootAtEnemy( bot_t *pBot )
 	// or is bot forced to stay at one place (ie don't move)
 	else if (pBot->IsTask(TASK_DONTMOVEINCOMBAT))
 	{
-		bot_weapon_select_t *pSelect = NULL;
-		
-		pSelect = &bot_weapon_select[0];
+		bot_weapon_select_t* pSelect = &bot_weapon_select[0];
 
 		pBot->move_speed = SPEED_NO;
 		pBot->SetDontCheckStuck();
@@ -4514,7 +4497,7 @@ void BotShootAtEnemy( bot_t *pBot )
 			!pBot->IsTask(TASK_USETANK) && (pBot->f_reload_time + 2.0 < gpGlobals->time) &&
 			((foe_distance >= 800) && (foe_distance <= 1400)))
 		{
-			int chance = RANDOM_LONG(1, 100);
+			const int chance = RANDOM_LONG(1, 100);
 
 			// if main weapon is out of ammo use grenade 2/3 of the time
 			if ((pBot->main_no_ammo) && (chance <= 66))
@@ -4576,7 +4559,7 @@ void BotShootAtEnemy( bot_t *pBot )
 			float min_delay[BOT_SKILL_LEVELS] = {0.1, 0.2, 0.3, 0.4, 0.5};
 			float max_delay[BOT_SKILL_LEVELS] = {0.2, 0.3, 0.6, 0.8, 1.0};
 
-			int skill = pBot->bot_skill;
+			const int skill = pBot->bot_skill;
 			bool can_use = FALSE;
 
 			// full auto usage is based on bot skill
@@ -4935,7 +4918,7 @@ void BotPlantClaymore(bot_t *pBot)
 		(pBot->current_weapon.iId != fa_weapon_claymore))
 	{
 		// change weapon to claymore mine
-		FakeClientCommand(pBot->pEdict, "weapon_claymore", NULL, NULL);
+		FakeClientCommand(pBot->pEdict, "weapon_claymore", nullptr, nullptr);
 
 		// set the current action flag
 		pBot->clay_action = ALTW_TAKING;
@@ -5041,7 +5024,7 @@ void BotMergeClips(bot_t *pBot, const char* loc)
 	// stop the bot for a while
 	pBot->SetPauseTime(1.5);
 	// to see the result of merge clips command
-	FakeClientCommand(pBot->pEdict, "mergeclips", NULL, NULL);
+	FakeClientCommand(pBot->pEdict, "mergeclips", nullptr, nullptr);
 
 	return;
 }
@@ -5060,7 +5043,7 @@ void BotUseBipod(bot_t *pBot, bool forced_call, const char* loc)
 		if ((pBot->f_bipod_time < gpGlobals->time) && (forced_call || (RANDOM_LONG(1, 100) < 33)))
 		{
 			// now the bot is free to use the bipod so call the command ...
-			FakeClientCommand(pBot->pEdict, "bipod", NULL, NULL);
+			FakeClientCommand(pBot->pEdict, "bipod", nullptr, nullptr);
 
 			// and set correct time to finish this action
 			pBot->f_bipod_time = gpGlobals->time + SetBipodHandlingTime(pBot->current_weapon.iId, pBot->IsTask(TASK_BIPOD));

@@ -35,9 +35,7 @@ extern edict_t *listenserver_edict;
 
 static unsigned short FixedUnsigned16( float value, float scale )
 {
-	int output;
-
-	output = value * scale;
+	int output = value * scale;
 	if ( output < 0 )
 		output = 0;
 	if ( output > 0xFFFF )
@@ -49,9 +47,7 @@ static unsigned short FixedUnsigned16( float value, float scale )
 
 static short FixedSigned16( float value, float scale )
 {
-	int output;
-
-	output = value * scale;
+	int output = value * scale;
 
 	if ( output > 32767 )
 		output = 32767;
@@ -68,7 +64,7 @@ static short FixedSigned16( float value, float scale )
 */
 void FullCustHudMessage(edict_t *pEntity, const char *msg_name, int channel, int pos_x, int pos_y, int gfx, Vector color1, Vector color2, int brightness, float fade_in, float fade_out, float duration)
 {
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, NULL, pEntity);
+	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, pEntity);
 	WRITE_BYTE( TE_TEXTMESSAGE);
 	WRITE_BYTE( channel & 0xFF );			// channel ???
 	WRITE_SHORT( FixedSigned16( pos_x, -1<<13 ) );	// x coord on the screen
@@ -107,21 +103,20 @@ void StdHudMessage(edict_t *pEntity, const char *msg_name, int gfx, int time)
 		return;
 
 	edict_t *pEdict;
-	Vector color;
 
-	if ((gfx == NULL ) || ((gfx < 0 || gfx > 1)))
+	if ((gfx == 0 ) || ((gfx < 0 || gfx > 1)))
 		gfx = 0;
 
-	if ((time == NULL ) || ((time < 1 || time > 10)))
+	if ((time == 0 ) || ((time < 1 || time > 10)))
 		time = 4;
 	
-	if (pEntity == NULL)
+	if (pEntity == nullptr)
 		pEdict = listenserver_edict;
 	else
 		pEdict = pEntity;
 
 	// shade of red
-	color = Vector(200, 60, 40);
+	const Vector color = Vector(200, 60, 40);
 
 	FullCustHudMessage(pEdict, msg_name, 2, 0, 0, gfx, color, color, 200, 0.03, 0.1, time);
 }
@@ -134,7 +129,7 @@ void StdHudMessageToAll(const char *msg_name, int gfx, int time)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if ((clients[i].pEntity != NULL) && (clients[i].IsHuman()))
+		if ((clients[i].pEntity != nullptr) && (clients[i].IsHuman()))
 		{
 			StdHudMessage(clients[i].pEntity, msg_name, gfx, time);
 		}
@@ -159,7 +154,7 @@ void CustHudMessageToAll(const char *msg_name, Vector color1, Vector color2, int
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if ((clients[i].pEntity != NULL) && (clients[i].IsHuman()))
+		if ((clients[i].pEntity != nullptr) && (clients[i].IsHuman()))
 		{
 			CustHudMessage(clients[i].pEntity, msg_name, color1, color2, gfx, time);
 		}
@@ -180,7 +175,7 @@ void DisplayMsg(edict_t *pEntity, const char *msg)
 	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
 
 	// we're using just one color for this message
-	Vector color = Vector(0, 255, 20);
+	const Vector color = Vector(0, 255, 20);
 		
 	// displays the message
 	FullCustHudMessage(pEntity, msg, 3, 0, 0, 0, color, color, 200, 0.03, 0.03, 5.0);
@@ -196,7 +191,7 @@ void CustDisplayMsg(edict_t *pEntity, const char *msg, int x_pos, float time)
 		return;
 
 	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
-	Vector color = Vector(0, 255, 20);
+	const Vector color = Vector(0, 255, 20);
 
 	FullCustHudMessage(pEntity, msg, 3, x_pos, 0, 0, color, color, 200, 0.03, 0.03, time);
 }

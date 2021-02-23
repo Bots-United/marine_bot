@@ -28,7 +28,7 @@
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
 
-#include <stdio.h>
+#include <cstdio>
 
 
 /* cfront 1.2 defines "c_plusplus" instead of "__cplusplus" */
@@ -218,7 +218,7 @@ struct yy_buffer_state
 #define YY_BUFFER_EOF_PENDING 2
 	};
 
-static YY_BUFFER_STATE yy_current_buffer = 0;
+static YY_BUFFER_STATE yy_current_buffer = nullptr;
 
 /* We provide macros for accessing buffer states in case in the
  * future we want to put the buffer states in a more general
@@ -236,7 +236,7 @@ static int yy_n_chars;		/* number of characters read into yy_ch_buf */
 int yyleng;
 
 /* Points to current character in buffer. */
-static char *yy_c_buf_p = (char *) 0;
+static char *yy_c_buf_p = (char *) nullptr;
 static int yy_init = 1;		/* whether we need to initialize */
 static int yy_start = 0;	/* start state number */
 
@@ -287,7 +287,7 @@ static void yy_flex_free YY_PROTO(( void * ));
 #define yywrap() 1
 #define YY_SKIP_YYWRAP
 typedef unsigned char YY_CHAR;
-FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
+FILE *yyin = (FILE *) nullptr, *yyout = (FILE *) nullptr;
 typedef int yy_state_type;
 extern int yylineno;
 int yylineno = 1;
@@ -579,9 +579,7 @@ YY_MALLOC_DECL
 
 YY_DECL
 	{
-	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
-	register int yy_act;
+		register int yy_act;
 
 #line 23 "config.l"
 
@@ -612,9 +610,9 @@ YY_DECL
 		yy_load_buffer_state();
 		}
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	while ( true )		/* loops until end-of-file is reached */
 		{
-		yy_cp = yy_c_buf_p;
+		register char* yy_cp = yy_c_buf_p;
 
 		/* Support of yytext. */
 		*yy_cp = yy_hold_char;
@@ -622,9 +620,9 @@ YY_DECL
 		/* yy_bp points to the position in yy_ch_buf of the start of
 		 * the current run.
 		 */
-		yy_bp = yy_cp;
+		register char* yy_bp = yy_cp;
 
-		yy_current_state = yy_start;
+		register yy_state_type yy_current_state = yy_start;
 		yy_state_ptr = yy_state_buf;
 		*yy_state_ptr++ = yy_current_state;
 yy_match:
@@ -666,8 +664,7 @@ find_rule: /* we branch to this label when backing up */
 
 		if ( yy_act != YY_END_OF_BUFFER )
 			{
-			int yyl;
-			for ( yyl = 0; yyl < yyleng; ++yyl )
+				for ( int yyl = 0; yyl < yyleng; ++yyl )
 				if ( yytext[yyl] == '\n' )
 					++yylineno;
 			}
@@ -757,7 +754,7 @@ ECHO;
 	case YY_END_OF_BUFFER:
 		{
 		/* Amount of text matched not including the EOB char. */
-		int yy_amount_of_matched_text = (int) (yy_cp - yytext_ptr) - 1;
+		const int yy_amount_of_matched_text = (int) (yy_cp - yytext_ptr) - 1;
 
 		/* Undo the effects of YY_DO_BEFORE_ACTION. */
 		*yy_cp = yy_hold_char;
@@ -788,9 +785,8 @@ ECHO;
 		 */
 		if ( yy_c_buf_p <= &yy_current_buffer->yy_ch_buf[yy_n_chars] )
 			{ /* This was really a NUL. */
-			yy_state_type yy_next_state;
 
-			yy_c_buf_p = yytext_ptr + yy_amount_of_matched_text;
+				yy_c_buf_p = yytext_ptr + yy_amount_of_matched_text;
 
 			yy_current_state = yy_get_previous_state();
 
@@ -803,7 +799,7 @@ ECHO;
 			 * will run more slowly).
 			 */
 
-			yy_next_state = yy_try_NUL_trans( yy_current_state );
+				const yy_state_type yy_next_state = yy_try_NUL_trans(yy_current_state);
 
 			yy_bp = yytext_ptr + YY_MORE_ADJ;
 
@@ -896,7 +892,6 @@ static int yy_get_next_buffer()
 	{
 	register char *dest = yy_current_buffer->yy_ch_buf;
 	register char *source = yytext_ptr;
-	register int number_to_move, i;
 	int ret_val;
 
 	if ( yy_c_buf_p > &yy_current_buffer->yy_ch_buf[yy_n_chars + 1] )
@@ -925,9 +920,9 @@ static int yy_get_next_buffer()
 	/* Try to read more data. */
 
 	/* First move last chars to start of buffer. */
-	number_to_move = (int) (yy_c_buf_p - yytext_ptr) - 1;
+	const register int number_to_move = (int)(yy_c_buf_p - yytext_ptr) - 1;
 
-	for ( i = 0; i < number_to_move; ++i )
+	for ( register int i = 0; i < number_to_move; ++i )
 		*(dest++) = *(source++);
 
 	if ( yy_current_buffer->yy_buffer_status == YY_BUFFER_EOF_PENDING )
@@ -1026,14 +1021,11 @@ static int yy_get_next_buffer()
 
 static yy_state_type yy_get_previous_state()
 	{
-	register yy_state_type yy_current_state;
-	register char *yy_cp;
-
-	yy_current_state = yy_start;
+		register yy_state_type yy_current_state = yy_start;
 	yy_state_ptr = yy_state_buf;
 	*yy_state_ptr++ = yy_current_state;
 
-	for ( yy_cp = yytext_ptr + YY_MORE_ADJ; yy_cp < yy_c_buf_p; ++yy_cp )
+	for ( register char* yy_cp = yytext_ptr + YY_MORE_ADJ; yy_cp < yy_c_buf_p; ++yy_cp )
 		{
 		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
@@ -1063,9 +1055,7 @@ static yy_state_type yy_try_NUL_trans( yy_current_state )
 yy_state_type yy_current_state;
 #endif
 	{
-	register int yy_is_jam;
-
-	register YY_CHAR yy_c = 1;
+		register YY_CHAR yy_c = 1;
 	while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 		{
 		yy_current_state = (int) yy_def[yy_current_state];
@@ -1073,7 +1063,7 @@ yy_state_type yy_current_state;
 			yy_c = yy_meta[(unsigned int) yy_c];
 		}
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
-	yy_is_jam = (yy_current_state == 26);
+		const register int yy_is_jam = (yy_current_state == 26);
 	if ( ! yy_is_jam )
 		*yy_state_ptr++ = yy_current_state;
 
@@ -1098,7 +1088,7 @@ register char *yy_bp;
 	if ( yy_cp < yy_current_buffer->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register int number_to_move = yy_n_chars + 2;
+		const register int number_to_move = yy_n_chars + 2;
 		register char *dest = &yy_current_buffer->yy_ch_buf[
 					yy_current_buffer->yy_buf_size + 2];
 		register char *source =
@@ -1134,9 +1124,7 @@ static int yyinput()
 static int input()
 #endif
 	{
-	int c;
-
-	*yy_c_buf_p = yy_hold_char;
+		*yy_c_buf_p = yy_hold_char;
 
 	if ( *yy_c_buf_p == YY_END_OF_BUFFER_CHAR )
 		{
@@ -1150,7 +1138,7 @@ static int input()
 
 		else
 			{ /* need more input */
-			int offset = yy_c_buf_p - yytext_ptr;
+				const int offset = yy_c_buf_p - yytext_ptr;
 			++yy_c_buf_p;
 
 			switch ( yy_get_next_buffer() )
@@ -1192,7 +1180,7 @@ static int input()
 			}
 		}
 
-	c = *(unsigned char *) yy_c_buf_p;	/* cast for 8-bit char's */
+		const int c = *(unsigned char*)yy_c_buf_p;	/* cast for 8-bit char's */
 	*yy_c_buf_p = '\0';	/* preserve yytext */
 	yy_hold_char = *++yy_c_buf_p;
 
@@ -1269,9 +1257,7 @@ FILE *file;
 int size;
 #endif
 	{
-	YY_BUFFER_STATE b;
-
-	b = (YY_BUFFER_STATE) yy_flex_alloc( sizeof( struct yy_buffer_state ) );
+		const YY_BUFFER_STATE b = (YY_BUFFER_STATE)yy_flex_alloc(sizeof(struct yy_buffer_state));
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
 
@@ -1303,7 +1289,7 @@ YY_BUFFER_STATE b;
 		return;
 
 	if ( b == yy_current_buffer )
-		yy_current_buffer = (YY_BUFFER_STATE) 0;
+		yy_current_buffer = (YY_BUFFER_STATE) nullptr;
 
 	if ( b->yy_is_our_buffer )
 		yy_flex_free( (void *) b->yy_ch_buf );
@@ -1384,22 +1370,20 @@ char *base;
 yy_size_t size;
 #endif
 	{
-	YY_BUFFER_STATE b;
-
-	if ( size < 2 ||
+		if ( size < 2 ||
 	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
 	     base[size-1] != YY_END_OF_BUFFER_CHAR )
 		/* They forgot to leave room for the EOB's. */
-		return 0;
+		return nullptr;
 
-	b = (YY_BUFFER_STATE) yy_flex_alloc( sizeof( struct yy_buffer_state ) );
+		const YY_BUFFER_STATE b = (YY_BUFFER_STATE)yy_flex_alloc(sizeof(struct yy_buffer_state));
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_buffer()" );
 
 	b->yy_buf_size = size - 2;	/* "- 2" to take care of EOB's */
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
-	b->yy_input_file = 0;
+	b->yy_input_file = nullptr;
 	b->yy_n_chars = b->yy_buf_size;
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
@@ -1439,23 +1423,18 @@ yyconst char *bytes;
 int len;
 #endif
 	{
-	YY_BUFFER_STATE b;
-	char *buf;
-	yy_size_t n;
-	int i;
-
-	/* Get memory for full buffer, including space for trailing EOB's. */
-	n = len + 2;
-	buf = (char *) yy_flex_alloc( n );
+		/* Get memory for full buffer, including space for trailing EOB's. */
+		const yy_size_t n = len + 2;
+	char* buf = (char*)yy_flex_alloc(n);
 	if ( ! buf )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_bytes()" );
 
-	for ( i = 0; i < len; ++i )
+	for ( int i = 0; i < len; ++i )
 		buf[i] = bytes[i];
 
 	buf[len] = buf[len+1] = YY_END_OF_BUFFER_CHAR;
 
-	b = yy_scan_buffer( buf, n );
+		const YY_BUFFER_STATE b = yy_scan_buffer(buf, n);
 	if ( ! b )
 		YY_FATAL_ERROR( "bad buffer in yy_scan_bytes()" );
 
