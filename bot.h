@@ -82,7 +82,7 @@ extern int g_mod_version;
 extern bool is_steam;
 
 // used to test for existence (e.g. if bot doesn't have any grenade then the slot must use this "no value")
-#define NO_VAL			-1
+#define NO_VAL			(-1)
 
 // for development debug file, this file is created in dll.cpp->GameDLLInit()
 extern char debug_fname[256];
@@ -338,7 +338,7 @@ int Cmd_Argc();
 #define FIND_ITEM_RADIUS			200.0
 
 // constants used to recognize in which team the bot is
-#define TEAM_NONE	-1
+#define TEAM_NONE	(-1)
 #define TEAM_RED	 1
 #define TEAM_BLUE	 2
 
@@ -348,7 +348,7 @@ int Cmd_Argc();
 #define FM_BURST		2
 #define FM_AUTO			4
 
-typedef enum class FireMode_WTest {dont_test_weapons = 0, test_weapons = 1};
+enum class FireMode_WTest {dont_test_weapons = 0, test_weapons = 1};
 
 // constants used to specify text message the bot has to say
 #define SAY_GRENADE_IN			1
@@ -515,17 +515,18 @@ public:
 	void clear_path()// NOTE: This is code by kota@ - I'm not going to use it, because it looks like he simply recreated the same thing that botman used for paths. Will remove it one day.
 	{
 		point_list[0] = -1;
-	};
+	}
 
 	void SetBehaviour(int behaviour)
 	{
 		bot_behaviour |= behaviour;
-	};
+	}
+
 	void RemoveBehaviour(int behaviour)
 	{
 		if (bot_behaviour & behaviour)
 			bot_behaviour &= ~behaviour;
-	};
+	}
 
 	bool IsBehaviour(int behaviour) const
 	{
@@ -535,12 +536,13 @@ public:
 	void SetTask(int task)
 	{
 		bot_tasks |= task;
-	};
+	}
+
 	void RemoveTask(int task)
 	{
 		if (bot_tasks & task)
 			bot_tasks &= ~task;
-	};
+	}
 
 	bool IsTask(int task) const
 	{
@@ -550,12 +552,13 @@ public:
 	void SetSubTask(int subtask)
 	{
 		bot_subtasks |= subtask;
-	};
+	}
+
 	void RemoveSubTask(int subtask)
 	{
 		if (bot_subtasks & subtask)
 			bot_subtasks &= ~subtask;
-	};
+	}
 
 	bool IsSubTask(int subtask) const
 	{
@@ -565,12 +568,13 @@ public:
 	void SetNeed(int need)
 	{
 		bot_needs |= need;
-	};
+	}
+
 	void RemoveNeed(int need)
 	{
 		if (bot_needs & need)
 			bot_needs &= ~need;
-	};
+	}
 
 	bool IsNeed(int need) const
 	{
@@ -580,46 +584,48 @@ public:
 	void SetDontMoveTime(float time)
 	{
 		f_dontmove_time = gpGlobals->time + time;
-	};
+	}
 
 	void ClearDontMoveTime()
 	{
 		f_dontmove_time = gpGlobals->time;
-	};
+	}
 
 	void IncChangedDirection()
 	{
 		changed_direction = changed_direction + 1;
-	};
+	}
 
 	void ResetChangedDirection()
 	{
 		changed_direction = 0;
-	};
+	}
 
 	void SetPauseTime(float time = (float) 0.0)
 	{
 		f_pause_time = gpGlobals->time + time;
-	};
+	}
+
 	void ClearPauseTime(float time = (float) 0.0)
 	{
 		if (time == 0.0)
 			f_pause_time = time;
 		else
 			f_pause_time = gpGlobals->time - static_cast<float>(std::fabs(time));
-	};
+	}
 
 	void SetWaitTime(float time = (float) 0.0)
 	{
 		wpt_wait_time = gpGlobals->time + time;
-	};
+	}
+
 	void ClearWaitTime(float time = (float) 0.0)
 	{
 		if (time == 0.0)
 			wpt_wait_time = time;
 		else
 			wpt_wait_time = gpGlobals->time - static_cast<float>(std::fabs(time));
-	};
+	}
 
 	void UseWeapon(int weapon = USE_KNIFE)
 	{
@@ -648,7 +654,7 @@ public:
 	{
 		if (weapon_status & status)
 			weapon_status &= ~status;
-	};
+	}
 
 	bool IsWeaponStatus(int status) const
 	{
@@ -879,7 +885,7 @@ typedef struct
 
 extern bot_fire_delay_t bot_fire_delay[MAX_WEAPONS];
 
-typedef enum class MarineBotMessageType {msg_null = 0, msg_default, msg_info, msg_warning, msg_error};
+enum class MarineBotMessageType {msg_null = 0, msg_default, msg_info, msg_warning, msg_error};
 typedef MarineBotMessageType MType;
 
 #endif // BOT_H

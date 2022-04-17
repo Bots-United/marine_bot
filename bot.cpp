@@ -4525,7 +4525,7 @@ void bot_t::BotThink()
 	if (IsSubTask(ST_SAY_CEASEFIRE))
 	{
 		// check if the damage inflictor didn't changed yet and if it is really a teammate
-		if ((pEdict->v.dmg_inflictor != pEdict) && (pEdict->v.dmg_inflictor->v.netname != NULL) &&
+		if ((pEdict->v.dmg_inflictor != pEdict) && (pEdict->v.dmg_inflictor->v.netname != 0) &&
 			(UTIL_GetTeam(pEdict->v.dmg_inflictor) == UTIL_GetTeam(pEdict)))
 			BotSpeak(SAY_CEASE_FIRE, STRING(pEdict->v.dmg_inflictor->v.netname));
 

@@ -225,11 +225,11 @@ class SetupVars {
 	};
 	void Add(std::string &key, SetupBaseType * sbt, 
 		bool fatality, std::string default_val) {
-	    var_row.push_back(new SetupRow(key, sbt, fatality, default_val));
+	    var_row.emplace_back(new SetupRow(key, sbt, fatality, default_val));
 	}
 	void Add(const char *key, SetupBaseType * sbt, 
 		bool fatality, std::string default_val) {
-	    var_row.push_back(new SetupRow(key, sbt, fatality, default_val));
+	    var_row.emplace_back(new SetupRow(key, sbt, fatality, default_val));
 	}
 	void Set(const Section *sect) {
 		for (size_t i=0; i<var_row.size(); ++i) {

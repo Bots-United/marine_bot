@@ -36,7 +36,7 @@
 
 // flag types ie. fake waypoint flags
 // to handle the problem with not enough space for all waypoint flags we (will/would) need
-typedef enum class WaypointTypes
+enum class WaypointTypes
 {
 	scrapped_flagtype = 0,	// in case we would need to scrap any waypoint flag type
 	wpt_normal,
@@ -115,7 +115,7 @@ typedef WaypointTypes WptT;
 
 // holds the version number of last waypoint system version
 // used to detect known old system to allow MB to convert waypoints/paths
-#define OLD_WAYPOINT_VERSION WAYPOINT_VERSION - 1
+#define OLD_WAYPOINT_VERSION (WAYPOINT_VERSION - 1)
 
 // define the structure for waypoints
 typedef struct {
@@ -190,17 +190,17 @@ extern int num_waypoints;
 
 // constants used to highlight certain paths
 // they must be negative because positive values are standard path indexs needed when we highlight one specific path
-#define HIGHLIGHT_DISABLED		-1	// turned off
-#define HIGHLIGHT_RED			-2
-#define HIGHLIGHT_BLUE			-3
-#define HIGHLIGHT_ONEWAY		-4
-#define HIGHLIGHT_SNIPER		-5
-#define HIGHLIGHT_MGUNNER		-6
+#define HIGHLIGHT_DISABLED		(-1)	// turned off
+#define HIGHLIGHT_RED			(-2)
+#define HIGHLIGHT_BLUE			(-3)
+#define HIGHLIGHT_ONEWAY		(-4)
+#define HIGHLIGHT_SNIPER		(-5)
+#define HIGHLIGHT_MGUNNER		(-6)
 
 
 // flag types ie. fake path flags
 // to handle the problem with not enough space for all the flags we (will/would) need
-typedef enum class WaypointPathTypes
+enum class WaypointPathTypes
 {
 	scrapped_flagtype = 0,	// in case we would need to scrap any path flag type
 	path_both,
@@ -296,7 +296,7 @@ extern int num_w_paths;
 // define the IDs for trigger event messages
 // the order cannot be changed otherwise some
 // conversion routines would return wrong data
-typedef enum class WaypointTriggersIDs
+enum class WaypointTriggersIDs
 {
 	trigger_none = 0,
 	trigger1,

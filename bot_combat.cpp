@@ -2399,40 +2399,40 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 1:
 				// GOOD, offset a little for x, y, and z
-				if (hs_percentage > 33)
+				if (hs_percentage > 40)
 					target = target_origin + target_head;  // aim for the head (if you can find it)
 				else
 					target = target_origin;  // aim only for the body
-				d_x = RANDOM_FLOAT(-6, 6) * f_scale;
-				d_y = RANDOM_FLOAT(-6, 6) * f_scale;
+				d_x = RANDOM_FLOAT(-8, 8) * f_scale;
+				d_y = RANDOM_FLOAT(-8, 8) * f_scale;
 				d_z = RANDOM_FLOAT(-10, 10) * f_scale;
 				break;
 			case 2:
 				// FAIR, offset somewhat for x, y, and z
-				if (hs_percentage > 40)
+				if (hs_percentage > 50)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
-				d_x = RANDOM_FLOAT(-10, 10) * f_scale;
-				d_y = RANDOM_FLOAT(-10, 10) * f_scale;
-				d_z = RANDOM_FLOAT(-14, 14) * f_scale;
+				d_x = RANDOM_FLOAT(-12, 12) * f_scale;
+				d_y = RANDOM_FLOAT(-12, 12) * f_scale;
+				d_z = RANDOM_FLOAT(-15, 15) * f_scale;
 				break;
 			case 3:
 				// POOR, offset for x, y, and z
-				if (hs_percentage > 50)
+				if (hs_percentage > 60)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
 				d_x = RANDOM_FLOAT(-14, 14) * f_scale;
 				d_y = RANDOM_FLOAT(-14, 14) * f_scale;
-				d_z = RANDOM_FLOAT(-18, 18) * f_scale;
+				d_z = RANDOM_FLOAT(-19, 19) * f_scale;
 				break;
 			case 4:
 				// BAD, offset lots for x, y, and z
 				target = target_origin;		// aim only for the body
 				d_x = RANDOM_FLOAT(-18, 18) * f_scale;
 				d_y = RANDOM_FLOAT(-18, 18) * f_scale;
-				d_z = RANDOM_FLOAT(-24, 24) * f_scale;
+				d_z = RANDOM_FLOAT(-23, 23) * f_scale;
 				break;
 		}
 	}
@@ -2472,40 +2472,40 @@ Vector BotBodyTarget(bot_t *pBot)
 					break;
 				case 1:
 					// GOOD, offset a little for x, y, and z
-					if (hs_percentage > 40)
+					if (hs_percentage > 60)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-6, 6) * f_scale;
-					d_y = RANDOM_FLOAT(-6, 6) * f_scale;
-					d_z = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_x = RANDOM_FLOAT(-7, 7) * f_scale;
+					d_y = RANDOM_FLOAT(-7, 7) * f_scale;
+					d_z = RANDOM_FLOAT(-9, 9) * f_scale;
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
-					if (hs_percentage > 50)
+					if (hs_percentage > 70)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-10, 10) * f_scale;
-					d_y = RANDOM_FLOAT(-10, 10) * f_scale;
-					d_z = RANDOM_FLOAT(-15, 15) * f_scale;
+					d_x = RANDOM_FLOAT(-11, 11) * f_scale;
+					d_y = RANDOM_FLOAT(-11, 11) * f_scale;
+					d_z = RANDOM_FLOAT(-14, 14) * f_scale;
 					break;
 				case 3:
 					// POOR, offset for x, y, and z
-					if (hs_percentage > 75)
+					if (hs_percentage > 80)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
 					d_x = RANDOM_FLOAT(-15, 15) * f_scale;
 					d_y = RANDOM_FLOAT(-15, 15) * f_scale;
-					d_z = RANDOM_FLOAT(-20, 20) * f_scale;
+					d_z = RANDOM_FLOAT(-19, 19) * f_scale;
 					break;
 				case 4:
 					// BAD, offset lots for x, y, and z
 					target = target_origin;
-					d_x = RANDOM_FLOAT(-20, 20) * f_scale;
-					d_y = RANDOM_FLOAT(-20, 20) * f_scale;
-					d_z = RANDOM_FLOAT(-25, 25) * f_scale;
+					d_x = RANDOM_FLOAT(-18, 18) * f_scale;
+					d_y = RANDOM_FLOAT(-18, 18) * f_scale;
+					d_z = RANDOM_FLOAT(-23, 23) * f_scale;
 					break;
 			}
 		}
