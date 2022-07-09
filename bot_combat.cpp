@@ -2476,9 +2476,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-7, 7) * f_scale;
-					d_y = RANDOM_FLOAT(-7, 7) * f_scale;
-					d_z = RANDOM_FLOAT(-9, 9) * f_scale;
+					d_x = RANDOM_FLOAT(-9, 9) * f_scale;
+					d_y = RANDOM_FLOAT(-9, 9) * f_scale;
+					d_z = RANDOM_FLOAT(-11, 11) * f_scale;
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
@@ -2486,9 +2486,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-11, 11) * f_scale;
-					d_y = RANDOM_FLOAT(-11, 11) * f_scale;
-					d_z = RANDOM_FLOAT(-14, 14) * f_scale;
+					d_x = RANDOM_FLOAT(-13, 13) * f_scale;
+					d_y = RANDOM_FLOAT(-13, 13) * f_scale;
+					d_z = RANDOM_FLOAT(-16, 16) * f_scale;
 					break;
 				case 3:
 					// POOR, offset for x, y, and z
@@ -2496,9 +2496,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-15, 15) * f_scale;
-					d_y = RANDOM_FLOAT(-15, 15) * f_scale;
-					d_z = RANDOM_FLOAT(-19, 19) * f_scale;
+					d_x = RANDOM_FLOAT(-16, 16) * f_scale;
+					d_y = RANDOM_FLOAT(-16, 16) * f_scale;
+					d_z = RANDOM_FLOAT(-20, 20) * f_scale;
 					break;
 				case 4:
 					// BAD, offset lots for x, y, and z
