@@ -106,10 +106,12 @@ tc_okinawa_b3
 tc_okinawa_b4
 tc_rubble
 tc_thebes
+
 Waypointing instructions (ie. how you can make a unsupported map a supported one)
 What are the waypoints for?
 The bot is using waypoints to navigate through the map. Waypoint is a location in the map (in the 3d space), which the bot will use when navigating. The bot has no eyes so the waypoint will tell him that this location is a walkable space and not a solid wall. The most simple description of a waypoint is that it is a 'hint', which guides the bot.
 When editing waypoints, you can see the waypoints drawn with an orange beam. Some special waypoints are displayed in other colors. Waypoints are being stored as a 'mapname.wpt' file in your Marine Bot waypoints folder (ie. marine_bot\defaultwpts). As a addition to the waypoints there are waypoint paths. The path is a connection between two or more waypoints and it tells the bot that there's a clear way between these waypoints. Waypoint paths are being stored in 'mapname.pth'. Unlike the waypoints the paths aren't necessary. However paths improve the navigation and open a lot of possibilities. Therefore we recommend using them.
+
 A few basic waypointing console commands:
 wpt showshows the waypoints (displays them using a colored beams). It toggles between show and hide waypoint.
 wpt addadds a waypoint to your location
@@ -126,6 +128,7 @@ pathwpt deletedeletes the path on the waypoint you're standing by
 
 wpt savewrites the waypoints and paths into mapname.wpt and mapname.pth files
 wpt loadreads the waypoints and paths from the files (it can also be used as one step undo feature when you're working on the waypoints)
+
 Special waypoints:
 You can assign a special tag/flag/type to any waypoint. All you need to do is get close to the waypoint you want to make special and use 'wpt change argument' command. Where the argument is the new type of the waypoint. You can use one of the following options:
 aim
@@ -148,26 +151,28 @@ sprint
 trigger
 use
 usedoor
-Aimthe bot will use this waypoint as a target to aim his weapon at, useful when you set up a camping spot
-Ammoboxtells the bot there's an ammobox close
-Claymorethe bot may place a claymore mine at this location (although he can also save the claymore for later use)
-Crossthis waypoint serves as a crossroad marker, allows you to give the bot more than one route
-Crouchthe bot will crouch/duck
-Doorthe bot will slow down to pass the doors that open automatically
-Duckjumpthe bot will duck-jump forward here
-Gobacktells the bot to return back at the beginning of this path, useful on paths leading to camping spots
-Jumpthe bot will jump forward here
-Laddertells the bot there's a ladder, there should be one ladder waypoint at the bottom and one at the top of the ladder
-Normalthe bot will just pass through
-Parachutethe bot will check if he has a parachute before moving forward
-Pronethe bot will go prone here
-Pushpointallows the bot to see which flag needs to be captured on push maps
-Shootthe bot will fire his weapon to break a breakable obstacle (e.g. window) or sd object around this waypoint
-Sniperthe bot won't move towards the enemy during combat, useful to create a camper spot behind a sandbag or in window and like
-Sprintthe bot will start or stop sprinting at this waypoint, useful to make the bot pass through open area quickly
-Triggerallows the bot to follow the game situation based on linked messages, useful on obj maps to open or close certain routes
-Usethe bot will activate/use a close object (e.g. button or turret)
-Usedoorthe bot will slow down to pass the doors that needs to be open manually
+
+Aim -the bot will use this waypoint as a target to aim his weapon at, useful when you set up a camping spot
+Ammobox - tells the bot there's an ammobox close
+Claymore - the bot may place a claymore mine at this location (although he can also save the claymore for later use)
+Cross - this waypoint serves as a crossroad marker, allows you to give the bot more than one route
+Crouch - the bot will crouch/duck
+Door - the bot will slow down to pass the doors that open automatically
+Duckjump - the bot will duck-jump forward here
+Goback - tells the bot to return back at the beginning of this path, useful on paths leading to camping spots
+Jump - the bot will jump forward here
+Ladder - tells the bot there's a ladder, there should be one ladder waypoint at the bottom and one at the top of the ladder
+Normal - the bot will just pass through
+Parachute - the bot will check if he has a parachute before moving forward
+Prone - the bot will go prone here
+Pushpoint - allows the bot to see which flag needs to be captured on push maps
+Shoot - the bot will fire his weapon to break a breakable obstacle (e.g. window) or sd object around this waypoint
+Sniper - the bot won't move towards the enemy during combat, useful to create a camper spot behind a sandbag or in window and like
+Sprint - the bot will start or stop sprinting at this waypoint, useful to make the bot pass through open area quickly
+Trigger - allows the bot to follow the game situation based on linked messages, useful on obj maps to open or close certain routes
+Use - the bot will activate/use a close object (e.g. button or turret)
+Usedoor - the bot will slow down to pass the doors that needs to be open manually
+
 For more info check the waypointing documentation where you can get detailed explanation.
 Okay I know the commands now. What do I have to do to start the waypointing?
 The only thing you should do is kick all the bots off the game. The bots may behave strange and/or even crash the game. So type this command 'kickbot all' into the console. Then you can use the 'pathwpt show' command to display waypoints and paths (if there are any).
