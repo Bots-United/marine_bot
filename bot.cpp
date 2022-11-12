@@ -125,8 +125,8 @@ bot_t::bot_t()
 		clan_tag		= 0;
 		not_started		= 0;
 		start_action	= 0;
-		kick_time		= 0.0;
-		create_time		= 0.0;
+		kick_time		= 0.0f;
+		create_time		= 0.0f;
 		bot_skill		= 0;
 		aim_skill		= 0;
 		bot_team		= NO_VAL;
@@ -134,11 +134,11 @@ bot_t::bot_t()
 		pcust_class		= nullptr;
 		bot_skin		= NO_VAL;
 		bot_behaviour	= 0;
-		idle_angle		= 0.0;
+		idle_angle		= 0.0f;
 		round_end		= false;
 
 		move_speed		= SPEED_NO;	// probably move it to spawninit()
-		bot_spawn_time	= 0.0;
+		bot_spawn_time	= 0.0f;
 //		killer_edict	= NULL;
 		weapon_status	= 0;
 		claymore_slot	= NO_VAL;
@@ -188,11 +188,11 @@ void bot_t::BotSpawnInit()
 	bot_needs = 0;
 
 	prev_time = gpGlobals->time;
-	v_prev_origin = Vector(9999.0, 9999.0, 9999.0);
+	v_prev_origin = Vector(9999.0f, 9999.0f, 9999.0f);
 	f_dontmove_time = gpGlobals->time;
 
 	pItem = nullptr;
-	f_face_item_time = 0.0;
+	f_face_item_time = 0.0f;
 
 	wpt_origin = g_vecZero;//Vector(0, 0, 0);
 	prev_wpt_origin = g_vecZero;//Vector(0, 0, 0);
@@ -205,10 +205,10 @@ void bot_t::BotSpawnInit()
 	//pBot->f_waypoint_goal_time = 0.0;
 	//pBot->waypoint_near_flag = FALSE;
 	//pBot->waypoint_flag_origin = Vector(0, 0, 0);
-	prev_wpt_distance = 9999.0;
-	wpt_wait_time = 0.0;	// must be 0.0 otherwise bot use it right after respawn
-	wpt_action_time = 0.0;	// must be 0.0 otherwise bot use it right after respawn
-	f_face_wpt = 0.0;
+	prev_wpt_distance = 9999.0f;
+	wpt_wait_time = 0.0f;	// must be 0.0 otherwise bot use it right after respawn
+	wpt_action_time = 0.0f;	// must be 0.0 otherwise bot use it right after respawn
+	f_face_wpt = 0.0f;
 
 	clear_path();
 	curr_path_index = -1;
@@ -217,38 +217,38 @@ void bot_t::BotSpawnInit()
 	patrol_path_wpt = -1;
 
 	msecnum = 0;
-	msecdel = 0.0;
-	msecval = 0.0;
+	msecdel = 0.0f;
+	msecval = 0.0f;
 
 	bot_health = 0;
 	bot_armor = 0;
 	bot_weapons = 0;
-	blinded_time = 0.0;
+	blinded_time = 0.0f;
 
 	f_max_speed = CVAR_GET_FLOAT("sv_maxspeed");
 
-	prev_speed = 0.0;  // fake "paused" since bot is NOT stuck
+	prev_speed = 0;  // fake "paused" since bot is NOT stuck
 
-	f_strafe_direction = 0;
-	f_strafe_time = 0.0;
-	hide_time = -10.0;	// must be - bot test if (ht+5 < globtime)
+	f_strafe_direction = 0.0f;
+	f_strafe_time = 0.0f;
+	hide_time = -10.0f;	// must be - bot test if (ht+5 < globtime)
 
 	ladder_dir = LADDER_UNKNOWN;
-	f_start_ladder_time = 0.0;
+	f_start_ladder_time = 0.0f;
 	waypoint_top_of_ladder = FALSE;
 	end_wpt_index = -1;
 
-	f_wall_check_time = 0.0;
-	f_wall_on_right = 0.0;
-	f_wall_on_left = 0.0;
-	f_dont_avoid_wall_time = 0.0;
-	f_dont_look_for_waypoint_time = 0.0;
-	//pBot->f_jump_time = 0.0;
-	f_duckjump_time = 0.0;
+	f_wall_check_time = 0.0f;
+	f_wall_on_right = 0.0f;
+	f_wall_on_left = 0.0f;
+	f_dont_avoid_wall_time = 0.0f;
+	f_dont_look_for_waypoint_time = 0.0f;
+	//pBot->f_jump_time = 0.0f;
+	f_duckjump_time = 0.0f;
 	SetDontCheckStuck();	// prevents false running of unstuck when spawning
-	f_stuck_time = 0.0;
+	f_stuck_time = 0.0f;
 	changed_direction = 0;
-	f_check_deathfall = 0.0;
+	f_check_deathfall = 0.0f;
 
 	// pick a wander direction (50% of the time to the left, 50% to the right)
 	if (RANDOM_LONG(1, 100) <= 50)
@@ -257,16 +257,16 @@ void bot_t::BotSpawnInit()
 		wander_dir = SIDE_RIGHT;
 
 	pBotEnemy = nullptr;
-	f_bot_see_enemy_time = 0.0;	// set it to zero to prevent "area clear" after spawn (at least for now)
+	f_bot_see_enemy_time = 0.0f;	// set it to zero to prevent "area clear" after spawn (at least for now)
 	f_bot_find_enemy_time = gpGlobals->time;
 	pBotPrevEnemy = nullptr;
 	f_bot_wait_for_enemy_time = gpGlobals->time;
 	v_last_enemy_position = g_vecZero;//Vector(0, 0, 0);
-	f_prev_enemy_dist = 0.0;
-	f_reaction_time = 0.0;
+	f_prev_enemy_dist = 0.0f;
+	f_reaction_time = 0.0f;
 
 	pBotUser = nullptr;
-	f_bot_use_time = 0.0;
+	f_bot_use_time = 0.0f;
 //	b_bot_say_killed = FALSE;
 //	f_bot_say_killed = 0.0;
 
@@ -1498,7 +1498,7 @@ void bot_t::BotPressFireToRespawn()
 * sv_useskills 2 - 4 skills on start
 * sv_useskills 3 - all skills on start
 */
-void BotCheckSkillSystem(void)
+void BotCheckSkillSystem()
 {
 	internals.SetFASkillSystem(CVAR_GET_FLOAT("sv_useskills"));  // which system is set?
 	internals.SetSkillSystemChecked(true);
@@ -1557,7 +1557,7 @@ void bot_t::ReloadWeapon(const char* loc)
 /*
 * sets correct time to successfully finish reloading based on current weapon
 */
-void bot_t::SetReloadTime(void)
+void bot_t::SetReloadTime()
 {
 	// faster reloading due to nomenclature skill
 	if (bot_fa_skill & NOMEN)
@@ -1758,7 +1758,7 @@ void BotSelectKnife(bot_t *pBot)
 /*
 * routines we need to handle targeting a pItem entity
 */
-void bot_t::FacepItem(void)
+void bot_t::FacepItem()
 {
 	// called in mistake? so don't continue
 	if (!IsTask(TASK_IGNOREAIMS))
@@ -3780,7 +3780,7 @@ void bot_t::BotThink()
 					{
 						if (current_weapon.iFireMode != 4)
 						{
-							f_shoot_time = gpGlobals->time + RANDOM_FLOAT(0.3, 0.6);
+							f_shoot_time = gpGlobals->time + RANDOM_FLOAT(0.3f, 0.6f);
 							pEdict->v.button |= IN_ATTACK;
 						}
 						else if (current_weapon.iFireMode == 4)
@@ -3791,7 +3791,7 @@ void bot_t::BotThink()
 		}
 
 		// is the bot doing waypoint action
-		else if ((wpt_action_time > gpGlobals->time) && (bot_spawn_time + 0.5 < gpGlobals->time))
+		else if ((wpt_action_time > gpGlobals->time) && (bot_spawn_time + 0.5f < gpGlobals->time))
 		{
 			bool do_action;
 
@@ -3977,7 +3977,7 @@ void bot_t::BotThink()
 
 
 			// is it short after bot spawned/respawned?
-			if ((gpGlobals->time > bot_spawn_time + 1.0) && (gpGlobals->time < bot_spawn_time + 2.0))
+			if ((gpGlobals->time > bot_spawn_time + 1.0f) && (gpGlobals->time < bot_spawn_time + 2.0f))
 			{				
 				// is the bot NOT holding any of "single firemode" weapons
 				// so change the firemode to semi (single shot)
@@ -3989,7 +3989,7 @@ void bot_t::BotThink()
 
 			// give the mod some time to finish all the spawning/respawning stuff
 			// before going to check for following things
-			if (bot_spawn_time + 2.5 < gpGlobals->time)
+			if (bot_spawn_time + 2.5f < gpGlobals->time)
 			{
 				// then check if the bot can use silencer for his current weapon
 				if (IsWeaponStatus(WS_ALLOWSILENCER) && !IsWeaponStatus(WS_SILENCERUSED) &&
@@ -4819,7 +4819,7 @@ void bot_t::BotThink()
 	// is the bot in mid-air AND has parachute AND didn't open it yet AND
 	// is it the right time (ie open the chute after some time in mid-air)
 	else if (BotCheckMidAir(pEdict) && IsTask(TASK_PARACHUTE) && !IsTask(TASK_PARACHUTE_USED) &&
-		(chute_action_time <= gpGlobals->time) && (bot_spawn_time + 1.0 < gpGlobals->time))
+		(chute_action_time <= gpGlobals->time) && (bot_spawn_time + 1.0f < gpGlobals->time))
 	{
 		// set some time to check if the bot is really in mid-air
 		// ie to prevent opening chute when he steps down from or jumps off some low object
@@ -4831,7 +4831,7 @@ void bot_t::BotThink()
 			// having the time of check as a random value should prevent multiple bots to open the parachute
 			// at the same moment and get stuck in air unable to do anything
 			if (strcmp(STRING(gpGlobals->mapname), "obj_vengeance") == 0)
-				chute_action_time = gpGlobals->time + RANDOM_FLOAT(1.0, 1.5);
+				chute_action_time = gpGlobals->time + RANDOM_FLOAT(1.0f, 1.5f);
 			else if (strcmp(STRING(gpGlobals->mapname), "ps_outlands") == 0)
 				chute_action_time = gpGlobals->time + RANDOM_FLOAT(0.5, 0.8);
 			else
@@ -5035,12 +5035,12 @@ void bot_t::BotThink()
 	}
 
 	// determine strafe moves
-	else if ((f_strafe_time > gpGlobals->time) && (bot_spawn_time + 2.0 < gpGlobals->time))
+	else if ((f_strafe_time > gpGlobals->time) && (bot_spawn_time + 2.0f < gpGlobals->time))
 	{
-		f_dont_avoid_wall_time = gpGlobals->time + 1.0;
-		f_dont_look_for_waypoint_time = gpGlobals->time + 0.1;
+		f_dont_avoid_wall_time = gpGlobals->time + 1.0f;
+		f_dont_look_for_waypoint_time = gpGlobals->time + 0.1f;
 
-		if (f_strafe_direction == -1.0)
+		if (f_strafe_direction == -1.0f)
 		{
 			pEdict->v.button |= IN_MOVELEFT;
 			move_speed = SPEED_NO;
@@ -5051,7 +5051,7 @@ void bot_t::BotThink()
 			move_speed = SPEED_NO;
 		}
 
-		f_strafe_speed = f_strafe_direction * (f_max_speed / 2.0);
+		f_strafe_speed = f_strafe_direction * (f_max_speed / 2.0f);
 	}
 
 	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

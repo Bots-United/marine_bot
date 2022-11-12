@@ -56,7 +56,7 @@ class SetupBaseType_team : public SetupBaseType
 };
 
 //prototypes of bot functions
-void BotNameInit(void);
+void BotNameInit();
 bool BotCreate( edict_t *pPlayer, const char *arg1, const char *arg2,
                 const char *arg3, const char *arg4, const char *arg5 );
 
@@ -86,7 +86,7 @@ void BotRandomTurn( bot_t *pBot );
 bool BotCheckWallOnLeft( bot_t *pBot );
 bool BotCheckWallOnRight( bot_t *pBot );
 
-bool InitFAWeapons(void);
+bool InitFAWeapons();
 void BotWeaponArraysInit(Section *conf_weapons);
 //edict_t *BotFindEnemy( bot_t *pBot );
 void BotShootAtEnemy( bot_t *pBot );
@@ -128,8 +128,8 @@ int FPlayerVisible( const Vector &vecOrigin, const Vector &vecLookerOrigin, edic
 Vector GetGunPosition(edict_t *pEdict);
 Vector VecBModelOrigin(edict_t *pEdict);
 int InFieldOfView(edict_t *pEdict, const Vector &dest);
-bool UTIL_IsNewerVersion(void);
-bool UTIL_IsOldVersion(void);
+bool UTIL_IsNewerVersion();
+bool UTIL_IsOldVersion();
 void UTIL_SetBit(int the_bit, int &bit_map);
 void UTIL_ClearBit(int the_bit, int &bit_map);
 bool UTIL_IsBitSet(int the_bit, int bit_map);
@@ -206,7 +206,7 @@ void UTIL_DumpEdictToFile(edict_t *pEdict);
 
 // waypoint.cpp prototypes
 bool WaypointMatchingTriggerMessage(char *the_text);
-void UpdateWaypointData(void);
+void UpdateWaypointData();
 
 
 // mb_hud prototypes

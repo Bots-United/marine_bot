@@ -36,7 +36,7 @@
 
 HINSTANCE h_Library = nullptr;
 HGLOBAL h_global_argv = nullptr;
-void FreeNameFuncGlobals(void);
+void FreeNameFuncGlobals();
 void LoadSymbols(char *filename);
 
 #else

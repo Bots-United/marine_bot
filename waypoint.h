@@ -338,16 +338,16 @@ class trigger_event_gamestate_t
 {
 public:
 	trigger_event_gamestate_t() { Init(); }
-	void Init (void);
+	void Init ();
 	void Reset (int i = -1);
 	void SetName (TriggerId new_name) { name = new_name; }
-	TriggerId GetName (void) const { return name; }
+	TriggerId GetName () const { return name; }
 	void SetUsed (bool flag) { used = flag; }
-	bool GetUsed (void) const { return used; }
+	bool GetUsed () const { return used; }
 	void SetTriggered (bool flag) { triggered = flag; }
-	bool GetTriggered (void) const { return triggered; }
-	void SetTime (float new_time = gpGlobals->time) { time = (float) new_time; }
-	float GetTime (void) const { return (float) time; }
+	bool GetTriggered () const { return triggered; }
+	void SetTime (float new_time = gpGlobals->time) { time = new_time; }
+	float GetTime () const { return time; }
 
 private:
 	TriggerId		name;			// it's ID - the glue to the trigger structure
@@ -370,41 +370,41 @@ class waypointsbrowser_t
 {
 public:
 	waypointsbrowser_t();
-	void ResetOnMapChange(void);
+	void ResetOnMapChange();
 	void SetShowWaypoints(bool newVal) { waypoints_on = newVal; }
-	bool IsShowWaypoints(void) const { return waypoints_on; }
-	void ResetShowWaypoints(void) { waypoints_on = false; }
+	bool IsShowWaypoints() const { return waypoints_on; }
+	void ResetShowWaypoints() { waypoints_on = false; }
 	void SetShowPaths(bool newVal) { paths_on = newVal; }
-	bool IsShowPaths(void) const { return paths_on; }
-	void ResetShowPaths(void) { paths_on = false; }
+	bool IsShowPaths() const { return paths_on; }
+	void ResetShowPaths() { paths_on = false; }
 	void SetCheckAims(bool newVal) { check_aim_connections = newVal; }
-	bool IsCheckAims(void) const { return check_aim_connections; }
-	void ResetCheckAims(void) { check_aim_connections = false; }
+	bool IsCheckAims() const { return check_aim_connections; }
+	void ResetCheckAims() { check_aim_connections = false; }
 	void SetCheckCross(bool newVal) { check_cross_connections = newVal; }
-	bool IsCheckCross(void) const { return check_cross_connections; }
-	void ResetCheckCross(void) { check_cross_connections = false; }
+	bool IsCheckCross() const { return check_cross_connections; }
+	void ResetCheckCross() { check_cross_connections = false; }
 	void SetCheckRanges(bool newVal) { check_waypoints_ranges = newVal; }
-	bool IsCheckRanges(void) const { return check_waypoints_ranges; }
-	void ResetCheckRanges(void) { check_waypoints_ranges = false; }
+	bool IsCheckRanges() const { return check_waypoints_ranges; }
+	void ResetCheckRanges() { check_waypoints_ranges = false; }
 	void SetAutoWaypointing(bool newVal) { auto_waypointing = newVal; }
-	bool IsAutoWaypointing(void) const { return auto_waypointing; }
-	void ResetAutoWaypointing(void) { auto_waypointing = false; }
+	bool IsAutoWaypointing() const { return auto_waypointing; }
+	void ResetAutoWaypointing() { auto_waypointing = false; }
 	void SetAutoAddToPath(bool newVal) { auto_add_to_path = newVal; }
-	bool IsAutoAddToPath(void) const { return auto_add_to_path; }
-	void ResetAutoAddToPath(void) { auto_add_to_path = false; }
+	bool IsAutoAddToPath() const { return auto_add_to_path; }
+	void ResetAutoAddToPath() { auto_add_to_path = false; }
 	void SetWaypointsDrawDistance(float newVal) { waypoints_draw_distance = newVal; }
-	float GetWaypointsDrawDistance(void) const { return waypoints_draw_distance; }
-	void ResetWaypointsDrawDistance(void) { waypoints_draw_distance = (float)800.0; }
+	float GetWaypointsDrawDistance() const { return waypoints_draw_distance; }
+	void ResetWaypointsDrawDistance() { waypoints_draw_distance = 800.0f; }
 	void SetAutoWaypointingDistance(float newVal) { auto_waypointing_distance = newVal; }
-	float GetAutoWaypointingDistance(void) const { return auto_waypointing_distance; }
-	void ResetAutoWaypointingDistance(void) { auto_waypointing_distance = (float)200.0; }
+	float GetAutoWaypointingDistance() const { return auto_waypointing_distance; }
+	void ResetAutoWaypointingDistance() { auto_waypointing_distance = 200.0f; }
 	void SetCompassIndex(int newVal) { waypoint_compass_index = newVal; }
-	int GetCompassIndex(void) const { return waypoint_compass_index; }
-	void ResetCompassIndex(void) { waypoint_compass_index = NO_VAL; }
+	int GetCompassIndex() const { return waypoint_compass_index; }
+	void ResetCompassIndex() { waypoint_compass_index = NO_VAL; }
 	void SetPathToHighlight(int newVal) { path_to_highlight = newVal; }
-	int GetPathToHighlight(void) const { return path_to_highlight; }
-	void ResetPathToHighlight(void) { path_to_highlight = HIGHLIGHT_DISABLED; }
-	bool IsPathToHighlightAPathIndex(void) const { return ((path_to_highlight >= 0) && (path_to_highlight < num_w_paths)); }
+	int GetPathToHighlight() const { return path_to_highlight; }
+	void ResetPathToHighlight() { path_to_highlight = HIGHLIGHT_DISABLED; }
+	bool IsPathToHighlightAPathIndex() const { return ((path_to_highlight >= 0) && (path_to_highlight < num_w_paths)); }
 
 private:
 	bool waypoints_on;				// to show waypoints
@@ -423,8 +423,8 @@ private:
 extern waypointsbrowser_t wptser;
 
 // waypoint function prototypes...
-void WaypointInit(void);
-int  WaypointFindNearest(edict_t *pEntity, float distance, int team);
+void WaypointInit();
+int  WaypointFindNearest(edict_t *pEntity, float range, int team);
 bool WaypointReposition(edict_t *pEntity, int wpt_index);
 void WaypointDelete(edict_t *pEntity);
 void StartAutoWaypointg(bool switch_on);//															NEW CODE 094
@@ -433,33 +433,33 @@ void SelfControlledWaypointReposition(float &the_range, Vector &new_origin, floa
 
 bool  WaypointSubscribe(char *signature, bool author, bool enforced = false);
 void  WaypointAuthors(char *author, char *modified_by);
-void  WaypointDestroy(void);
-void  WaypointResetTriggers(void);
+void  WaypointDestroy();
+void  WaypointResetTriggers();
 int   WaypointAddTriggerEvent(const char *trigger_name, const char *trigger_message);
 int   WaypointDeleteTriggerEvent(const char *trigger_name);
 int   WaypointConnectTriggerEvent(edict_t *pEntity, const char *trigger_name, const char *state);
 int   WaypointRemoveTriggerEvent(edict_t *pEntity, const char *state);
 int	  WaypointValidatePath(int path_index);
-void  WaypointValidatePath(void);
+void  WaypointValidatePath();
 bool  WaypointScanPathForBadCombinationOfFlags(int path_index, PathT path_type, WptT waypoint_type);
 int   WaypointRepairInvalidPathEnd(int path_index);
-void  WaypointRepairInvalidPathEnd(void);
+void  WaypointRepairInvalidPathEnd();
 int   WaypointCheckInvalidPathEnd(int path_index, bool log_in_file);
 int   WaypointRepairInvalidPathMerge(int path_index, bool repair_it = true, bool log_in_file = false);
-void  WaypointRepairInvalidPathMerge(void);
+void  WaypointRepairInvalidPathMerge();
 //int	  WaypointCheckInvalidPathMerge(int path_index, bool log_in_file);				REPLACED BY THE REPAIR INVALID MERGE
 int	  WaypointRepairSniperSpot(int path_index);
-void  WaypointRepairSniperSpot(void);
+void  WaypointRepairSniperSpot();
 float WaypointRepairCrossRange(int wpt_index);
-void  WaypointRepairCrossRange(void);
+void  WaypointRepairCrossRange();
 int	  WaypointLoad(edict_t *pEntity, char *name);
 bool  WaypointSave(const char *name);
 bool  WaypointLoadUnsupported(edict_t *pEntity);
 bool  WaypointLoadVersion5(edict_t *pEntity);
-bool  WaypointAutoSave(void);
+bool  WaypointAutoSave();
 //bool  WaypointRawLoad(edict_t *pEntity, bool flags, bool priority, bool time, bool class_preference); // NOT USED
 //void  WaypointRawSave(bool flags, bool priority, bool time, bool class_preference);	// NOT USED
-int	  WaypointGetSystemVersion(void);
+int	  WaypointGetSystemVersion();
 bool  IsFlagSet(int flag, int wpt_index, int team = TEAM_NONE);
 int   WaypointGetPriority(int wpt_index, int team);
 float WaypointGetWaitTime(int wpt_index, int team, const char* loc = nullptr);

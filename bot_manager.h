@@ -35,7 +35,7 @@ public:
 	bool IsBleeding() const { return client_bleeds; }
 	void SetBleeding(bool flag) { client_bleeds = flag; }
 	void SetMaxSpeedTime(float time) { max_speed_time = time; }
-	float GetMaxSpeedTime(void) const { return max_speed_time; }
+	float GetMaxSpeedTime() const { return max_speed_time; }
 	static int add_human() { return ++humans_num; }
 	static int add_bot() { return ++bots_num; }
 	static int substr_human() { return --humans_num; }
@@ -65,27 +65,27 @@ class botmanager_t
 public:
 	botmanager_t();
 	void SetTeamsBalanceNeeded(bool newVal) { teams_balance_needed = newVal; }
-	bool IsTeamsBalanceNeeded(void) const { return teams_balance_needed; }
-	void ResetTeamsBalanceNeeded(void) { teams_balance_needed = false; }
+	bool IsTeamsBalanceNeeded() const { return teams_balance_needed; }
+	void ResetTeamsBalanceNeeded() { teams_balance_needed = false; }
 	void SetOverrideTeamsBalance(bool newVal) { override_teams_balance = newVal; }
-	bool IsOverrideTeamsBalance(void) const { return override_teams_balance; }
-	void ResetOverrideTeamsBalance(void) { override_teams_balance = false; }
+	bool IsOverrideTeamsBalance() const { return override_teams_balance; }
+	void ResetOverrideTeamsBalance() { override_teams_balance = false; }
 	void SetTimeOfTeamsBalanceCheck(float newVal) { time_of_teams_balance_check = newVal; }
-	float GetTimeOfTeamsBalanceCheck(void) const { return time_of_teams_balance_check; }
-	void ResetTimeOfTeamsBalanceCheck(void) { time_of_teams_balance_check = (float)0.0; }
+	float GetTimeOfTeamsBalanceCheck() const { return time_of_teams_balance_check; }
+	void ResetTimeOfTeamsBalanceCheck() { time_of_teams_balance_check = (float)0.0; }
 	void SetTeamsBalanceValue(int newVal) { teams_balance_value = newVal; }
-	int GetTeamsBalanceValue(void) const { return teams_balance_value; }
-	void ResetTeamsBalanceValue(void) { teams_balance_value = (int)0; }
+	int GetTeamsBalanceValue() const { return teams_balance_value; }
+	void ResetTeamsBalanceValue() { teams_balance_value = (int)0; }
 	void SetListeServerFilling(bool newVal) { listenserver_filling = newVal; }
-	bool IsListenServerFilling(void) const { return listenserver_filling; }
-	void ResetListenServerFilling(void) { listenserver_filling = false; }
+	bool IsListenServerFilling() const { return listenserver_filling; }
+	void ResetListenServerFilling() { listenserver_filling = false; }
 	void SetBotCheckTime(float newVal) { bot_check_time = newVal; }
-	float GetBotCheckTime(void) const { return bot_check_time; }
-	void ResetBotCheckTime(void) { bot_check_time = (float)0.0; }
+	float GetBotCheckTime() const { return bot_check_time; }
+	void ResetBotCheckTime() { bot_check_time = (float)0.0; }
 	void SetBotsToBeAdded(int newVal) { bots_to_be_added = newVal; }
-	int GetBotsToBeAdded(void) const { return bots_to_be_added; }
-	void ResetBotsToBeAdded(void) { bots_to_be_added = (int)0; }
-	void DecreaseBotsToBeAdded(void) { bots_to_be_added--; }
+	int GetBotsToBeAdded() const { return bots_to_be_added; }
+	void ResetBotsToBeAdded() { bots_to_be_added = (int)0; }
+	void DecreaseBotsToBeAdded() { bots_to_be_added--; }
 
 private:
 	bool teams_balance_needed;			// teams don't have same counts of players so bots must change team to make the counts equal - by kota@
@@ -105,38 +105,38 @@ class botdebugger_t
 public:
 	botdebugger_t();
 	void SetObserverMode(bool newVal) { observer_mode = newVal; }
-	bool IsObserverMode(void) const { return observer_mode; }
-	void ResetObserverMode(void) { observer_mode = false; }
+	bool IsObserverMode() const { return observer_mode; }
+	void ResetObserverMode() { observer_mode = false; }
 	void SetFreezeMode(bool newVal) { freeze_mode = newVal; }
-	bool IsFreezeMode(void) const { return freeze_mode; }
-	void ResetFreezeMode(void) { freeze_mode = false; }
+	bool IsFreezeMode() const { return freeze_mode; }
+	void ResetFreezeMode() { freeze_mode = false; }
 	void SetDontShoot(bool newVal) { dont_shoot = newVal; }
-	bool IsDontShoot(void) const { return dont_shoot; }
-	void ResetDontShoot(void) { dont_shoot = false; }
+	bool IsDontShoot() const { return dont_shoot; }
+	void ResetDontShoot() { dont_shoot = false; }
 	void SetIgnoreAll(bool newVal) { ignore_all = newVal; }
-	bool IsIgnoreAll(void) const { return ignore_all; }
-	void ResetIgnoreAll(void) { ignore_all = false; }
+	bool IsIgnoreAll() const { return ignore_all; }
+	void ResetIgnoreAll() { ignore_all = false; }
 	void SetDebugAims(bool newVal) { debug_aims = newVal; }
-	bool IsDebugAims(void) const { return debug_aims; }
-	void ResetDebugAims(void) { debug_aims = false; }
+	bool IsDebugAims() const { return debug_aims; }
+	void ResetDebugAims() { debug_aims = false; }
 	void SetDebugActions(bool newVal) { debug_actions = newVal; }
-	bool IsDebugActions(void) const { return debug_actions; }
-	void ResetDebugActions(void) { debug_actions = false; }
+	bool IsDebugActions() const { return debug_actions; }
+	void ResetDebugActions() { debug_actions = false; }
 	void SetDebugCross(bool newVal) { debug_cross = newVal; }
-	bool IsDebugCross(void) const { return debug_cross; }
-	void ResetDebugCross(void) { debug_cross = false; }
+	bool IsDebugCross() const { return debug_cross; }
+	void ResetDebugCross() { debug_cross = false; }
 	void SetDebugPaths(bool newVal) { debug_paths = newVal; }
-	bool IsDebugPaths(void) const { return debug_paths; }
-	void ResetDebugPaths(void) { debug_paths = false; }
+	bool IsDebugPaths() const { return debug_paths; }
+	void ResetDebugPaths() { debug_paths = false; }
 	void SetDebugStuck(bool newVal) { debug_stuck = newVal; }
-	bool IsDebugStuck(void) const { return debug_stuck; }
-	void ResetDebugStuck(void) { debug_stuck = false; }
+	bool IsDebugStuck() const { return debug_stuck; }
+	void ResetDebugStuck() { debug_stuck = false; }
 	void SetDebugWaypoints(bool newVal) { debug_waypoints = newVal; }
-	bool IsDebugWaypoints(void) const { return debug_waypoints; }
-	void ResetDebugWaypoints(void) { debug_waypoints = false; }
+	bool IsDebugWaypoints() const { return debug_waypoints; }
+	void ResetDebugWaypoints() { debug_waypoints = false; }
 	void SetDebugWeapons(bool newVal) { debug_weapons = newVal; }
-	bool IsDebugWeapons(void) const { return debug_weapons; }
-	void ResetDebugWeapons(void) { debug_weapons = false; }
+	bool IsDebugWeapons() const { return debug_weapons; }
+	void ResetDebugWeapons() { debug_weapons = false; }
 
 private:
 	bool observer_mode;		// makes the player "invisible" for bots, but they will still see each other, but they will still see each other and act accordingly
@@ -160,47 +160,47 @@ class externals_t
 public:
 	externals_t();
 	void SetIsLogging(bool newVal) { is_logging = newVal; }
-	bool GetIsLogging(void) const { return is_logging; }
-	void ResetIsLogging(void) { is_logging = false; }	// will set it to deafult value
+	bool GetIsLogging() const { return is_logging; }
+	void ResetIsLogging() { is_logging = false; }	// will set it to deafult value
 	void SetRandomSkill(bool newVal) { random_skill = newVal; }
-	bool GetRandomSkill(void) const { return random_skill; }
-	void ResetRandomSkill(void) { random_skill = false; }
+	bool GetRandomSkill() const { return random_skill; }
+	void ResetRandomSkill() { random_skill = false; }
 	void SetSpawnSkill(int newVal) { spawn_skill = newVal; }
-	int GetSpawnSkill(void) const { return spawn_skill; }
-	void ResetSpawnSkill(void) { spawn_skill = 3; }
+	int GetSpawnSkill() const { return spawn_skill; }
+	void ResetSpawnSkill() { spawn_skill = 3; }
 	void SetReactionTime(float newVal) { reaction_time = newVal; }
-	float GetReactionTime(void) const { return reaction_time; }
-	void ResetReactionTime(void) { reaction_time = (float)0.2; }
+	float GetReactionTime() const { return reaction_time; }
+	void ResetReactionTime() { reaction_time = (float)0.2; }
 	void SetBalanceTime(float newVal) { auto_balance_time = newVal; }
-	float GetBalanceTime(void) const { return auto_balance_time; }
-	void ResetBalanceTime(void) { auto_balance_time = (float)30.0; }
+	float GetBalanceTime() const { return auto_balance_time; }
+	void ResetBalanceTime() { auto_balance_time = (float)30.0; }
 	void SetMinBots(int newVal) { min_bots = newVal; }
-	int GetMinBots(void) const { return min_bots; }
-	void ResetMinBots(void) { min_bots = 2; }
+	int GetMinBots() const { return min_bots; }
+	void ResetMinBots() { min_bots = 2; }
 	void SetMaxBots(int newVal) { max_bots = newVal; }
-	int GetMaxBots(void) const { return max_bots; }
-	void ResetMaxBots(void) { max_bots = 6; }
+	int GetMaxBots() const { return max_bots; }
+	void ResetMaxBots() { max_bots = 6; }
 	void SetCustomClasses(bool newVal) { custom_classes = newVal; }
-	bool GetCustomClasses(void) const { return custom_classes; }
-	void ResetCustomClasses(void) { custom_classes = true; }
+	bool GetCustomClasses() const { return custom_classes; }
+	void ResetCustomClasses() { custom_classes = true; }
 	void SetInfoTime(float newVal) { info_time = newVal; }
-	float GetInfoTime(void) const { return info_time; }
-	void ResetInfoTime(void) { info_time = (float)150.0; }
+	float GetInfoTime() const { return info_time; }
+	void ResetInfoTime() { info_time = (float)150.0; }
 	void SetPresentationTime(float newVal) { presentation_time = newVal; }
-	float GetPresentationTime(void) const { return presentation_time; }
-	void ResetPresentationTime(void) { presentation_time = (float)210.0; }
+	float GetPresentationTime() const { return presentation_time; }
+	void ResetPresentationTime() { presentation_time = (float)210.0; }
 	void SetDontSpeak(bool newVal) { dont_speak = newVal; }
-	bool GetDontSpeak(void) const { return dont_speak; }
-	void ResetDontSpeak(void) { dont_speak = false; }
+	bool GetDontSpeak() const { return dont_speak; }
+	void ResetDontSpeak() { dont_speak = false; }
 	void SetDontChat(bool newVal) { dont_chat = newVal; }
-	bool GetDontChat(void) const { return dont_chat; }
-	void ResetDontChat(void) { dont_chat = false; }
+	bool GetDontChat() const { return dont_chat; }
+	void ResetDontChat() { dont_chat = false; }
 	void SetRichNames(bool newVal) { rich_names = newVal; }
-	bool GetRichNames(void) const { return rich_names; }
-	void ResetRichNames(void) { rich_names = true; }
+	bool GetRichNames() const { return rich_names; }
+	void ResetRichNames() { rich_names = true; }
 	void SetPassiveHealing(bool newVal) { passive_healing = newVal; }
-	bool GetPassiveHealing(void) const { return passive_healing; }
-	void ResetPassiveHealing(void) { passive_healing = false; }
+	bool GetPassiveHealing() const { return passive_healing; }
+	void ResetPassiveHealing() { passive_healing = false; }
 
 
 	// These two are still public, they should go private, but I don't know if they are
@@ -234,40 +234,40 @@ class internals_t
 {
 public:
 	internals_t();
-	void ResetOnMapChange(void);
+	void ResetOnMapChange();
 	void SetIsEnemyDistanceLimit(bool newVal) { is_enemy_distance_limit = newVal; }
-	bool IsEnemyDistanceLimit(void) const { return is_enemy_distance_limit; }
-	void ResetIsEnemyDistanceLimit(void) { is_enemy_distance_limit = false; }
+	bool IsEnemyDistanceLimit() const { return is_enemy_distance_limit; }
+	void ResetIsEnemyDistanceLimit() { is_enemy_distance_limit = false; }
 	void SetEnemyDistanceLimit(float newVal) { enemy_distance_limit = (float)newVal; }
-	float GetEnemyDistanceLimit(void) const { return enemy_distance_limit; }
-	void ResetEnemyDistanceLimit(void) { enemy_distance_limit = (float)7500; }
+	float GetEnemyDistanceLimit() const { return enemy_distance_limit; }
+	void ResetEnemyDistanceLimit() { enemy_distance_limit = (float)7500; }
 
 	void SetHUDMessageTime(float newVal) { hud_messsage_time = newVal; }
-	float GetHUDMessageTime(void) const { return hud_messsage_time; }
-	void ResetHUDMessageTime(void) { hud_messsage_time = (float)0.0; }
+	float GetHUDMessageTime() const { return hud_messsage_time; }
+	void ResetHUDMessageTime() { hud_messsage_time = (float)0.0; }
 	void SetTeamPlay(float newVal) { is_team_play = newVal; }
-	float GetTeamPlay(void) const { return is_team_play; }
-	void ResetTeamPlay(void) { is_team_play = (float)0.0; }
+	float GetTeamPlay() const { return is_team_play; }
+	void ResetTeamPlay() { is_team_play = (float)0.0; }
 	void SetTeamPlayChecked(bool newVal) { teamplay_checked = newVal; }
-	bool IsTeamPlayChecked(void) const { return teamplay_checked; }
-	void ResetTeamPlayChecked(void) { teamplay_checked = false; }
+	bool IsTeamPlayChecked() const { return teamplay_checked; }
+	void ResetTeamPlayChecked() { teamplay_checked = false; }
 	void SetFASkillSystem(float newVal) { fa_skill_system = newVal; }
-	float GetFASkillSystem(void) const { return fa_skill_system; }
-	void ResetFASkillSystem(void) { fa_skill_system = (float)1.0; }
+	float GetFASkillSystem() const { return fa_skill_system; }
+	void ResetFASkillSystem() { fa_skill_system = (float)1.0; }
 	void SetSkillSystemChecked(bool newVal) { skillsystem_checked = newVal; }
-	bool IsSkillSystemChecked(void) const { return skillsystem_checked; }
-	void ResetSkillSystemChecked(void) { skillsystem_checked = false; }
+	bool IsSkillSystemChecked() const { return skillsystem_checked; }
+	void ResetSkillSystemChecked() { skillsystem_checked = false; }
 
 	void SetIsCustomWaypoints(bool newVal) { is_custom_waypoints = newVal; }
-	bool IsCustomWaypoints(void) const { return is_custom_waypoints; }
-	void ResetIsCustomWaypoints(void) { is_custom_waypoints = false; }
+	bool IsCustomWaypoints() const { return is_custom_waypoints; }
+	void ResetIsCustomWaypoints() { is_custom_waypoints = false; }
 	void SetWaypoitsAutoSave(bool newVal) { waypoints_autosave = newVal; }
-	bool IsWaypointsAutoSave(void) const { return waypoints_autosave; }
-	void ResetWaypointsAutoSave(void) { waypoints_autosave = false; }
+	bool IsWaypointsAutoSave() const { return waypoints_autosave; }
+	void ResetWaypointsAutoSave() { waypoints_autosave = false; }
 	void SetPathToContinue(int newVal) { path_to_continue = newVal; }
-	int GetPathToContinue(void) const { return path_to_continue; }
-	void ResetPathToContinue(void) { path_to_continue = (int)-1; }
-	bool IsPathToContinue(void) const { return (path_to_continue != (int)-1); }
+	int GetPathToContinue() const { return path_to_continue; }
+	void ResetPathToContinue() { path_to_continue = (int)-1; }
+	bool IsPathToContinue() const { return (path_to_continue != (int)-1); }
 
 private:
 	bool  is_enemy_distance_limit;	// do we limit the view distance?, useful on maps where the bot can see enemy through skybox - ps_island

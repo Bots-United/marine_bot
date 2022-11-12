@@ -225,7 +225,7 @@ void pfnAngleVectors(const float *rgflVector, float *forward, float *right, floa
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnAngleVectors:\n"); fclose(fp); }
 	(*g_engfuncs.pfnAngleVectors)(rgflVector, forward, right, up);
 }
-edict_t* pfnCreateEntity(void)
+edict_t* pfnCreateEntity()
 {
 	edict_t *pent = (*g_engfuncs.pfnCreateEntity)();
 #ifdef _DEBUG
@@ -625,7 +625,7 @@ void pfnServerCommand(const char* str)
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnServerCommand: %s\n",str); fclose(fp); }
    (*g_engfuncs.pfnServerCommand)(str);
 }
-void pfnServerExecute(void)
+void pfnServerExecute()
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnServerExecute:\n"); fclose(fp); }
    (*g_engfuncs.pfnServerExecute)();
@@ -772,7 +772,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 	
 	(*g_engfuncs.pfnMessageBegin)(msg_dest, msg_type, pOrigin, ed);
 }
-void pfnMessageEnd(void)
+void pfnMessageEnd()
 {
 	if (gpGlobals->deathmatch)
 	{
@@ -1204,7 +1204,7 @@ void pfnSetView(const edict_t *pClient, const edict_t *pViewent )
 
 	(*g_engfuncs.pfnSetView)(pClient, pViewent);
 }
-float pfnTime( void )
+float pfnTime()
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnTime:\n"); fclose(fp); }
    return (*g_engfuncs.pfnTime)();
@@ -1306,7 +1306,7 @@ void pfnRunPlayerMove(edict_t *fakeclient, const float *viewangles, float forwar
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnRunPlayerMove:\n"); fclose(fp); }
    (*g_engfuncs.pfnRunPlayerMove)(fakeclient, viewangles, forwardmove, sidemove, upmove, buttons, impulse, msec);
 }
-int pfnNumberOfEntities(void)
+int pfnNumberOfEntities()
 {
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnNumberOfEntities:\n"); fclose(fp); }
    return (*g_engfuncs.pfnNumberOfEntities)();
@@ -1398,7 +1398,7 @@ void pfnBuildSoundMsg(edict_t *entity, int channel, const char *sample, /*int*/f
 
 	(*g_engfuncs.pfnBuildSoundMsg)(entity, channel, sample, volume, attenuation, fFlags, pitch, msg_dest, msg_type, pOrigin, ed);
 }
-int pfnIsDedicatedServer(void)
+int pfnIsDedicatedServer()
 {
    if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnIsDedicatedServer:\n"); fclose(fp); }
    return (*g_engfuncs.pfnIsDedicatedServer)();
@@ -1494,7 +1494,7 @@ void pfnDeltaAddEncoder(const char* name, void (*conditionalencode)(struct delta
    //if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnDeltaAddEncoder:\n"); fclose(fp); }
    (*g_engfuncs.pfnDeltaAddEncoder)(name, conditionalencode);
 }
-int pfnGetCurrentPlayer(void)
+int pfnGetCurrentPlayer()
 {
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"pfnGetCurrentPlayer:\n"); fclose(fp); }
 	return (*g_engfuncs.pfnGetCurrentPlayer)();
@@ -1549,7 +1549,7 @@ void pfnGetPlayerStats(const edict_t *pClient, int *ping, int *packet_loss)
 	(*g_engfuncs.pfnGetPlayerStats)(pClient, ping, packet_loss);
 }
 #ifndef NEWSDKAM
-void pfnAddServerCommand(char *cmd_name, void (*function)(void))
+void pfnAddServerCommand(char *cmd_name, void (*function)())
 #else
 void pfnAddServerCommand(const char* cmd_name, void (*function)(void))
 #endif

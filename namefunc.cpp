@@ -173,7 +173,7 @@ void FgetString(char *str, FILE *bfp)
 }
 
 
-void FreeNameFuncGlobals(void)
+void FreeNameFuncGlobals()
 {
    if (p_Ordinals)
       free(p_Ordinals);

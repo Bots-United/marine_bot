@@ -689,7 +689,7 @@ float bot_t::GetEffectiveRange(int weapon_index) const
 /*
 * checks if is team play on
 */
-void BotCheckTeamplay(void)
+void BotCheckTeamplay()
 {
 	// is this mod Firearms?
 	if (mod_id == FIREARMS_DLL)
@@ -866,7 +866,7 @@ inline void DontSeeEnemyActions(bot_t *pBot)
 /*
 * will make sure the bot "forgets" about his current enemy (ie. clear all important variables)
 */
-void bot_t::BotForgetEnemy(void)
+void bot_t::BotForgetEnemy()
 {
 #ifdef _DEBUG
 	extern edict_t* g_debug_bot;

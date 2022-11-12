@@ -90,7 +90,7 @@ waypointsbrowser_t::waypointsbrowser_t()
 
 // reset all waypoints browser variables to default values on map change
 // to prevent overloading game engine
-void waypointsbrowser_t::ResetOnMapChange(void)
+void waypointsbrowser_t::ResetOnMapChange()
 {
 	ResetShowWaypoints();
 	ResetShowPaths();
@@ -120,9 +120,9 @@ float f_ranges_display_time[MAX_WAYPOINTS];			// time that this waypoint range w
 float f_compass_time;								// time that the compass was displayed
 
 // functions prototypes used in this file
-void WaypointDebug(void);
-void FreeAllPaths(void);
-void FreeAllTriggers(void);
+void WaypointDebug();
+void FreeAllPaths();
+void FreeAllTriggers();
 void WaypointInit(int wpt_index);
 float GetWaypointDistance(int wpt1_index = -1, int wpt2_index = -1);
 bool IsMessageValid(char *msg);
@@ -195,7 +195,7 @@ bool bot_t::IsIgnorePath(int path_index)
 /*
 * returns the next waypoint index from a path the bot's using
 */
-int bot_t::GetNextWaypoint(void) const
+int bot_t::GetNextWaypoint() const
 {
 	if ((curr_wpt_index == -1) || (curr_path_index == -1))
 		return -1;
@@ -222,7 +222,7 @@ int bot_t::GetNextWaypoint(void) const
 }
 
 
-void trigger_event_gamestate_t::Init(void)
+void trigger_event_gamestate_t::Init()
 {
 	SetName(TriggerId::trigger_none);
 	SetUsed(false);
@@ -242,7 +242,7 @@ void trigger_event_gamestate_t::Reset(int i)
 }
 
 
-void WaypointDebug(void)
+void WaypointDebug()
 {
    int y = 1, x = 1;
 
@@ -260,7 +260,7 @@ void WaypointDebug(void)
 /*
 * free all paths
 */
-void FreeAllPaths(void)
+void FreeAllPaths()
 {
 	for (int path_index = 0; path_index < MAX_W_PATHS; path_index++)
 	{
@@ -292,7 +292,7 @@ void FreeAllPaths(void)
 /*
 * free all trigger event messages
 */
-void FreeAllTriggers(void)
+void FreeAllTriggers()
 {
 	for (int trigger_index = 0; trigger_index < MAX_TRIGGERS; trigger_index++)
 	{
@@ -438,7 +438,7 @@ void WaypointInit(int wpt_index)
 /*
 * initialize the waypoint structures
 */
-void WaypointInit(void)
+void WaypointInit()
 {
 	// initialize the trigger event messages
 	FreeAllTriggers();
@@ -482,7 +482,7 @@ void WaypointInit(void)
 float GetWaypointDistance(int wpt1_index, int wpt2_index)
 {
 	if ((wpt1_index == -1) || (wpt2_index == -1))
-		return 9999.0;
+		return 9999.0f;
 
 	return (waypoints[wpt1_index].origin - waypoints[wpt2_index].origin).Length();
 }
@@ -493,7 +493,7 @@ float GetWaypointDistance(int wpt1_index, int wpt2_index)
 * remove both signatures
 * wipe both files from the HDD
 */
-void WaypointDestroy(void)
+void WaypointDestroy()
 {
 	char mapname[64];
 	char filename[256];
@@ -559,7 +559,7 @@ bool IsMessageValid(char *msg)
 /*
 * initialize the trigger event triggered variable
 */
-void WaypointResetTriggers(void)
+void WaypointResetTriggers()
 {
 	if (botdebugger.IsDebugWaypoints())
 		HudNotify("All triggers have been set back to \"not triggered\"\n");
@@ -1141,7 +1141,7 @@ int WaypointValidatePath(int path_index)
 /*
 * go through all paths and try to validate them
 */
-void WaypointValidatePath(void)
+void WaypointValidatePath()
 {
 	char msg[64];
 
@@ -1324,7 +1324,7 @@ int WaypointRepairInvalidPathEnd(int path_index)
 * go through all paths and check either path end for correct ending
 * (ie. there's a connection to a cross waypoint or one of the go back waypoints)
 */
-void WaypointRepairInvalidPathEnd(void)
+void WaypointRepairInvalidPathEnd()
 {
 	char msg[64];
 
@@ -1931,7 +1931,7 @@ int WaypointRepairInvalidPathMerge(int path_index)
 * (ie. the end waypoint isn't connected to a cross waypoint yet there starts another path)
 * 
 */
-void WaypointRepairInvalidPathMerge(void)
+void WaypointRepairInvalidPathMerge()
 {
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
@@ -2180,7 +2180,7 @@ int WaypointRepairSniperSpot(int path_index)
 /*
 * go through all paths and check them for correct sniper spot
 */
-void WaypointRepairSniperSpot(void)
+void WaypointRepairSniperSpot()
 {
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 	{
@@ -2260,7 +2260,7 @@ float WaypointRepairCrossRange(int wpt_index)
 * goes through all cross waypoints in order to connect them
 * with free path ends in their surrounding
 */
-void WaypointRepairCrossRange(void)
+void WaypointRepairCrossRange()
 {
 	for (int wpt_index = 0; wpt_index < num_waypoints; wpt_index++)
 	{
@@ -8979,7 +8979,7 @@ typedef struct {
 /*
 * autosaves waypoints and paths after given time to special files
 */
-bool WaypointAutoSave(void)
+bool WaypointAutoSave()
 {
 	// don't save waypoints if we are currently building a path
 	// because path save routine automatically stops it
@@ -9331,7 +9331,7 @@ void WaypointRawSave(bool flags, bool priority, bool time, bool class_preference
 /*
 * returns the wpt system version this file was created in
 */
-int WaypointGetSystemVersion(void)
+int WaypointGetSystemVersion()
 {
 	char mapname[64];
 	char filename[256];
@@ -11048,7 +11048,7 @@ Vector SetPathColor(int path_index)
 * handle the real-time waypoint data updating, like if we need to change priorities of some
 * waypoints because the bots already reached certain map objectives
 */
-void UpdateWaypointData(void)
+void UpdateWaypointData()
 {
 	for (int path_index = 0; path_index < num_w_paths; path_index++)
 		UpdatePathStatus(path_index);

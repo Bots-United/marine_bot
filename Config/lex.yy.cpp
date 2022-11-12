@@ -579,7 +579,7 @@ YY_MALLOC_DECL
 
 YY_DECL
 	{
-		register int yy_act;
+		int yy_act;
 
 #line 23 "config.l"
 
@@ -612,7 +612,7 @@ YY_DECL
 
 	while ( true )		/* loops until end-of-file is reached */
 		{
-		register char* yy_cp = yy_c_buf_p;
+			char* yy_cp = yy_c_buf_p;
 
 		/* Support of yytext. */
 		*yy_cp = yy_hold_char;
@@ -620,15 +620,15 @@ YY_DECL
 		/* yy_bp points to the position in yy_ch_buf of the start of
 		 * the current run.
 		 */
-		register char* yy_bp = yy_cp;
+			char* yy_bp = yy_cp;
 
-		register yy_state_type yy_current_state = yy_start;
+			yy_state_type yy_current_state = yy_start;
 		yy_state_ptr = yy_state_buf;
 		*yy_state_ptr++ = yy_current_state;
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
+				YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
 			while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 				{
 				yy_current_state = (int) yy_def[yy_current_state];
@@ -890,8 +890,8 @@ ECHO;
 
 static int yy_get_next_buffer()
 	{
-	register char *dest = yy_current_buffer->yy_ch_buf;
-	register char *source = yytext_ptr;
+		char *dest = yy_current_buffer->yy_ch_buf;
+		char *source = yytext_ptr;
 	int ret_val;
 
 	if ( yy_c_buf_p > &yy_current_buffer->yy_ch_buf[yy_n_chars + 1] )
@@ -920,9 +920,9 @@ static int yy_get_next_buffer()
 	/* Try to read more data. */
 
 	/* First move last chars to start of buffer. */
-	const register int number_to_move = (int)(yy_c_buf_p - yytext_ptr) - 1;
+	const int number_to_move = (int)(yy_c_buf_p - yytext_ptr) - 1;
 
-	for ( register int i = 0; i < number_to_move; ++i )
+	for (int i = 0; i < number_to_move; ++i )
 		*(dest++) = *(source++);
 
 	if ( yy_current_buffer->yy_buffer_status == YY_BUFFER_EOF_PENDING )
@@ -1021,13 +1021,13 @@ static int yy_get_next_buffer()
 
 static yy_state_type yy_get_previous_state()
 	{
-		register yy_state_type yy_current_state = yy_start;
+		yy_state_type yy_current_state = yy_start;
 	yy_state_ptr = yy_state_buf;
 	*yy_state_ptr++ = yy_current_state;
 
-	for ( register char* yy_cp = yytext_ptr + YY_MORE_ADJ; yy_cp < yy_c_buf_p; ++yy_cp )
+	for (char* yy_cp = yytext_ptr + YY_MORE_ADJ; yy_cp < yy_c_buf_p; ++yy_cp )
 		{
-		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
+			YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 			{
 			yy_current_state = (int) yy_def[yy_current_state];
@@ -1055,7 +1055,7 @@ static yy_state_type yy_try_NUL_trans( yy_current_state )
 yy_state_type yy_current_state;
 #endif
 	{
-		register YY_CHAR yy_c = 1;
+		YY_CHAR yy_c = 1;
 	while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 		{
 		yy_current_state = (int) yy_def[yy_current_state];
@@ -1063,7 +1063,7 @@ yy_state_type yy_current_state;
 			yy_c = yy_meta[(unsigned int) yy_c];
 		}
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
-		const register int yy_is_jam = (yy_current_state == 26);
+		const int yy_is_jam = (yy_current_state == 26);
 	if ( ! yy_is_jam )
 		*yy_state_ptr++ = yy_current_state;
 
@@ -1073,14 +1073,14 @@ yy_state_type yy_current_state;
 
 #ifndef YY_NO_UNPUT
 #ifdef YY_USE_PROTOS
-static void yyunput( int c, register char *yy_bp )
+static void yyunput( int c, char *yy_bp )
 #else
 static void yyunput( c, yy_bp )
 int c;
 register char *yy_bp;
 #endif
 	{
-	register char *yy_cp = yy_c_buf_p;
+		char *yy_cp = yy_c_buf_p;
 
 	/* undo effects of setting up yytext */
 	*yy_cp = yy_hold_char;
@@ -1088,10 +1088,10 @@ register char *yy_bp;
 	if ( yy_cp < yy_current_buffer->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		const register int number_to_move = yy_n_chars + 2;
-		register char *dest = &yy_current_buffer->yy_ch_buf[
+		const int number_to_move = yy_n_chars + 2;
+		char *dest = &yy_current_buffer->yy_ch_buf[
 					yy_current_buffer->yy_buf_size + 2];
-		register char *source =
+		char *source =
 				&yy_current_buffer->yy_ch_buf[number_to_move];
 
 		while ( source > yy_current_buffer->yy_ch_buf )
@@ -1237,7 +1237,7 @@ YY_BUFFER_STATE new_buffer;
 
 
 #ifdef YY_USE_PROTOS
-void yy_load_buffer_state( void )
+void yy_load_buffer_state()
 #else
 void yy_load_buffer_state()
 #endif

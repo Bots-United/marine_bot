@@ -786,7 +786,7 @@ int InFieldOfView(edict_t *pEdict, const Vector &dest)
 * checks the mod version to see if it's one of new versions ie. versions that include
 * a lot of differences that are imcompatible with previous version
 */
-bool UTIL_IsNewerVersion(void)
+bool UTIL_IsNewerVersion()
 {
 	if ((g_mod_version == FA_28) || (g_mod_version == FA_29) || (g_mod_version == FA_30))
 		return TRUE;
@@ -799,7 +799,7 @@ bool UTIL_IsNewerVersion(void)
 * checks the mod version to see if it's one of pre 2.6 versions ie. versions that don't
 * support edict->v.team and gl attachments are fired right when you press secondary fire etc.
 */
-bool UTIL_IsOldVersion(void)
+bool UTIL_IsOldVersion()
 {
 	if ((g_mod_version == FA_25) || (g_mod_version == FA_24))
 		return TRUE;

@@ -115,40 +115,40 @@ int fake_arg_count;
 bool read_whole_cfg = TRUE;				// allows to read the whole configuration file after map change
 bool using_default_cfg = TRUE;			// is FALSE when we changed to some map specific .cfg
 bool need_to_open_cfg = TRUE;
-float bot_cfg_pause_time = 0.0;
-float respawn_time = 0.0;
+float bot_cfg_pause_time = 0.0f;
+float respawn_time = 0.0f;
 bool spawn_time_reset = FALSE;
 int num_bots = 0;
 int prev_num_bots = 0;
 bool override_max_bots = FALSE;
 float f_update_wpt_time;				// allows us to update waypoints in real-time based on latest game events or changes made by the waypointer
-const float wpt_autosave_delay = 90.0;	// constant delay between two attempts to automatic waypoints save
-float wpt_autosave_time = 0.0;			// holds time of the next attempt to automatic waypoints save
+const float wpt_autosave_delay = 90.0f;	// constant delay between two attempts to automatic waypoints save
+float wpt_autosave_time = 0.0f;			// holds time of the next attempt to automatic waypoints save
 
 char presentation_msg[] = "This server runs Marine Bot in version";
-float check_send_info = 0.0;			// send message checks
-float presentation_time = 0.0;			// holds the time of last presentation
+float check_send_info = 0.0f;			// send message checks
+float presentation_time = 0.0f;			// holds the time of last presentation
 bool welcome_sent = FALSE;				// Marine Bot welcome messages (fancy HUD messages on Listen server and simple one sentence text to Dedicated server console)
 bool welcome2_sent = FALSE;
 bool welcome3_sent = FALSE;				// special that shows waypoints authors
 char welcome_msg[] = "reporting for duty!\nWrite \"help\" or \"?\" into console to show console help";
 char welcome2_msg[] = "Visit our web page at:\nhttp://www.marinebot.xf.cz";
-float welcome_time = 0.0;
+float welcome_time = 0.0f;
 bool error_occured = FALSE;				// TRUE when fatal error was found during initialization (missing .cfg file)
 bool warning_event = FALSE;				// TRUE when there was some non-fatal error found like missing waypoints
 bool override_reset = FALSE;			// to prevent resetting both flags (eg. there is error in DLLInit and we need to print it)
 char hud_error_msg[1024];				// the error/warning message that will be printed using Listen Server HUD message system
-float hud_error_msg_time = 0.0;			// holds the time the error message is printed
+float hud_error_msg_time = 0.0f;			// holds the time the error message is printed
 
 
 // few function prototypes used in this file
-void GameDLLInit(void);
+void GameDLLInit();
 void UpdateClientData(const struct edict_s *ent, int sendweapons, struct clientdata_s *cd);
 void ProcessBotCfgFile(Section *conf);		// for new config system by Andrey Kotrekhov
-void MBServerCommand(void);		// Dedicated server console commands
+void MBServerCommand();		// Dedicated server console commands
 
 
-void GameDLLInit(void)
+void GameDLLInit()
 {
 	int i;
 
@@ -396,15 +396,15 @@ int DispatchSpawn( edict_t *pent )
 				internals.SetEnemyDistanceLimit(3000);
 			}
 
-			bot_cfg_pause_time = 0.0;
-			respawn_time = 0.0;
+			bot_cfg_pause_time = 0.0f;
+			respawn_time = 0.0f;
 			spawn_time_reset = FALSE;
 
 			prev_num_bots = num_bots;
 			num_bots = 0;
 			override_max_bots = FALSE;
 
-			botmanager.SetBotCheckTime(gpGlobals->time + 30.0);
+			botmanager.SetBotCheckTime(gpGlobals->time + 30.0f);
 		}
 	}
 
@@ -498,7 +498,7 @@ void RestoreGlobalState( SAVERESTOREDATA *pSaveData )
 	(*other_gFunctionTable.pfnRestoreGlobalState)(pSaveData);
 }
 
-void ResetGlobalState( void )
+void ResetGlobalState()
 {
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"ResetGlobalState:\n"); fclose(fp); }
 	(*other_gFunctionTable.pfnResetGlobalState)();
@@ -780,7 +780,7 @@ void ServerActivate( edict_t *pEdictList, int edictCount, int clientMax )
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp,"ServerActivate(engine-returned): edictCount%d clientMax%d\n", edictCount, clientMax); fclose(fp); }
 }
 
-void ServerDeactivate( void )
+void ServerDeactivate()
 {
 	(*other_gFunctionTable.pfnServerDeactivate)();
 }
@@ -795,14 +795,14 @@ void PlayerPostThink( edict_t *pEntity )
 	(*other_gFunctionTable.pfnPlayerPostThink)(pEntity);
 }
 
-void StartFrame( void )
+void StartFrame()
 {
 	if (gpGlobals->deathmatch)
 	{
 		edict_t *pPlayer;
 		static int i, index, player_index, bot_index;
-		static float previous_time = -1.0;
-		static float client_update_time = 0.0;
+		static float previous_time = -1.0f;
+		static float client_update_time = 0.0f;
 		clientdata_s cd;
 		char msg[256];
 		int count;
@@ -905,7 +905,7 @@ void StartFrame( void )
 						{
 							bots[index].is_used = FALSE;
 							bots[index].respawn_state = 0;
-							bots[index].kick_time = 0.0;
+							bots[index].kick_time = 0.0f;
 						}
 						
 						if (bots[index].is_used)  // is this slot used?
@@ -915,27 +915,27 @@ void StartFrame( void )
 						}
 
 						// check for any bots that were very recently kicked...
-						if ((bots[index].kick_time + 5.0) > previous_time)
+						if ((bots[index].kick_time + 5.0f) > previous_time)
 						{
 							bots[index].respawn_state = RESPAWN_NEED_TO_RESPAWN;
 							count++;
 						}
 						else
-							bots[index].kick_time = 0.0;  // reset to prevent false spawns later
+							bots[index].kick_time = 0.0f;  // reset to prevent false spawns later
 					}
 				}
 			}
 
 			// set the respawn time
 			if (is_dedicated_server)
-				respawn_time = gpGlobals->time + 5.0;
+				respawn_time = gpGlobals->time + 5.0f;
 			else
-				respawn_time = gpGlobals->time + 20.0;
+				respawn_time = gpGlobals->time + 20.0f;
 			
 			// start updating client data again
-			client_update_time = gpGlobals->time + 10.0;
+			client_update_time = gpGlobals->time + 10.0f;
 
-			botmanager.SetBotCheckTime(gpGlobals->time + 30.0);
+			botmanager.SetBotCheckTime(gpGlobals->time + 30.0f);
 		}
 
 		// listen server
@@ -1188,7 +1188,7 @@ void StartFrame( void )
 		{
 			UpdateWaypointData();
 			
-			f_update_wpt_time = gpGlobals->time + 2.0;
+			f_update_wpt_time = gpGlobals->time + 2.0f;
 		}
 
 		// look if team balance is needed and is it time for it
@@ -1201,13 +1201,13 @@ void StartFrame( void )
 
 			// is still balancing teams in progress
 			if (balance_in_progress == 0)
-				respawn_time = gpGlobals->time + 2.0;
+				respawn_time = gpGlobals->time + 7.0f;
 			else
-				respawn_time = 0.0;
+				respawn_time = 3.0f;
 		}
 
 		// are we currently respawning bots and is it time to spawn one yet?
-		if ((respawn_time > 1.0) && (respawn_time <= gpGlobals->time))
+		if ((respawn_time > 1.0f) && (respawn_time <= gpGlobals->time))
 		{
 			int index = 0;
 
@@ -1252,12 +1252,12 @@ void StartFrame( void )
 					bots[index].aim_skill = aim_skill;
 				}
 
-				respawn_time = gpGlobals->time + 0.5;  // set next respawn time
-				botmanager.SetBotCheckTime(gpGlobals->time + 0.5);		// time to next adding
+				respawn_time = gpGlobals->time + 0.5f;  // set next respawn time
+				botmanager.SetBotCheckTime(gpGlobals->time + 0.5f);		// time to next adding
 			}
 			else
 			{
-				respawn_time = 0.0;
+				respawn_time = 0.0f;
 			}
 		}
 
@@ -1271,11 +1271,11 @@ void StartFrame( void )
 				need_to_open_cfg = FALSE;  // only do this once!!!
 
 				// if there is some previous conf then flush it
-				if (::conf != nullptr)
+				if (conf != nullptr)
 				{
-					delete ::conf;
+					delete conf;
 				}
-				::conf = nullptr;
+				conf = nullptr;
 
 				// allows us to read the whole configuration file
 				read_whole_cfg = TRUE;
@@ -1333,9 +1333,9 @@ void StartFrame( void )
 
 				// set the respawn time again, just for sure
 				if (is_dedicated_server)
-					bot_cfg_pause_time = gpGlobals->time + 5.0;
+					bot_cfg_pause_time = gpGlobals->time + 5.0f;
 				else
-					bot_cfg_pause_time = gpGlobals->time + 20.0;
+					bot_cfg_pause_time = gpGlobals->time + 20.0f;
 			}
 
 			if (!is_dedicated_server && !spawn_time_reset)
@@ -1346,17 +1346,17 @@ void StartFrame( void )
 					{
 						spawn_time_reset = TRUE;
 #ifdef __linux__
-						if (respawn_time >= 1.0)
-							respawn_time = std::min(respawn_time, gpGlobals->time + (float)1.0);
+						if (respawn_time >= 1.0f)
+							respawn_time = std::min(respawn_time, gpGlobals->time + 1.0f);
 
-						if (bot_cfg_pause_time >= 1.0)
-							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
+						if (bot_cfg_pause_time >= 1.0f)
+							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + 1.0f);
 #elif _WIN32
-						if (respawn_time >= 1.0)
-							respawn_time = min(respawn_time, gpGlobals->time + (float)1.0);
+						if (respawn_time >= 1.0f)
+							respawn_time = min(respawn_time, gpGlobals->time + 1.0f);
 
-						if (bot_cfg_pause_time >= 1.0)
-							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + (float)1.0);
+						if (bot_cfg_pause_time >= 1.0f)
+							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + 1.0f);
 #endif
 					}
 				}
@@ -1364,7 +1364,7 @@ void StartFrame( void )
 
 			// for new config system by Andrey Kotrekhov
 			if ((conf != nullptr) &&
-				(bot_cfg_pause_time >= 1.0) && (bot_cfg_pause_time <= gpGlobals->time))
+				(bot_cfg_pause_time >= 1.0f) && (bot_cfg_pause_time <= gpGlobals->time))
 			{
 				// process bot.cfg file options
 				ProcessBotCfgFile(conf);
@@ -1374,7 +1374,7 @@ void StartFrame( void )
 		// check if it is DS and if it is time to see if a bot needs to be created or kicked
 		if ((is_dedicated_server) && (botmanager.GetBotCheckTime() < gpGlobals->time))
 		{			
-			botmanager.SetBotCheckTime(gpGlobals->time + 1.5);	// time to next check
+			botmanager.SetBotCheckTime(gpGlobals->time + 1.5f);	// time to next check
 
 			// if there are currently LESS than the maximum number of "players"
 			// then add another bot using the default skill level...
@@ -1694,21 +1694,21 @@ void StartFrame( void )
 	(*other_gFunctionTable.pfnStartFrame)();
 }
 
-void ParmsNewLevel( void )
+void ParmsNewLevel()
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ParmsNewLevel\n"); fclose(fp); }
 
 	(*other_gFunctionTable.pfnParmsNewLevel)();
 }
 
-void ParmsChangeLevel( void )
+void ParmsChangeLevel()
 {
 	if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "ParmsChangeLevel\n"); fclose(fp); }
 
 	(*other_gFunctionTable.pfnParmsChangeLevel)();
 }
 
-const char *GetGameDescription( void )
+const char *GetGameDescription()
 {
 	// prepare development debugging file
 	if (debug_fname[0] == '\0')
@@ -1827,7 +1827,7 @@ void CreateBaseline( int player, int eindex, struct entity_state_s *baseline, st
 	(*other_gFunctionTable.pfnCreateBaseline)(player, eindex, baseline, entity, playermodelindex, player_mins, player_maxs);
 }
 
-void RegisterEncoders( void )
+void RegisterEncoders()
 {
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "RegisterEncoders: \n"); fclose(fp); }
 
@@ -1869,7 +1869,7 @@ int GetHullBounds( int hullnumber, float *mins, float *maxs )
 	return (*other_gFunctionTable.pfnGetHullBounds)(hullnumber, mins, maxs);
 }
 
-void CreateInstancedBaselines( void )
+void CreateInstancedBaselines()
 {
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "CreateInstancedBaselines: \n"); fclose(fp); }
 
@@ -1885,7 +1885,7 @@ int InconsistentFile( const edict_t *player, const char *filename, char *disconn
 	return (*other_gFunctionTable.pfnInconsistentFile)(player, filename, disconnect_message);
 }
 
-int AllowLagCompensation( void )
+int AllowLagCompensation()
 {
 	//if (debug_engine) { fp=fopen(debug_fname,"a"); fprintf(fp, "AllowLagCompensation: \n"); fclose(fp); }
 
@@ -2046,7 +2046,7 @@ void FakeClientCommand(edict_t *pBot, char *arg1, char *arg2, char *arg3)
 	isFakeClientCommand = 0;
 }
 
-const char *Cmd_Args( void )
+const char *Cmd_Args()
 {
 	if (isFakeClientCommand)
 	{
@@ -2095,7 +2095,7 @@ const char *Cmd_Argv( int argc )
 }
 
 
-int Cmd_Argc( void )
+int Cmd_Argc()
 {
 	if (isFakeClientCommand)
 	{
@@ -2488,7 +2488,7 @@ void ProcessBotCfgFile(Section *conf)
 		PrintOutput(NULL, "ProcessBotCfgFile() - no bots to be auto spawned - skipping recruit section\n", MType::msg_null);
 #endif
 		// we don't want to run this method all the time
-		bot_cfg_pause_time = 0.0;
+		bot_cfg_pause_time = 0.0f;
 
 		return;
 	}
@@ -2501,7 +2501,7 @@ void ProcessBotCfgFile(Section *conf)
 		//UTIL_DebugInFile("ProcessBotCfgFile() - number of clients on the server >= max_bots - skipping recruit section\n");
 #endif
 		// we don't want to run this method all the time
-		bot_cfg_pause_time = 0.0;
+		bot_cfg_pause_time = 0.0f;
 
 		return;
 	}
@@ -2528,7 +2528,7 @@ void ProcessBotCfgFile(Section *conf)
 			if (recruit_sect_i == recruit_sect->sectionList.end())
 			{
 				//we added last bot
-				bot_cfg_pause_time = 0.0;
+				bot_cfg_pause_time = 0.0f;
 				break;
 			}
 
@@ -2563,8 +2563,8 @@ void ProcessBotCfgFile(Section *conf)
 
 				BotCreate(nullptr, arg1, arg2, arg3, arg4, arg5 );
 				
-				bot_cfg_pause_time = gpGlobals->time + 2.0;
-				botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+				bot_cfg_pause_time = gpGlobals->time + 2.0f;
+				botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 
 				break;
 			}
@@ -2575,7 +2575,7 @@ void ProcessBotCfgFile(Section *conf)
 
 
 // handles MB Dedicated Server Commands
-void MBServerCommand(void)
+void MBServerCommand()
 {
 	char msg[256];
 

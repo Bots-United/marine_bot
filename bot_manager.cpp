@@ -95,7 +95,7 @@ internals_t::internals_t()
 }
 
 // allows setting defaults on map change
-void internals_t::ResetOnMapChange(void)
+void internals_t::ResetOnMapChange()
 {
 	ResetIsEnemyDistanceLimit();
 	ResetEnemyDistanceLimit();
