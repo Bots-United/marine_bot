@@ -8,8 +8,8 @@
 *.pdb
 *.so
 *.tlog
-.vs\*
-Release\*
+.vs/*
+Release/*
 bot.PVS-Studio.i
 bot.cpp.PVS-Studio.cfg
 bot.cpp.PVS-Studio.cmd
