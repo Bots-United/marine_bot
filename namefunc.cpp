@@ -298,7 +298,7 @@ void LoadSymbols(char *filename)
          return;
       }
 
-      if (strcmp((char *)section_header.Name, ".edata") == 0)
+      if (strcmp(reinterpret_cast<char*>(section_header.Name), ".edata") == 0)
       {
          edata_found = TRUE;
          break;
@@ -424,7 +424,7 @@ void LoadSymbols(char *filename)
          {
             FgetString(function_name, bfp);
 
-            if ((p_FunctionNames[i] = (char *)malloc(strlen(function_name)+1)) == nullptr)
+            if ((p_FunctionNames[i] = static_cast<char*>(malloc(strlen(function_name) + 1))) == nullptr)
                error = TRUE;
             else
                getMSVCName(p_FunctionNames[i], function_name);
@@ -451,7 +451,7 @@ void LoadSymbols(char *filename)
          index = p_Ordinals[i];
 
          game_GiveFnptrsToDll = (void *)GetProcAddress(h_Library, "GiveFnptrsToDll");
-         base_offset = (unsigned long)(game_GiveFnptrsToDll) - p_Functions[index];
+         base_offset = reinterpret_cast<unsigned long>(game_GiveFnptrsToDll) - p_Functions[index];
 
          break;
       }

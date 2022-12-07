@@ -728,7 +728,7 @@ void pfnMessageBegin(int msg_dest, int msg_type, const float *pOrigin, edict_t *
 
 						// ugly technique to handle this message
 						if (botMsgFunction)
-							(*botMsgFunction)((void *)nullptr, botMsgIndex);
+							(*botMsgFunction)(static_cast<void*>(nullptr), botMsgIndex);
 					}
 					else if (msg_type == message_BrokenLeg)	// code for FA 2.65 and versions below
 						botMsgFunction = BotClient_FA_BrokenLeg;
@@ -796,7 +796,7 @@ void pfnWriteByte(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteByte)(iValue);
@@ -809,7 +809,7 @@ void pfnWriteChar(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteChar)(iValue);
@@ -822,7 +822,7 @@ void pfnWriteShort(int iValue)
 
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteShort)(iValue);
@@ -835,7 +835,7 @@ void pfnWriteLong(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteLong)(iValue);
@@ -848,7 +848,7 @@ void pfnWriteAngle(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&flValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&flValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteAngle)(flValue);
@@ -861,7 +861,7 @@ void pfnWriteCoord(float flValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&flValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&flValue), botMsgIndex);
 	}
 
 	(*g_engfuncs.pfnWriteCoord)(flValue);
@@ -887,7 +887,7 @@ void pfnWriteEntity(int iValue)
 		
 		// if this message is for a bot, call the client message function...
 		if (botMsgFunction)
-			(*botMsgFunction)((void *)&iValue, botMsgIndex);
+			(*botMsgFunction)(static_cast<void*>(&iValue), botMsgIndex);
 	}
 	
 	(*g_engfuncs.pfnWriteEntity)(iValue);
@@ -1192,7 +1192,7 @@ void pfnSetView(const edict_t *pClient, const edict_t *pViewent )
 
 	if (pClient != nullptr)
 	{
-		if (UTIL_GetBotIndex((edict_t *)pClient) != -1)
+		if (UTIL_GetBotIndex(const_cast<edict_t*>(pClient)) != -1)
 		{
 			//fp=fopen(debug_fname,"a");
 			//fprintf(fp,"pfnSetView(): pClient is NOT a real human player. It could be a BOT -> not passing!\n");
@@ -1273,7 +1273,7 @@ void pfnSetClientMaxspeed(const edict_t *pEdict, float fNewMaxspeed)
    {
       if (mod_id == FIREARMS_DLL)
       {
-	      int index = UTIL_GetBotIndex((edict_t*)pEdict);
+	      int index = UTIL_GetBotIndex(const_cast<edict_t*>(pEdict));
 
 		  // is this edict a bot?
 		  if (index != -1)

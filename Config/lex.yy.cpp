@@ -41,7 +41,7 @@
 
 #ifdef __cplusplus
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 
 /* Use prototypes in function declarations. */

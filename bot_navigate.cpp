@@ -94,7 +94,7 @@ float BotChangePitch( bot_t *pBot, float speed )
 	}
 
 	// find the difference in the current and ideal angle
-	const float diff = fabs((double)current - ideal);
+	const float diff = fabs(static_cast<double>(current) - ideal);
 
 	// check if the bot is already facing the idealpitch direction
 	if (diff <= 1)
@@ -195,7 +195,7 @@ float BotChangeYaw( bot_t *pBot, float speed )
 		// (ie the direction player looked when he used "bipod" command)
 
 		// is bot trying to turn more than bipod allows
-		if (fabs((double) pEdict->v.vuser1.y - current) > bipod_limit)
+		if (fabs(static_cast<double>(pEdict->v.vuser1.y) - current) > bipod_limit)
 		{
 			current = pEdict->v.vuser1.y;
 		}
@@ -208,7 +208,7 @@ float BotChangeYaw( bot_t *pBot, float speed )
 		speed = speed - speed_tweak;
 	}
 
-	const float diff = fabs((double)current - ideal);
+	const float diff = fabs(static_cast<double>(current) - ideal);
 
 	// the bot is basically facing the direction we wanted so we can remove the flag
 	if (diff < 4)
@@ -849,7 +849,7 @@ int BotOnPath(bot_t *pBot)
 		// while bot needs to do bigger turning at current wpt
 		// (ie if new waypoint is NOT in his view cone)
 		if (FInViewCone(&pBot->wpt_origin, pBot->pEdict) == FALSE)
-			pBot->f_face_wpt = gpGlobals->time + 0.6;
+			pBot->f_face_wpt = gpGlobals->time + 0.6f;
 
 		// set correct behaviour based on the path flags
 		AssignPathBasedBehaviour(pBot, path_next_wpt);
@@ -914,7 +914,7 @@ bool BotFindWaypoint(bot_t *pBot, bool ladder)
 
 		// is new wpt NOT in view cone so set some time to allow bigger turn
 		if (FInViewCone(&pBot->wpt_origin, pBot->pEdict) == FALSE)
-			pBot->f_face_wpt = gpGlobals->time + 0.6;
+			pBot->f_face_wpt = gpGlobals->time + 0.6f;
 
 		return TRUE;
 	}
@@ -1127,7 +1127,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		past_the_wpt = FALSE;
 
 		// and that he is facing his current waypoint by resetting the time
-		pBot->f_face_wpt = gpGlobals->time - 1.0;
+		pBot->f_face_wpt = gpGlobals->time - 1.0f;
 	}
 	// otherwise the bot is still heading towards his waypoint so he must keep checking his current position and
 	// compare it to waypoint position
@@ -1302,7 +1302,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		if ((pBot->f_face_wpt > gpGlobals->time) && (wpt_distance2D <= wpt_range))
 		{
 			// "reset" it
-			pBot->f_face_wpt = gpGlobals->time - 1.0;
+			pBot->f_face_wpt = gpGlobals->time - 1.0f;
 
 #ifdef _DEBUG
 			// this isn't meant to be public message
@@ -1417,10 +1417,10 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			if (pBot->IsTask(TASK_PARACHUTE))
 			{
 				// prevent running wpt search code for next few seconds
-				pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 2.5;
+				pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 2.5f;
 
 				if (pBot->chute_action_time < gpGlobals->time)
-					pBot->chute_action_time = gpGlobals->time + 0.7;	// some time to jump out
+					pBot->chute_action_time = gpGlobals->time + 0.7f;	// some time to jump out
 			}
 			else if (!pBot->IsTask(TASK_PARACHUTE) && (pBot->chute_action_time < gpGlobals->time))
 			{
@@ -1477,7 +1477,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				HudNotify(dm);
 #endif
 				
-				pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0;// 5.0; <- prev code
+				pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0f;// 5.0; <- prev code
 				pBot->RemoveSubTask(ST_DOOR_OPEN);
 				
 				// is the bot at first door wpt (i.e. not past door yet)?
@@ -1523,7 +1523,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 							waypoint_found = TRUE;
 							pBot->SetNeed(NEED_NEXTWPT);
 
-							pBot->wpt_wait_time = gpGlobals->time + 1.0;
+							pBot->wpt_wait_time = gpGlobals->time + 1.0f;
 							pBot->SetSubTask(ST_DOOR_OPEN);
 							
 							break;
@@ -1601,7 +1601,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 					//pEdict->v.button |= IN_DUCK;												NEW CODE 094 (prev code)
 					SetStance(pBot, GOTO_CROUCH, "bot_navig.cpp|HeadToWpt() -> GOTO crouch @ DUCKJUMP WPT");//	NEW CODE 094
 
-					pBot->f_duckjump_time = gpGlobals->time + 1.0;
+					pBot->f_duckjump_time = gpGlobals->time + 1.0f;
 				}
 			}
 		}
@@ -1610,8 +1610,8 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 		if (waypoints[pBot->curr_wpt_index].flags & W_FL_LADDER)
 		{
 			// prevent unwanted actions (like turn away from wall etc.)
-			pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0;
-			pBot->SetDontCheckStuck("Bot HeadTowardsWpt() -> LADDER waypoint", 0.5);
+			pBot->f_dont_avoid_wall_time = gpGlobals->time + 2.0f;
+			pBot->SetDontCheckStuck("Bot HeadTowardsWpt() -> LADDER waypoint", 0.5f);
 		}
 
 		// is this wpt a claymore waypoint AND have NOT been "used" yet AND
@@ -1647,7 +1647,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 				if ((WaypointGetPriority(pBot->curr_wpt_index, pBot->bot_team) == 1) || (RANDOM_LONG(1, 100) > 50))
 				{
 					// set some wait time
-					pBot->wpt_wait_time = gpGlobals->time +	5.0;
+					pBot->wpt_wait_time = gpGlobals->time +	5.0f;
 
 					// make the bot place the mine in correct direction 'Front Toward Enemy' :)
 					pBot->ResetAims("HeadTowardWpt() -> CLAYMORE wpt");
@@ -1861,7 +1861,7 @@ bool BotHeadTowardWaypoint( bot_t *pBot )
 			if (waypoints[pBot->prev_wpt_index.get()].flags & W_FL_GOBACK)
 			{
 				// to allow 180 degree turning
-				pBot->f_face_wpt = gpGlobals->time + 0.6;
+				pBot->f_face_wpt = gpGlobals->time + 0.6f;
 			}
 
 			// NOTE: DON'T DELETE THIS
@@ -2280,8 +2280,8 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 				else
 				{
 					// do strafe to the right then
-					pBot->f_strafe_direction = 1.0;
-					pBot->f_strafe_time = gpGlobals->time + 0.1;
+					pBot->f_strafe_direction = 1.0f;
+					pBot->f_strafe_time = gpGlobals->time + 0.1f;
 					
 					
 					//@@@@@@@@@
@@ -2295,8 +2295,8 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 			else
 			{
 				// do strafe to the left then
-				pBot->f_strafe_direction = -1.0;
-				pBot->f_strafe_time = gpGlobals->time + 0.1;
+				pBot->f_strafe_direction = -1.0f;
+				pBot->f_strafe_time = gpGlobals->time + 0.1f;
 
 
 				//@@@@@@@@@
@@ -2337,7 +2337,7 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 	// did the bot find the end of ladder if so get the distance to the end
 	if (pBot->end_wpt_index != -1)
 	{
-		end_wpt_distance = fabs((double) pEdict->v.origin.z - waypoints[pBot->end_wpt_index].origin.z);
+		end_wpt_distance = fabs(static_cast<double>(pEdict->v.origin.z) - waypoints[pBot->end_wpt_index].origin.z);
 	}
 	// otherwise try get back to prev wpt
 	else
@@ -2350,7 +2350,7 @@ bool BotHandleLadder(bot_t *pBot, float moved_distance)
 	}
 
 	// if bot is close to the end of ladder
-	if ((end_wpt_distance > 0.0) && (end_wpt_distance <= 10.0))
+	if ((end_wpt_distance > 0.0) && (end_wpt_distance <= 10.0f))
 		pBot->waypoint_top_of_ladder = TRUE;
 	// otherwise bot didn't reached ladder end yet
 	else
@@ -2924,10 +2924,10 @@ void BotEvadeClaymore(bot_t *pBot)
 #endif
 
 				pEdict->v.button |= IN_JUMP;
-				pBot->f_duckjump_time = gpGlobals->time + 0.5;	// duckjump is the safer way over it
+				pBot->f_duckjump_time = gpGlobals->time + 0.5f;	// duckjump is the safer way over it
 				pBot->SetSubTask(ST_EVASIONSTARTED);
 
-				float curr_wpt_range = 9999.0;
+				float curr_wpt_range = 9999.0f;
 
 				if (pBot->curr_wpt_index != -1)
 					curr_wpt_range = waypoints[pBot->curr_wpt_index].range;
@@ -3382,10 +3382,10 @@ void BotTurnAtWall( bot_t *pBot, TraceResult *tr )
    // D1 and D2 are the difference (in degrees) between the bot's current
    // angle and Y1 or Y2 (respectively).
 
-   float D1 = fabs((double)Y - Y1);
-   if (D1 > 179) D1 = fabs((double) D1 - 360);
-   float D2 = fabs((double)Y - Y2);
-   if (D2 > 179) D2 = fabs((double) D2 - 360);
+   float D1 = fabs(static_cast<double>(Y) - Y1);
+   if (D1 > 179) D1 = fabs(static_cast<double>(D1) - 360);
+   float D2 = fabs(static_cast<double>(Y) - Y2);
+   if (D2 > 179) D2 = fabs(static_cast<double>(D2) - 360);
 
    // If difference 1 (D1) is more than difference 2 (D2) then the bot will
    // have to turn LESS if it heads in direction Y1 otherwise, head in

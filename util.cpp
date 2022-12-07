@@ -772,7 +772,7 @@ int InFieldOfView(edict_t *pEdict, const Vector &dest)
 	// 45 degrees to the right is the limit of the normal view angle
 	
 	// rsm - START angle bug fix
-	int angle = abs((int)view_angle - (int)entity_angles.y);
+	int angle = abs(static_cast<int>(view_angle) - static_cast<int>(entity_angles.y));
 	
 	if (angle > 180)
 		angle = 360 - angle;
@@ -3178,16 +3178,16 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 		
 		// we need more space for the whole body ... without this the bot would still hit the obstacle
 		// (basically add the body size to the range)
-		the_range += (float) 15;
+		the_range += static_cast<float>(15);
 
 		edict_t *pent = nullptr;
 		// the distance we will move the waypoint origin
-		const float move_d = (float) 10;
+		const float move_d = static_cast<float>(10);
 		// value used to decrease the range
-		const float dec_r = (float) 10;
+		const float dec_r = static_cast<float>(10);
 		
 		// first check for some important entities around the waypoint
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != nullptr)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, static_cast<float>(30))) != nullptr)
 		{
 			// if there are bandages right next to the waypoint then do not reposition it
 			if ((strcmp(STRING(pent->v.classname), "item_bandage") == 0))
@@ -3201,7 +3201,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 				(strcmp(STRING(pent->v.classname), "momentary_door") == 0))
 			{
 				waypoints[wpt_index].flags |= W_FL_DOOR;
-				waypoints[wpt_index].range = (float) 20;
+				waypoints[wpt_index].range = static_cast<float>(20);
 				
 				cant_move = true;
 			}
@@ -3236,7 +3236,7 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 		
 		// remove the body size addition, but don't go under range == 5
 		if (the_range >= 20)
-			the_range -= (float) 15;
+			the_range -= static_cast<float>(15);
 		
 		// and set the tweaked range now
 		waypoints[wpt_index].range = the_range;
@@ -3252,24 +3252,24 @@ bool UTIL_RepairWaypointRangeandPosition(int wpt_index, edict_t *pEdict, bool do
 		}
 		
 		// check for door entity and make the waypoint a door waypoint if it is right in the doorway
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 30)) != nullptr)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, static_cast<float>(30))) != nullptr)
 		{
 			if ((strcmp(STRING(pent->v.classname), "func_door") == 0) ||
 				(strcmp(STRING(pent->v.classname), "func_door_rotating") == 0) ||
 				(strcmp(STRING(pent->v.classname), "momentary_door") == 0))
 			{
 				waypoints[wpt_index].flags |= W_FL_DOOR;
-				waypoints[wpt_index].range = (float) 20;
+				waypoints[wpt_index].range = static_cast<float>(20);
 			}
 		}
 		
-		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, (float) 50)) != nullptr)
+		while ((pent = UTIL_FindEntityInSphere(pent, waypoints[wpt_index].origin, static_cast<float>(50))) != nullptr)
 		{
 			if (strcmp(STRING(pent->v.classname), "ammobox") == 0)
 			{
 				waypoints[wpt_index].flags |= W_FL_AMMOBOX;
-				if (the_range > (float) 20)
-					waypoints[wpt_index].range = (float) 20;
+				if (the_range > static_cast<float>(20))
+					waypoints[wpt_index].range = static_cast<float>(20);
 			}
 		}
 
@@ -3537,7 +3537,7 @@ bool UTIL_CheckForUsablesAround(bot_t *pBot)
 			//		based on the difference of current view angle and angle to item
 
 			// set some time to face the item
-			pBot->f_face_item_time = gpGlobals->time + 0.5;
+			pBot->f_face_item_time = gpGlobals->time + 0.5f;
 
 			// no need to continue in searching
 			return true;
@@ -3574,7 +3574,7 @@ bool UTIL_CheckForUsablesAround(bot_t *pBot)
 
 			// NOTE: Same as above, it should be changed to more complex time setting
 			//		based on the difference of current view angle and angle to item
-			pBot->f_face_item_time = gpGlobals->time + 0.5;
+			pBot->f_face_item_time = gpGlobals->time + 0.5f;
 
 			return true;
 		}
@@ -3686,8 +3686,8 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 			BotFixIdealYaw(pEdict);
 
 			// don't look for new waypoint and keep track of current waypoint
-			pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 2.0;
-			pBot->f_waypoint_time = gpGlobals->time + 2.5;
+			pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 2.0f;
+			pBot->f_waypoint_time = gpGlobals->time + 2.5f;
 
 			// set the healing flag
 			pBot->SetTask(TASK_HEALHIM);
@@ -3696,7 +3696,7 @@ bool UTIL_IsAnyMedic(bot_t *pBot, edict_t *pWounded, bool passive)
 			pBot->SetSubTask(ST_TREAT);
 
 			// reset wait time
-			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
+			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1f;
 
 			// use text message to notify your patient
 			pBot->BotSpeak(SAY_MEDIC_HELP_YOU, STRING(pWounded->v.netname));
@@ -3774,8 +3774,8 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 			pEdict->v.ideal_yaw = wounded_angles.y;
 			BotFixIdealYaw(pEdict);
 
-			pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 1.0;
-			pBot->f_waypoint_time = gpGlobals->time + 1.0;
+			pBot->f_dont_look_for_waypoint_time = gpGlobals->time + 1.0f;
+			pBot->f_waypoint_time = gpGlobals->time + 1.0f;
 
 			pBot->pBotEnemy = pWounded;
 			pBot->f_bot_see_enemy_time = gpGlobals->time;
@@ -3783,7 +3783,7 @@ bool UTIL_CanMedEvac(bot_t *pBot, edict_t *pWounded)
 			pBot->SetTask(TASK_HEALHIM);
 			pBot->SetTask(TASK_MEDEVAC);
 
-			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
+			pBot->f_bot_wait_for_enemy_time = gpGlobals->time - 0.1f;
 
 			return TRUE;
 		}

@@ -330,12 +330,12 @@ void bot_t::BotSpawnInit()
 	sniping_time = 0.0;
 
 	SetTask(TASK_CHECKAMMO);		// set this task so the bot has to check it right after spawn
-	check_ammunition_time = gpGlobals->time + 2.0;	// don't check it during spawning
+	check_ammunition_time = gpGlobals->time + 2.0f;	// don't check it during spawning
 
 	f_combat_advance_time = gpGlobals->time;
 	f_overide_advance_time = gpGlobals->time;
 	f_check_stance_time = gpGlobals->time;
-	f_stance_changed_time = 0.0;
+	f_stance_changed_time = 0.0f;
 
 	memset(&(current_weapon), 0, sizeof(current_weapon));
 	memset(&(curr_rgAmmo), 0, sizeof(curr_rgAmmo));// array of current amount of mags
@@ -705,7 +705,7 @@ bool IsEntityInSphere(const char* entity_name, edict_t *pEdict, float radius)
 /*
 * returns true if the target object is fully visible
 */
-bool BotEntityIsVisible( bot_t *pBot, Vector dest )
+bool BotEntityIsVisible( bot_t *pBot, const Vector dest )
 {
 	TraceResult tr;
 	
@@ -714,7 +714,7 @@ bool BotEntityIsVisible( bot_t *pBot, Vector dest )
 		dest, ignore_monsters, pBot->pEdict, &tr );
 	
 	// check if line of sight to object is not blocked (i.e. visible)
-	if (tr.flFraction >= 1.0)
+	if (tr.flFraction >= 1.0f)
 		return TRUE;
 	else
 		return FALSE;
@@ -886,11 +886,11 @@ void bot_t::BotSpeak(int msg_type, const char *target)
 		return;
 
 	// we don't want to spam the game
-	if ((text_msg_time + 1.0 > gpGlobals->time) || (speak_time + 1.0 > gpGlobals->time))
+	if ((text_msg_time + 1.0f > gpGlobals->time) || (speak_time + 1.0f > gpGlobals->time))
 		return;
 
 	// if the bot said exactly this message in last 3 seconds then don't say it again
-	if ((prev_msg == msg_type) && (text_msg_time + 3.0 > gpGlobals->time))
+	if ((prev_msg == msg_type) && (text_msg_time + 3.0f > gpGlobals->time))
 		return;
 
 	// store the time the bot said something
@@ -921,13 +921,13 @@ void bot_t::BotSpeak(int msg_type, const char *target)
 			else
 				UTIL_TeamSay(pEdict, "There's a mine at my position. Watch out!");
 			// to prevent spamming the game
-			text_msg_time = gpGlobals->time + 1.0;
+			text_msg_time = gpGlobals->time + 1.0f;
 			break;
 		case SAY_MEDIC_HELP_YOU:
 			UTIL_HumanizeTheName(target, name);
 			sprintf(msg, "Hey, %s, stay still and I'll treat you", name);
 			UTIL_TeamSay(pEdict, msg);
-			text_msg_time = gpGlobals->time + 1.0;
+			text_msg_time = gpGlobals->time + 1.0f;
 			break;
 		case SAY_MEDIC_CANT_HELP:
 			UTIL_HumanizeTheName(target, name);
@@ -936,7 +936,7 @@ void bot_t::BotSpeak(int msg_type, const char *target)
 			else
 				sprintf(msg, "I can't help you %s", name);
 			UTIL_TeamSay(pEdict, msg);
-			text_msg_time = gpGlobals->time + 1.0;
+			text_msg_time = gpGlobals->time + 1.0f;
 			break;
 		case SAY_CEASE_FIRE:
 			UTIL_HumanizeTheName(target, name);
@@ -945,7 +945,7 @@ void bot_t::BotSpeak(int msg_type, const char *target)
 			else
 				sprintf(msg, "Hey, %s, cease fire!", name);
 			UTIL_TeamSay(pEdict, msg);
-			text_msg_time = gpGlobals->time + 1.0;
+			text_msg_time = gpGlobals->time + 1.0f;
 			break;
 		default:
 			break;
@@ -1077,10 +1077,10 @@ void bot_t::BotDoMedEvac(float distance)
 		bot_z = pEdict->v.origin.z + pEdict->v.view_ofs.z;
 		corpse_z = pCorpse->v.origin.z;
 		
-		pEdict->v.v_angle.x = fabs((double) corpse_z - bot_z);
+		pEdict->v.v_angle.x = fabs(static_cast<double>(corpse_z) - bot_z);
 
 		SetSubTask(ST_MEDEVAC_ST);
-		f_medic_treat_time = gpGlobals->time + 0.5;
+		f_medic_treat_time = gpGlobals->time + 0.5f;
 
 		return;
 	}
@@ -1093,10 +1093,10 @@ void bot_t::BotDoMedEvac(float distance)
 		bot_z = pEdict->v.origin.z + pEdict->v.view_ofs.z;
 		corpse_z = pCorpse->v.origin.z + pCorpse->v.view_ofs.z;
 		
-		pEdict->v.v_angle.x = fabs((double) corpse_z - bot_z);
+		pEdict->v.v_angle.x = fabs(static_cast<double>(corpse_z) - bot_z);
 
 		SetSubTask(ST_MEDEVAC_H);
-		f_medic_treat_time = gpGlobals->time + 0.5;
+		f_medic_treat_time = gpGlobals->time + 0.5f;
 
 		return;
 	}
@@ -1107,10 +1107,10 @@ void bot_t::BotDoMedEvac(float distance)
 		bot_z = pEdict->v.origin.z + pEdict->v.view_ofs.z;
 		corpse_z = pCorpse->v.origin.z - pCorpse->v.view_ofs.z;
 		
-		pEdict->v.v_angle.x = fabs((double) corpse_z - bot_z);
+		pEdict->v.v_angle.x = fabs(static_cast<double>(corpse_z) - bot_z);
 
 		SetSubTask(ST_MEDEVAC_F);
-		f_medic_treat_time = gpGlobals->time + 0.5;
+		f_medic_treat_time = gpGlobals->time + 0.5f;
 
 		return;
 	}
@@ -1176,7 +1176,7 @@ bool BotHealTeammate(bot_t *pBot)
 		edict_t *pWounded = pBot->pBotEnemy;
 		const int skill = pBot->bot_skill;
 
-		float delay[BOT_SKILL_LEVELS] = {0.0, 0.2, 0.5, 0.9, 1.5};
+		float delay[BOT_SKILL_LEVELS] = {0.0f, 0.2f, 0.5f, 0.9f, 1.5f};
 
 		if (!pBot->IsBehaviour(BOT_CROUCHED))
 			//pEdict->v.button |= IN_DUCK;													NEW CODE 094 (prev code)
@@ -1231,10 +1231,10 @@ bool BotHealTeammate(bot_t *pBot)
 
 		// is patient under the bot? so aim a bit down
 		if (bots_head > patients_head)
-			pEdict->v.v_angle.x = fabs((double) patients_head - bots_head);
+			pEdict->v.v_angle.x = fabs(static_cast<double>(patients_head) - bots_head);
 		// is patient above the bot? so aim a bit up
 		else if (bots_head < patients_head)
-			pEdict->v.v_angle.x = - fabs((double) patients_head - bots_head);
+			pEdict->v.v_angle.x = - fabs(static_cast<double>(patients_head) - bots_head);
 
 		// we need to look/aim quite a lot down if the patient is proned in FA2.5
 		// because the standard way doesn't work for some weird reason
@@ -1257,12 +1257,12 @@ bool BotHealTeammate(bot_t *pBot)
 		}
 
 		// the bot just reached his patient ie. didn't start the healing yet
-		if ((pBot->f_pause_time + 1.0 < gpGlobals->time) &&
+		if ((pBot->f_pause_time + 1.0f < gpGlobals->time) &&
 			(pBot->f_medic_treat_time < gpGlobals->time)  &&
-			(pBot->f_medic_treat_time + 1.0 < gpGlobals->time))
+			(pBot->f_medic_treat_time + 1.0f < gpGlobals->time))
 		{
 			// give the bot some time to correctly face his patient
-			pBot->SetPauseTime(0.5);
+			pBot->SetPauseTime(0.5f);
 
 			return TRUE;
 		}
@@ -1287,7 +1287,7 @@ bool BotHealTeammate(bot_t *pBot)
 			// set some time to do this task only if the patient bleeds
 			if (IsBleeding(pWounded))
 			{
-				pBot->f_medic_treat_time = gpGlobals->time + RANDOM_FLOAT(1.0, 2.0) + delay[skill];
+				pBot->f_medic_treat_time = gpGlobals->time + RANDOM_FLOAT(1.0f, 2.0f) + delay[skill];
 			}
 
 			pBot->RemoveSubTask(ST_HEAL);
@@ -1325,7 +1325,7 @@ bool BotHealTeammate(bot_t *pBot)
 			pBot->pBotEnemy = nullptr;
 			pBot->RemoveTask(TASK_HEALHIM);
 			// don't shoot healed teammate in next few seconds
-			pBot->f_shoot_time = gpGlobals->time + 0.2;
+			pBot->f_shoot_time = gpGlobals->time + 0.2f;
 
 			pBot->RemoveSubTask(ST_HEALED);
 
@@ -1353,7 +1353,7 @@ bool BotHealTeammate(bot_t *pBot)
 
 	// if the bot is closing try to shout on the patient if it is possible
 	// to alert him
-	else if ((distance < 500) && ((pBot->speak_time + RANDOM_FLOAT(3.0, 6.0)) < gpGlobals->time))
+	else if ((distance < 500) && ((pBot->speak_time + RANDOM_FLOAT(3.0f, 6.0f)) < gpGlobals->time))
 	{
 		UTIL_Voice(pBot->pEdict, "medic");
 		pBot->speak_time = gpGlobals->time;
@@ -1389,12 +1389,12 @@ float bot_t::BotSetSpeed() const
 	switch (move_speed)
 	{
 		case SPEED_NO:
-			tmp_move_speed = 0.0;
+			tmp_move_speed = 0.0f;
 			break;
 		case SPEED_SLOWEST:
 		{
 			if (!(pEdict->v.flags & (FL_PRONED | FL_DUCKING)))
-				tmp_move_speed = (float)f_max_speed / 4;
+				tmp_move_speed = static_cast<float>(f_max_speed) / 4;
 
 			break;
 		}
@@ -1402,7 +1402,7 @@ float bot_t::BotSetSpeed() const
 			{
 				// is the speed fast enough and not proned or crouched then slow down
 				if (!(pEdict->v.flags & (FL_PRONED | FL_DUCKING)))
-					tmp_move_speed = (float) f_max_speed / 2;
+					tmp_move_speed = static_cast<float>(f_max_speed) / 2;
 
 				break;
 			}
@@ -1467,8 +1467,8 @@ void bot_t::BotPressFireToRespawn()
 
 	// these all must be also cleared after death
 	bandage_time = gpGlobals->time;
-	grenade_time = 0.0;
-	chute_action_time = 0.0;
+	grenade_time = 0.0f;
+	chute_action_time = 0.0f;
 
 	// older FA versions send parachute message only when the bot has the parachute pack so
 	// if the bot dies then we have to reset them manually
@@ -1476,7 +1476,7 @@ void bot_t::BotPressFireToRespawn()
 	{
 		RemoveTask(TASK_PARACHUTE);
 		RemoveTask(TASK_PARACHUTE_USED);
-		//chute_action_time = 0.0;
+		//chute_action_time = 0.0f;
 
 		//if (botdebugger.IsDebugActions())
 		//	ALERT(at_console, "***BotRespawn resetting parachute\n");
@@ -1563,62 +1563,62 @@ void bot_t::SetReloadTime()
 	if (bot_fa_skill & NOMEN)
 	{
 		if ((current_weapon.iId == fa_weapon_ber92f) || (current_weapon.iId == fa_weapon_coltgov))
-			f_reload_time = gpGlobals->time + 2.0;
+			f_reload_time = gpGlobals->time + 2.0f;
 
 		else if ((current_weapon.iId == fa_weapon_ber93r) || (current_weapon.iId == fa_weapon_desert) ||
 			(current_weapon.iId == fa_weapon_mp5a5) || (current_weapon.iId == fa_weapon_m4) ||
 			(current_weapon.iId == fa_weapon_m16) || (current_weapon.iId == fa_weapon_ak47))
-			f_reload_time = gpGlobals->time + 3.0;
+			f_reload_time = gpGlobals->time + 3.0f;
 
 		else if ((current_weapon.iId == fa_weapon_anaconda) || (current_weapon.iId == fa_weapon_ssg3000) ||
 			(current_weapon.iId == fa_weapon_uzi) || (current_weapon.iId == fa_weapon_sterling) ||
 			(current_weapon.iId == fa_weapon_m79) || (current_weapon.iId == fa_weapon_m14) ||
 			(current_weapon.iId == fa_weapon_g36e) || (current_weapon.iId == fa_weapon_g3a3) ||
 			(current_weapon.iId == fa_weapon_ak74))
-			f_reload_time = gpGlobals->time + 4.0;
+			f_reload_time = gpGlobals->time + 4.0f;
 
 		else if ((current_weapon.iId == fa_weapon_svd) || (current_weapon.iId == fa_weapon_saiga) ||
 			(current_weapon.iId == fa_weapon_bizon))
-			f_reload_time = gpGlobals->time + 5.0;
+			f_reload_time = gpGlobals->time + 5.0f;
 
 		else if ((current_weapon.iId == fa_weapon_m82) || (current_weapon.iId == fa_weapon_m249) ||
 			(current_weapon.iId == fa_weapon_m60))
-			f_reload_time = gpGlobals->time + 7.0;
+			f_reload_time = gpGlobals->time + 7.0f;
 
 		else if (current_weapon.iId == fa_weapon_benelli)
 			f_reload_time = gpGlobals->time + (8 - current_weapon.iClip);
 
 		else if (current_weapon.iId == fa_weapon_pkm)
-			f_reload_time = gpGlobals->time + 9.0;
+			f_reload_time = gpGlobals->time + 9.0f;
 
 		else
-			f_reload_time = gpGlobals->time + 6.0;
+			f_reload_time = gpGlobals->time + 6.0f;
 	}
 	// standard reload times
 	else
 	{
 		if ((current_weapon.iId == fa_weapon_ber92f) || (current_weapon.iId == fa_weapon_coltgov))
-			f_reload_time = gpGlobals->time + 3.0;
+			f_reload_time = gpGlobals->time + 3.0f;
 
 		else if ((current_weapon.iId == fa_weapon_ssg3000) || (current_weapon.iId == fa_weapon_m79) ||
 			(current_weapon.iId == fa_weapon_ber93r))
-			f_reload_time = gpGlobals->time + 4.0;
+			f_reload_time = gpGlobals->time + 4.0f;
 
 		else if ((current_weapon.iId == fa_weapon_bizon) || (current_weapon.iId == fa_weapon_saiga) ||
 			(current_weapon.iId == fa_weapon_uzi) || (current_weapon.iId == fa_weapon_desert))
-			f_reload_time = gpGlobals->time + 5.0;
+			f_reload_time = gpGlobals->time + 5.0f;
 
 		else if ((current_weapon.iId == fa_weapon_m14) || (current_weapon.iId == fa_weapon_g3a3))
-			f_reload_time = gpGlobals->time + 7.0;
+			f_reload_time = gpGlobals->time + 7.0f;
 
 		else if ((current_weapon.iId == fa_weapon_m60))
-			f_reload_time = gpGlobals->time + 9.0;
+			f_reload_time = gpGlobals->time + 9.0f;
 
 		else if ((current_weapon.iId == fa_weapon_m249) || (current_weapon.iId == fa_weapon_m82))
-			f_reload_time = gpGlobals->time + 10.0;
+			f_reload_time = gpGlobals->time + 10.0f;
 
 		else if (current_weapon.iId == fa_weapon_pkm)
-			f_reload_time = gpGlobals->time + 12.0;
+			f_reload_time = gpGlobals->time + 12.0f;
 
 		// the time varies based on how many slugs are left in the gun
 		// remington is loaded with 7 slugs by default, but it allows
@@ -1630,14 +1630,14 @@ void bot_t::SetReloadTime()
 		{
 			// reloading empty gun is a little faster
 			if (current_weapon.iClip == 0)
-				f_reload_time = gpGlobals->time + 7.0;
+				f_reload_time = gpGlobals->time + 7.0f;
 			else
 				f_reload_time = gpGlobals->time + (9 - current_weapon.iClip);
 		}
 
 		// used for svd, m4, m16, ak47, ak74, g36e, famas, sterling, mp5
 		else
-			f_reload_time = gpGlobals->time + 6.0;
+			f_reload_time = gpGlobals->time + 6.0f;
 	}
 }
 
@@ -1788,11 +1788,11 @@ void bot_t::FacepItem()
 	Vector entity_origin = VecBModelOrigin(pItem);
 
 	// the pItem is currently in FOV (very tight cone here) so don't face it
-	if (FInNarrowViewCone(&entity_origin, pEdict, 0.95))
+	if (FInNarrowViewCone(&entity_origin, pEdict, 0.95f))
 		f_face_item_time = gpGlobals->time;
 	// otherwise set time to start facing it
 	else
-		f_face_item_time = gpGlobals->time + 0.1;
+		f_face_item_time = gpGlobals->time + 0.1f;
 			
 	// do nothing special when the bot isn't facing it yet, the only thing we need to do is to
 	// prevent the bot pressing the fire button
@@ -1833,8 +1833,8 @@ void bot_t::ResetAims(const char* loc)
 	aim_index[3] = -1;
 	curr_aim_index = -1;
 
-	f_aim_at_target_time = 0.0;
-	f_check_aim_time = 0.0;
+	f_aim_at_target_time = 0.0f;
+	f_check_aim_time = 0.0f;
 	targeting_stop = 0;
 
 	RemoveSubTask(ST_AIM_DONE);
@@ -1944,7 +1944,7 @@ void bot_t::TargetAimWaypoint(const char* loc)
 		WaypointFindNearestAiming(this, &waypoints[local_wpt].origin);
 
 	// there's no aim waypoint around
-	if (f_aim_at_target_time == -1.0)
+	if (f_aim_at_target_time == -1.0f)
 	{
 		// then use next waypoint from the path as the aim target
 		aim_index[0] = GetNextWaypoint();
@@ -1970,9 +1970,9 @@ void bot_t::TargetAimWaypoint(const char* loc)
 		}
 		
 		// now we know the bot will watch the next waypoint on current path but we must reset target time
-		// because when we didn't find any aim waypoint around it was set to -1.0 as an 'error' marker
+		// because when we didn't find any aim waypoint around it was set to -1.0f as an 'error' marker
 		// and we would create an infinite loop at the 'if' check above
-		f_aim_at_target_time = 0.0;
+		f_aim_at_target_time = 0.0f;
 
 		if (botdebugger.IsDebugAims() || botdebugger.IsDebugWaypoints())
 		{
@@ -2115,7 +2115,7 @@ void bot_t::TargetAimWaypoint(const char* loc)
 			// set time to allow the bot to face the aim target (must be last in row)
 			if (f_aim_at_target_time < gpGlobals->time)
 			{
-				f_aim_at_target_time = gpGlobals->time + RANDOM_FLOAT(2.0, 4.0);
+				f_aim_at_target_time = gpGlobals->time + RANDOM_FLOAT(2.0f, 4.0f);
 				f_check_aim_time = gpGlobals->time;
 
 				return;
@@ -2197,19 +2197,19 @@ void bot_t::TargetAimWaypoint(const char* loc)
 
 			// if there is no wait time on the waypoint (bot is waiting for some special
 			// command such as wait until something respawns) then generate some wait time
-			if (the_time == 0.0)
-				the_time = RANDOM_FLOAT(2.0, 5.0);
+			if (the_time == 0.0f)
+				the_time = RANDOM_FLOAT(2.0f, 5.0f);
 				
 			// see how many times the bot should change aim waypoint
 			// (i.e. the longer the wait time is the more changes are there)
-			if ((the_time > 25.0) && (the_time < 50.0))
+			if ((the_time > 25.0f) && (the_time < 50.0f))
 				aim_count = RANDOM_LONG(4, 8);
-			else if ((the_time > 50.0) && (the_time < 120.0))
+			else if ((the_time > 50.0f) && (the_time < 120.0f))
 				aim_count = RANDOM_LONG(8, 12);
-			else if (the_time > 120.0)
+			else if (the_time > 120.0f)
 				aim_count = RANDOM_LONG(12, 24);
 
-			the_time /= (float) aim_count;
+			the_time /= static_cast<float>(aim_count);
 			
 			f_aim_at_target_time = gpGlobals->time + the_time;
 			f_check_aim_time = gpGlobals->time;
@@ -2252,7 +2252,7 @@ void bot_t::TargetAimWaypoint(const char* loc)
 	if (IsSubTask(ST_AIM_ADJUSTAIM))
 	{
 		// check it again in 2.5 sec
-		f_check_aim_time = gpGlobals->time + 2.5;
+		f_check_aim_time = gpGlobals->time + 2.5f;
 		
 		SetSubTask(ST_AIM_FACEIT);
 		RemoveSubTask(ST_AIM_ADJUSTAIM);
@@ -2277,7 +2277,7 @@ void bot_t::BotWaitHere()
 	{
 		// so we must update the wait time to postpone the wait action
 		// for the moment when the bot is finally positioned correctly
-		wpt_wait_time = wpt_wait_time + 0.2;
+		wpt_wait_time = wpt_wait_time + 0.2f;
 		return;
 	}
 	//***************************************************************************************************************	NEW CODE 094 END
@@ -2304,17 +2304,17 @@ void bot_t::BotWaitHere()
 				HudNotify("***WaitHere()|WaitAtDoorWpt| !!! NO DOORS !!! -> leaving\n", this);
 
 			RemoveSubTask(ST_DOOR_OPEN);
-			wpt_wait_time = gpGlobals->time - 0.1;
+			wpt_wait_time = gpGlobals->time - 0.1f;
 
 			return;
 		}
 
 		// do increase the wait time so the bot can't move
-		wpt_wait_time = gpGlobals->time + 1.0;
-		f_dont_avoid_wall_time = gpGlobals->time + 2.0;//5.0; <- prev code
+		wpt_wait_time = gpGlobals->time + 1.0f;
+		f_dont_avoid_wall_time = gpGlobals->time + 2.0f;//5.0f; <- prev code
 
 		// is the bot facing the doors
-		if (FInNarrowViewCone(&v_door, pEdict, 0.95))
+		if (FInNarrowViewCone(&v_door, pEdict, 0.95f))
 		{
 			UTIL_MakeVectors(pEdict->v.v_angle);
 
@@ -2339,7 +2339,7 @@ void bot_t::BotWaitHere()
 				doors = TRUE;
 			
 			// are the doors still closed?
-			if ((tr.flFraction < 1.0) && doors)
+			if ((tr.flFraction < 1.0f) && doors)
 			{				
 				// try touching the door again if not opened yet
 				if (RANDOM_LONG(1, 100) <= 25)//5) <- prev code
@@ -2362,7 +2362,7 @@ void bot_t::BotWaitHere()
 			else
 			{
 				RemoveSubTask(ST_DOOR_OPEN);
-				wpt_wait_time = gpGlobals->time - 0.1;
+				wpt_wait_time = gpGlobals->time - 0.1f;
 
 #ifdef DEBUG
 				//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -2420,7 +2420,7 @@ void bot_t::BotWaitHere()
 					// we must reset it here because the find nearest aim routine didn't find
 					// any aim waypoint so this has been set to "error" and thus the target aim
 					// waypoint wouldn't then be able to turn the bot at the next waypoint
-					f_aim_at_target_time = 0.0;
+					f_aim_at_target_time = 0.0f;
 				}
 
 				SetTask(TASK_PRECISEAIM);
@@ -2449,8 +2449,8 @@ void bot_t::BotWaitHere()
 			}
 			else
 			{
-				f_shoot_time = gpGlobals->time + 1.0;
-				wpt_wait_time = gpGlobals->time + 1.0;
+				f_shoot_time = gpGlobals->time + 1.0f;
+				wpt_wait_time = gpGlobals->time + 1.0f;
 
 
 
@@ -2473,7 +2473,7 @@ void bot_t::BotWaitHere()
 				if (placed_as_goal)
 				{
 					// set quite long time to allow the bot to get to safe distance
-					f_use_clay_time = gpGlobals->time + 6.0;
+					f_use_clay_time = gpGlobals->time + 6.0f;
 					
 					// change the flag to know it's a goal to detonate it
 					clay_action = ALTW_GOALPLACED;
@@ -2482,7 +2482,7 @@ void bot_t::BotWaitHere()
 				else
 				{
 					// set some time to leave the area before the mine is activated
-					f_use_clay_time = gpGlobals->time + 3.0;
+					f_use_clay_time = gpGlobals->time + 3.0f;
 
 					// update the flag to know that the mine is on ground
 					clay_action = ALTW_PLACED;
@@ -2578,7 +2578,7 @@ void bot_t::BotWaitHere()
 					SetTask(TASK_IGNOREAIMS);
 					// we also need to set some wait time so the bot won't
 					// run away if there are still any breakables in the vicinity
-					wpt_wait_time = gpGlobals->time + 30.0;
+					wpt_wait_time = gpGlobals->time + 30.0f;
 
 					// don't let the bot fire until he's facing the item
 					if (IsSubTask(ST_FACEITEM_DONE) == FALSE)
@@ -2613,7 +2613,7 @@ void bot_t::BotWaitHere()
 				else if (UTIL_IsSniperRifle(current_weapon.iId) && (pEdict->v.fov == NO_ZOOM))
 				{
 					pEdict->v.button |= IN_ATTACK2;
-					f_shoot_time = gpGlobals->time + 1.0;
+					f_shoot_time = gpGlobals->time + 1.0f;
 					dont_shoot_yet = true;
 
 					if (botdebugger.IsDebugActions())
@@ -2677,7 +2677,7 @@ void bot_t::BotWaitHere()
 		// merge magazines must be before weapon reload check, because if the bot was left
 		// with only partly used magazines then he would loop weapon reload
 		if (IsWeaponStatus(WS_MERGEMAGS2) && (weapon_action == W_READY) &&
-			(IsGoingProne() == FALSE) && (f_reload_time < gpGlobals->time))//(f_reload_time + 1.0 < gpGlobals->time))
+			(IsGoingProne() == FALSE) && (f_reload_time < gpGlobals->time))//(f_reload_time + 1.0f < gpGlobals->time))
 		{
 			BotMergeClips(this, "WaitHere()");
 		}
@@ -2692,7 +2692,7 @@ void bot_t::BotWaitHere()
 		// the wait time is about to end and the bot must be able to leave the waypoint)
 		else if (IsBipodWeapon(current_weapon.iId) && IsSubTask(ST_AIM_DONE) &&
 			!IsTask(TASK_BIPOD) && !IsWeaponStatus(WS_CANTBIPOD) &&
-			(WaypointGetWaitTime(curr_wpt_index, bot_team) > 50.0) && (gpGlobals->time + 10.0 < wpt_wait_time))
+			(WaypointGetWaitTime(curr_wpt_index, bot_team) > 50.0f) && (gpGlobals->time + 10.0f < wpt_wait_time))
 		{
 			// then try deploying the bipod
 			BotUseBipod(this, FALSE, "WaitHere() -> DEPLOY IT");
@@ -2741,7 +2741,7 @@ void bot_t::BotWaitHere()
 		{
 			// then we must reset don't check for stuck otherwise the bot won't be able to
 			// deal with any obstacle that may block this action (e.g. someone else already laying there)
-			SetDontCheckStuck("WaitHere()|Waiting at prone wpt|NOT in prone yet -> RESETTING DontCheck for STUCK!!!", -1.0);
+			SetDontCheckStuck("WaitHere()|Waiting at prone wpt|NOT in prone yet -> RESETTING DontCheck for STUCK!!!", -1.0f);
 		}
 	}
 	//																															NEW CODE 094
@@ -2770,7 +2770,7 @@ void bot_t::BotWaitHere()
 	}
 	
 	// is it time to check ammunition to know how many of additional mags we need
-	if (check_ammunition_time + 5.0 < gpGlobals->time)
+	if (check_ammunition_time + 5.0f < gpGlobals->time)
 	{
 		SetTask(TASK_CHECKAMMO);
 	}
@@ -2799,13 +2799,13 @@ void bot_t::SetDontCheckStuck(const char* loc, float time)
 	// going/resume from prone (e.g. someone else already laying there)
 	if (IsSubTask(ST_CANTPRONE))
 	{
-		f_dont_check_stuck = (float)0.0;
+		f_dont_check_stuck = 0.0f;
 
 		return;
 	}
 
-	if (time == -1.0)
-		f_dont_check_stuck = (float) 0.0;
+	if (time == -1.0f)
+		f_dont_check_stuck = 0.0f;
 	else
 		f_dont_check_stuck = gpGlobals->time + time;
 
@@ -2860,9 +2860,9 @@ void bot_t::BotThink()
 	// adjust the millisecond delay based on the frame rate interval...
 	if (msecdel <= gpGlobals->time)
 	{
-		msecdel = gpGlobals->time + 0.5;
+		msecdel = gpGlobals->time + 0.5f;
 		if (msecnum > 0)
-			msecval = 450.0/msecnum;
+			msecval = 450.0f/msecnum;
 		msecnum = 0;
 	}
 	else
@@ -2952,12 +2952,12 @@ void bot_t::BotThink()
 			// did another player kill this bot AND bot whine messages loaded AND
 			// has the bot been alive for at least 15 seconds
 			if ((killer_edict != NULL) && (whine_count > 0) &&
-				((bot_spawn_time + 15.0) <= gpGlobals->time))
+				((bot_spawn_time + 15.0f) <= gpGlobals->time))
 			{
 				if ((RANDOM_LONG(1,100) <= 10))
 				{
 					b_bot_say_killed = TRUE;
-					f_bot_say_killed = gpGlobals->time + 10.0 + RANDOM_FLOAT(0.0, 5.0);
+					f_bot_say_killed = gpGlobals->time + 10.0f + RANDOM_FLOAT(0.0f, 5.0f);
 				}
 			}
 			*/
@@ -3061,7 +3061,7 @@ void bot_t::BotThink()
 		int ind;
 		edict_t *pPlayer;
 
-		f_sound_update_time = gpGlobals->time + 1.0;
+		f_sound_update_time = gpGlobals->time + 1.0f;
 
 		for (ind = 1; ind <= gpGlobals->maxClients; ind++)
 		{
@@ -3081,10 +3081,10 @@ void bot_t::BotThink()
 					if (UpdateSounds(pPlayer))
 					{
 						// don't check for sounds for another 1.5 seconds
-						f_sound_update_time = gpGlobals->time + 1.5;
+						f_sound_update_time = gpGlobals->time + 1.5f;
 
 						// the bot needs some time to face the direction of possible enemy
-						f_dont_look_for_waypoint_time = gpGlobals->time + 0.2;
+						f_dont_look_for_waypoint_time = gpGlobals->time + 0.2f;
 
 						// kota@ no reason to listen all players if we can turn to only one
 						break;
@@ -3105,11 +3105,11 @@ void bot_t::BotThink()
 
 		// save current position as previous
 		v_prev_origin = pEdict->v.origin;
-		prev_time = gpGlobals->time + 0.2;
+		prev_time = gpGlobals->time + 0.2f;
 	}
 	else
 	{
-		moved_distance = 2.0;
+		moved_distance = 2.0f;
 	}
 	
 	// turn towards ideal_pitch by pitch_speed degrees
@@ -3207,7 +3207,7 @@ void bot_t::BotThink()
 			// to stand up, because someone or something is blocking him (e.g. another bot standing on him at wait-timed wpt)
 			if (IsBehaviour(GOTO_STANDING) && (f_go_prone_time + 0.6f < gpGlobals->time))//			was 0.4
 			{
-				if (moved_distance < 2.0)
+				if (moved_distance < 2.0f)
 				{
 					// just set this bit and the clearing section at the bottom of BotThink() will fix it
 					SetSubTask(ST_CANTPRONE);
@@ -3216,13 +3216,13 @@ void bot_t::BotThink()
 #ifdef DEBUG
 					//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@														// NEW CODE 094 (remove it)
 					char dm[256];
-					sprintf(dm, "%s SET CANTPRONE subtask @ BotThink()|INIT stance sect -> moved_dist < 2.0 (moved_dist=%.2f)\n",
+					sprintf(dm, "%s SET CANTPRONE subtask @ BotThink()|INIT stance sect -> moved_dist < 2.0f (moved_dist=%.2f)\n",
 						name, moved_distance);
 					HudNotify(dm, true, this);
 					//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #endif // DEBUG
 				}
-				else if (moved_distance == 2.0)
+				else if (moved_distance == 2.0f)
 				{
 					;		// do nothing
 				}
@@ -3310,11 +3310,11 @@ void bot_t::BotThink()
 
 		// is the wait time near its end then increase it
 		if (wpt_wait_time == gpGlobals->time)
-			wpt_wait_time = gpGlobals->time + 0.1;
+			wpt_wait_time = gpGlobals->time + 0.1f;
 
 		// is the action time near its end then increase it
 		if (wpt_action_time == gpGlobals->time)
-			wpt_action_time = gpGlobals->time + 0.1;
+			wpt_action_time = gpGlobals->time + 0.1f;
 	}
 
 	// else handle movement related actions
@@ -3324,7 +3324,7 @@ void bot_t::BotThink()
 		if (f_look_for_ground_items <= gpGlobals->time)
 		{
 			// set time for the next check
-			f_look_for_ground_items = gpGlobals->time + 0.5;
+			f_look_for_ground_items = gpGlobals->time + 0.5f;
 
 			BotFindItem(this);
 		}
@@ -3336,7 +3336,7 @@ void bot_t::BotThink()
 			{
 				if (f_bot_find_enemy_time <= gpGlobals->time)
 				{
-					f_bot_find_enemy_time = gpGlobals->time + 5.0;
+					f_bot_find_enemy_time = gpGlobals->time + 5.0f;
 
 					if (RANDOM_LONG(1, 100) <= 45)
 						pBotEnemy = BotFindEnemy();
@@ -3379,8 +3379,8 @@ void bot_t::BotThink()
 				if (UTIL_IsSniperRifle(current_weapon.iId))
 				{
 					pEdict->v.button |= IN_ATTACK2;		// scope off
-					//f_shoot_time = gpGlobals->time + 1.0;	// time to take effect							NEW CODE 094 (prev code)
-					f_shoot_time = gpGlobals->time + 0.6;	// time to take effect
+					//f_shoot_time = gpGlobals->time + 1.0f;	// time to take effect							NEW CODE 094 (prev code)
+					f_shoot_time = gpGlobals->time + 0.6f;	// time to take effect
 
 					if (botdebugger.IsDebugActions())
 					{
@@ -3406,7 +3406,7 @@ void bot_t::BotThink()
 		}
 
 		// used the bot a grenade recently so check if he still has any grenade left
-		if ((grenade_action != ALTW_USED) && (grenade_time + 1.0 > gpGlobals->time) && (grenade_slot != NO_VAL) &&
+		if ((grenade_action != ALTW_USED) && (grenade_time + 1.0f > gpGlobals->time) && (grenade_slot != NO_VAL) &&
 			(!(bot_weapons & (1<<grenade_slot))))
 		{
 			grenade_action = ALTW_USED;
@@ -3510,12 +3510,12 @@ void bot_t::BotThink()
 				// set some time to check if bot is really in mid-air
 				// ie to prevent opening chute when the bot just steps down or
 				// jumps from some low object
-				if (chute_action_time < 1.0)
+				if (chute_action_time < 1.0f)
 				{
 					chute_action_time = gpGlobals->time + 0.7;
 				}
 				// bot must be really in mid-air so use the chute
-				if ((chute_action_time > 1.0) && (chute_action_time < gpGlobals->time))
+				if ((chute_action_time > 1.0f) && (chute_action_time < gpGlobals->time))
 				{
 					pEdict->v.button |= IN_USE;
 					SetTask(TASK_PARACHUTE_USED);
@@ -3745,7 +3745,7 @@ void bot_t::BotThink()
 			if ((pBreakable == nullptr) || (pBreakable->v.health <= 0) || (pBreakable->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
 			{
 				RemoveTask(TASK_BREAKIT);
-				SetDontCheckStuck("bot think()|TaskBreakIt -> no breakable object around", 0.0);
+				SetDontCheckStuck("bot think()|TaskBreakIt -> no breakable object around", 0.0f);
 			}
 			// otherwise break it
 			else
@@ -3816,7 +3816,7 @@ void bot_t::BotThink()
 				if (do_action == false)
 				{
 					pEdict->v.button |= IN_USE;
-					wpt_action_time = gpGlobals->time - 0.1;
+					wpt_action_time = gpGlobals->time - 0.1f;
 
 					if (botdebugger.IsDebugActions())
 						HudNotify("NO item has been found, but hitting the use key anyway and leaving this waypoint!\n", this);
@@ -3890,7 +3890,7 @@ void bot_t::BotThink()
 					UTIL_DebugInFile(msg);
 
 					// clear wait time
-					wpt_action_time = gpGlobals->time - 0.1;
+					wpt_action_time = gpGlobals->time - 0.1f;
 
 					// finish bot move
 					g_engfuncs.pfnRunPlayerMove(pEdict, pEdict->v.v_angle, BotSetSpeed(), 0, 0,
@@ -3918,7 +3918,7 @@ void bot_t::BotThink()
 					// button will be pressed so we must break the "stop" time in order to return the bot back to action
 					// unless there's a 'wait' time on this waypoint to force the bot stay there for a moment
 					// (e.g. to let the doors fully open before moving forward)
-					if (WaypointGetWaitTime(curr_wpt_index, bot_team) == 0.0)
+					if (WaypointGetWaitTime(curr_wpt_index, bot_team) == 0.0f)
 						wpt_action_time = gpGlobals->time;
 
 					if (botdebugger.IsDebugActions())
@@ -4081,7 +4081,7 @@ void bot_t::BotThink()
 			// is now a good moment to merge magazines?
 			// (i.e. NOT doing any weapon based action, NOT going prone AND NOT reloading)
 			else if (IsWeaponStatus(WS_MERGEMAGS2) && (weapon_action == W_READY) &&
-				(IsGoingProne() == FALSE) && (f_reload_time < gpGlobals->time))												// was (f_reload_time + 1.0 < gpGlobals->time))
+				(IsGoingProne() == FALSE) && (f_reload_time < gpGlobals->time))												// was (f_reload_time + 1.0f < gpGlobals->time))
 			{
 				BotMergeClips(this, "BotThink->try some navig");
 			}
@@ -4106,7 +4106,7 @@ void bot_t::BotThink()
 			// AND some time after spawn AND NOT doing any waypoint based action
 
 			//if ((pBotEnemy == NULL) && (IsGoingProne() == FALSE) && (f_shoot_time < gpGlobals->time) &&					// orig code
-			//	(f_reload_time < gpGlobals->time) && (bot_spawn_time + 5.0 < gpGlobals->time) &&
+			//	(f_reload_time < gpGlobals->time) && (bot_spawn_time + 5.0f < gpGlobals->time) &&
 			//	(wpt_action_time < gpGlobals->time) && UTIL_ShouldReload(this, "BotThink() -> NO enemy"))
 
 			else if ((IsGoingProne() == FALSE) && (f_shoot_time < gpGlobals->time) &&
@@ -4184,7 +4184,7 @@ void bot_t::BotThink()
 				// is the bot on ladder
 				if (pEdict->v.movetype == MOVETYPE_FLY)
 				{
-					f_dont_avoid_wall_time = gpGlobals->time + 2.0;
+					f_dont_avoid_wall_time = gpGlobals->time + 2.0f;
 
 					// then do all the ladder navigation
 					BotHandleLadder(this, moved_distance);
@@ -4206,9 +4206,9 @@ void bot_t::BotThink()
 							BotFixIdealYaw(pEdict);
 
 							move_speed = SPEED_NO;  // don't move while turning
-							f_dont_avoid_wall_time = gpGlobals->time + 1.0;
+							f_dont_avoid_wall_time = gpGlobals->time + 1.0f;
 
-							moved_distance = 2.0;  // dont use bot stuck code
+							moved_distance = 2.0f;  // dont use bot stuck code
 						}
 						else
 						{
@@ -4219,7 +4219,7 @@ void bot_t::BotThink()
 								// 20% of the time randomly turn between 45 and 60 degrees
 
 								if ((f_wall_on_left != 0) &&
-									(f_wall_on_left <= gpGlobals->time - 0.5) &&
+									(f_wall_on_left <= gpGlobals->time - 0.5f) &&
 									(RANDOM_LONG(1, 100) <= 20))
 								{
 									pEdict->v.ideal_yaw += RANDOM_LONG(45, 60);
@@ -4227,7 +4227,7 @@ void bot_t::BotThink()
 									BotFixIdealYaw(pEdict);
 
 									move_speed = SPEED_NO;  // don't move while turning
-									f_dont_avoid_wall_time = gpGlobals->time + 1.0;
+									f_dont_avoid_wall_time = gpGlobals->time + 1.0f;
 								}
 
 								f_wall_on_left = 0;  // reset wall detect time
@@ -4238,7 +4238,7 @@ void bot_t::BotThink()
 								// 20% of the time randomly turn between 45 and 60 degrees
 
 								if ((f_wall_on_right != 0) &&
-									(f_wall_on_right <= gpGlobals->time - 0.5) &&
+									(f_wall_on_right <= gpGlobals->time - 0.5f) &&
 									(RANDOM_LONG(1, 100) <= 20))
 								{
 									pEdict->v.ideal_yaw -= RANDOM_LONG(45, 60);
@@ -4246,7 +4246,7 @@ void bot_t::BotThink()
 									BotFixIdealYaw(pEdict);
 
 									move_speed = SPEED_NO;  // don't move while turning
-									f_dont_avoid_wall_time = gpGlobals->time + 1.0;
+									f_dont_avoid_wall_time = gpGlobals->time + 1.0f;
 								}
 
 								f_wall_on_right = 0;  // reset wall detect time
@@ -4307,7 +4307,7 @@ void bot_t::BotThink()
 	if (IsTask(TASK_DEATHFALL) && (f_check_deathfall < gpGlobals->time))
 	{
 		// set next check
-		f_check_deathfall = gpGlobals->time + 0.2;		//was 1.0
+		f_check_deathfall = gpGlobals->time + 0.2f;		//was 1.0
 
 		// if the bot has enemy and there's a dangerous depth in front of the bot then stop
 		// we check both far and close distance to make sure that there really isn't even a
@@ -4315,7 +4315,7 @@ void bot_t::BotThink()
 		if ((pBotEnemy != nullptr) && (IsDeathFall(pEdict) || IsForwardBlocked(this)))
 		{
 			move_speed = SPEED_NO;
-			SetDontMoveTime(1.0);
+			SetDontMoveTime(1.0f);
 			SetDontCheckStuck("bot think() -> TaskDeathFall", 1.5);
 		}
 
@@ -4537,17 +4537,17 @@ void bot_t::BotThink()
 	// (and NOT on a ladder since ladder stuck handled elsewhere)
 	// (don't check for stuck if bot is turning a lot at waypoint or if it isn't time)
 	
-	//if ((moved_distance <= 1.0) && (prev_speed != SPEED_NO) && (pEdict->v.movetype != MOVETYPE_FLY) &&									NEW CODE 094 (prev code)
+	//if ((moved_distance <= 1.0f) && (prev_speed != SPEED_NO) && (pEdict->v.movetype != MOVETYPE_FLY) &&									NEW CODE 094 (prev code)
 	//	(f_face_wpt < gpGlobals->time) && (f_dont_check_stuck < gpGlobals->time))
-	if ((moved_distance <= 1.0) && (pEdict->v.movetype != MOVETYPE_FLY) &&
+	if ((moved_distance <= 1.0f) && (pEdict->v.movetype != MOVETYPE_FLY) &&
 		(f_face_wpt < gpGlobals->time) && (f_dont_check_stuck < gpGlobals->time))
 	{
 		float max_strafe_time = 1.5f;	// used when setting the duration of side steps movements
 		TraceResult tr;
 		Vector v_src, v_dest;
 
-		f_dont_avoid_wall_time = gpGlobals->time + 1.0;
-		f_dont_look_for_waypoint_time = gpGlobals->time + 1.0;
+		f_dont_avoid_wall_time = gpGlobals->time + 1.0f;
+		f_dont_look_for_waypoint_time = gpGlobals->time + 1.0f;
 
 
 
@@ -4620,7 +4620,7 @@ void bot_t::BotThink()
 			{
 				pEdict->v.button |= IN_JUMP;
 				pEdict->v.button |= IN_DUCK; // duck is a must in this case
-				f_duckjump_time = gpGlobals->time + 1.0; // keep the "courch" key pressed
+				f_duckjump_time = gpGlobals->time + 1.0f; // keep the "courch" key pressed
 
 				if (botdebugger.IsDebugStuck())
 					HudNotify("[[Stuck(bot.cpp)]] bot can DUCKJUMP over it\n", this);
@@ -4640,11 +4640,11 @@ void bot_t::BotThink()
 				pEdict->v.button |= IN_MOVELEFT;
 				move_speed = SPEED_SLOW;
 
-				f_strafe_direction = -1.0;
+				f_strafe_direction = -1.0f;
 
 				// test this not sure about it (if bugged then lower range top value)
 				//f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5, 1.0);					NEW CODE 094 (prev code)
-				f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5, max_strafe_time);
+				f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5f, max_strafe_time);
 
 				if (botdebugger.IsDebugStuck())
 					HudNotify("[[Stuck(bot.cpp)]] can strafe LEFT\n", this);
@@ -4656,7 +4656,7 @@ void bot_t::BotThink()
 
 				f_strafe_direction = 1.0;
 				//f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5, 1.0);					NEW CODE 094 (prev code)
-				f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5, max_strafe_time);
+				f_strafe_time = gpGlobals->time + RANDOM_FLOAT(0.5f, max_strafe_time);
 
 				if (botdebugger.IsDebugStuck())
 					HudNotify("[[Stuck(bot.cpp)]] can strafe RIGHT\n", this);
@@ -4697,7 +4697,7 @@ void bot_t::BotThink()
 				else if (IsEntityInSphere("bodyque", pEdict, 50))
 				{
 					move_speed = SPEED_NO;
-					SetDontMoveTime(1.0);
+					SetDontMoveTime(1.0f);
 
 					if (botdebugger.IsDebugStuck())
 					{
@@ -4857,7 +4857,7 @@ void bot_t::BotThink()
 	{
 		pEdict->v.button |= IN_USE;
 
-		chute_action_time = gpGlobals->time + 2.0;
+		chute_action_time = gpGlobals->time + 2.0f;
 
 		// we have to clear these variables manually, because FA 2.65 and below call parachute message
 		// in a different way than all versions above
@@ -4904,7 +4904,7 @@ void bot_t::BotThink()
 
 		// set some time to successfully finish the action
 		// if you change to different weapon too fast the mine will be disabled in firearms
-		f_use_clay_time = gpGlobals->time + 1.0;
+		f_use_clay_time = gpGlobals->time + 1.0f;
 	}
 
 	// is the bot tasked to evade a claymore OR pretend he didn't see it?
@@ -4943,7 +4943,7 @@ void bot_t::BotThink()
 
 			// also reset action time
 			if (wpt_action_time > gpGlobals->time)
-				wpt_action_time = gpGlobals->time - 0.1;
+				wpt_action_time = gpGlobals->time - 0.1f;
 
 			if (botdebugger.IsDebugActions())
 				HudNotify("(bot.cpp)***stopped using TANK\n", this);

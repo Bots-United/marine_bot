@@ -243,7 +243,7 @@ int DispatchSpawn( edict_t *pent )
 {
 	if (gpGlobals->deathmatch)
 	{
-		char *pClassname = (char *)STRING(pent->v.classname);
+		char *pClassname = const_cast<char*>(STRING(pent->v.classname));
 
 #ifdef _DEBUG
 		if (debug_engine)
@@ -523,7 +523,7 @@ BOOL ClientConnect( edict_t *pEntity, const char *pszName, const char *pszAddres
 		if (strcmp(pszAddress, "127.0.0.1") != 0)
 		{
 			// don't try to add bots for 60 seconds, give client time to get added
-			botmanager.SetBotCheckTime(gpGlobals->time + 60.0);
+			botmanager.SetBotCheckTime(gpGlobals->time + 60.0f);
 
 			// if there are currently more than the minimum number of bots running AND
 			// there's also more than max_bots clients on the server
@@ -839,17 +839,17 @@ void StartFrame()
 			pRecipient = nullptr;
 
 			// reset welcome messages with new map
-			welcome_time = 0.0;
+			welcome_time = 0.0f;
 			welcome_sent = FALSE;
 			welcome2_sent = FALSE;
 			welcome3_sent = FALSE;
 
 			// reset error warnings time
 			// (the message itself is cleared right after it has been displayed)
-			hud_error_msg_time = 0.0;
+			hud_error_msg_time = 0.0f;
 
 			// show the presentation after some time from map change
-			presentation_time = gpGlobals->time + 90.0;
+			presentation_time = gpGlobals->time + 90.0f;
 
 			// check if mapname_marine.cfg file exists ie are there any
 			// specific settings & classes for this map
@@ -944,26 +944,26 @@ void StartFrame()
 			if ((listenserver_edict != nullptr) && IsAlive(listenserver_edict))
 			{
 				// we found some fatal error so set error message time
-				if ((error_occured) && (hud_error_msg_time < 1.0))
-					hud_error_msg_time = gpGlobals->time + 2.0;
+				if ((error_occured) && (hud_error_msg_time < 1.0f))
+					hud_error_msg_time = gpGlobals->time + 2.0f;
 
 				// or we found only some non-fatal error
 				// so set warning time and also delay welcome
-				else if ((warning_event) && (hud_error_msg_time < 1.0))
+				else if ((warning_event) && (hud_error_msg_time < 1.0f))
 				{
-					hud_error_msg_time = gpGlobals->time + 2.0;
-					welcome_time = hud_error_msg_time + 16.0;
+					hud_error_msg_time = gpGlobals->time + 2.0f;
+					welcome_time = hud_error_msg_time + 16.0f;
 				}
 
 				// otherwise all went fine so set standard welcome message time
 				else if ((error_occured == FALSE) && (warning_event == FALSE) &&
-					(welcome_sent == FALSE) && (welcome_time < 1.0))
-					welcome_time = gpGlobals->time + 2.0;
+					(welcome_sent == FALSE) && (welcome_time < 1.0f))
+					welcome_time = gpGlobals->time + 2.0f;
 			}
 
 			// is it time to print the error message
 			if (((error_occured) || (warning_event)) &&
-				(hud_error_msg_time > 0.0) && (hud_error_msg_time < gpGlobals->time))
+				(hud_error_msg_time > 0.0f) && (hud_error_msg_time < gpGlobals->time))
 			{
 				// send the error message to clients
 				Vector color1 = Vector(250, 50, 0);
@@ -1005,7 +1005,7 @@ void StartFrame()
 				welcome_sent = TRUE;
 
 				// next welcome in 5 seconds after current message disappear
-				welcome_time = gpGlobals->time + 12.0;
+				welcome_time = gpGlobals->time + 12.0f;
 			}
 
 			else if ((welcome2_sent == FALSE) && (welcome_sent) &&
@@ -1017,7 +1017,7 @@ void StartFrame()
 
 				welcome2_sent = TRUE;
 
-				welcome_time = gpGlobals->time + 12.0;
+				welcome_time = gpGlobals->time + 12.0f;
 			}
 
 			else if ((welcome3_sent == FALSE) && (welcome2_sent) &&
@@ -1064,14 +1064,14 @@ void StartFrame()
 
 				welcome3_sent = TRUE;
 
-				welcome_time = gpGlobals->time + 13.0;
+				welcome_time = gpGlobals->time + 13.0f;
 			}
 		}
 		// dedicated server
 		else
 		{
 			if ((welcome_sent == FALSE) && (welcome_time < gpGlobals->time) &&
-				(welcome_time > 1.0))
+				(welcome_time > 1.0f))
 			{
 				PrintOutput(nullptr, "\n", MType::msg_null);
 				PrintOutput(nullptr, "write [m_bot help] or [m_bot ?] into your console for command help\n", MType::msg_info);
@@ -1091,15 +1091,15 @@ void StartFrame()
 				botmanager.SetTimeOfTeamsBalanceCheck(gpGlobals->time + externals.GetBalanceTime());
 
 			// sent info about console help into DS console some time after start
-			if (welcome_time == 0.0)
-				welcome_time = gpGlobals->time + 6.5;
+			if (welcome_time == 0.0f)
+				welcome_time = gpGlobals->time + 6.5f;
 			
 			// init info msg time
-			if (check_send_info == 0.0)
+			if (check_send_info == 0.0f)
 				check_send_info = gpGlobals->time + externals.GetInfoTime();
 
 			// show the presentation message after some time from server intialization
-			presentation_time = gpGlobals->time + 90.0;
+			presentation_time = gpGlobals->time + 90.0f;
 
 			// use current bot version for this message
 			sprintf(presentation_msg, "%s %s", presentation_msg, mb_version_info);
@@ -1108,7 +1108,7 @@ void StartFrame()
 		// is it time to update weapons & equipment
 		if (client_update_time <= gpGlobals->time)
 		{
-			client_update_time = gpGlobals->time + 1.0;
+			client_update_time = gpGlobals->time + 1.0f;
 
 			for (i=0; i < MAX_CLIENTS; i++)
 			{
@@ -1203,7 +1203,7 @@ void StartFrame()
 			if (balance_in_progress == 0)
 				respawn_time = gpGlobals->time + 7.0f;
 			else
-				respawn_time = 3.0f;
+				respawn_time = 5.0f;
 		}
 
 		// are we currently respawning bots and is it time to spawn one yet?
@@ -1252,8 +1252,8 @@ void StartFrame()
 					bots[index].aim_skill = aim_skill;
 				}
 
-				respawn_time = gpGlobals->time + 0.5f;  // set next respawn time
-				botmanager.SetBotCheckTime(gpGlobals->time + 0.5f);		// time to next adding
+				respawn_time = gpGlobals->time + 5.0f;  // set next respawn time
+				botmanager.SetBotCheckTime(gpGlobals->time + 5.0f);		// time to next adding
 			}
 			else
 			{
@@ -1346,17 +1346,17 @@ void StartFrame()
 					{
 						spawn_time_reset = TRUE;
 #ifdef __linux__
-						if (respawn_time >= 1.0f)
-							respawn_time = std::min(respawn_time, gpGlobals->time + 1.0f);
+						if (respawn_time >= 5.0f)
+							respawn_time = std::min(respawn_time, gpGlobals->time + 5.0f);
 
-						if (bot_cfg_pause_time >= 1.0f)
-							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + 1.0f);
+						if (bot_cfg_pause_time >= 5.0f)
+							bot_cfg_pause_time = std::min(bot_cfg_pause_time, gpGlobals->time + 5.0f);
 #elif _WIN32
-						if (respawn_time >= 1.0f)
-							respawn_time = min(respawn_time, gpGlobals->time + 1.0f);
+						if (respawn_time >= 5.0f)
+							respawn_time = min(respawn_time, gpGlobals->time + 5.0f);
 
-						if (bot_cfg_pause_time >= 1.0f)
-							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + 1.0f);
+						if (bot_cfg_pause_time >= 5.0f)
+							bot_cfg_pause_time = min(bot_cfg_pause_time, gpGlobals->time + 5.0f);
 #endif
 					}
 				}
@@ -1643,7 +1643,7 @@ void StartFrame()
 
 			if (bot_added)
 			{
-				botmanager.SetBotCheckTime(gpGlobals->time + 0.5);	// time to next adding
+				botmanager.SetBotCheckTime(gpGlobals->time + 0.5f);	// time to next adding
 
 				// decrease the amount of bots to be added (only if is "arg filling")
 				if (yet_to_fill != 0)
@@ -1659,7 +1659,7 @@ void StartFrame()
 
 		// send presentation message to all clients of the server
 		else if ((is_dedicated_server) &&
-			(presentation_time < gpGlobals->time) && (presentation_time > 1.0))
+			(presentation_time < gpGlobals->time) && (presentation_time > 1.0f))
 		{
 			presentation_time = gpGlobals->time + externals.GetPresentationTime();
 
@@ -1681,7 +1681,7 @@ void StartFrame()
 			// otherwise try it again sooner (in other words postpone current try)
 			else
 			{
-				wpt_autosave_time = gpGlobals->time + 30.0;
+				wpt_autosave_time = gpGlobals->time + 30.0f;
 
 				if (is_dedicated_server == FALSE)
 					PrintOutput(nullptr, "***waypoints and paths weren't saved***\n", MType::msg_null);
@@ -1768,7 +1768,7 @@ void Sys_Error( const char *error_string )
 #endif
 
 	// dump the error in error log ... useful when there is missing some model on map load etc.
-	UTIL_DebugInFile((char *)error_string);
+	UTIL_DebugInFile(const_cast<char*>(error_string));
 
 	(*other_gFunctionTable.pfnSys_Error)(error_string);
 }
@@ -2246,7 +2246,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		else
 		{
-			externals.SetMinBots((int) temp_minbots);
+			externals.SetMinBots(temp_minbots);
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - min_bots set to %d\n",
 				externals.GetMinBots());
 		}
@@ -2267,7 +2267,7 @@ void ProcessBotCfgFile(Section *conf)
 	    }
 	    else
 		{
-			externals.SetMaxBots((int) temp_maxbots);
+			externals.SetMaxBots(temp_maxbots);
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - max_bots set to %d\n",
 				externals.GetMaxBots());
 	    }
@@ -2283,7 +2283,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		else
 		{
-			externals.SetReactionTime((float) temp_bot_reaction_time);
+			externals.SetReactionTime(temp_bot_reaction_time);
 
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - bots reaction_time set to %.1fs\n",
 				externals.GetReactionTime());
@@ -2309,7 +2309,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		else
 		{
-			externals.SetBalanceTime((float) temp_auto_balance_time);
+			externals.SetBalanceTime(temp_auto_balance_time);
 			botmanager.SetTeamsBalanceNeeded(true);		// added by kota@
 
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - auto_balance time set to %.1fs\n",
@@ -2335,11 +2335,11 @@ void ProcessBotCfgFile(Section *conf)
 
 		if (temp_info_time == 0)
 		{
-			externals.SetInfoTime((float) 0.0);
+			externals.SetInfoTime(0.0f);
 			check_send_info = -1.0;
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - send_info DISABLED!\n");
 		}
-		else if ((temp_info_time < 30.0) || (temp_info_time > 3600.0))
+		else if ((temp_info_time < 30.0f) || (temp_info_time > 3600.0f))
 		{
 			externals.ResetInfoTime();
 			sprintf(msg, "MARINE_BOT CFG FILE ERROR - send_info time reset to %.1fs\n",
@@ -2347,7 +2347,7 @@ void ProcessBotCfgFile(Section *conf)
 		}
 		else
 		{
-			externals.SetInfoTime((float) temp_info_time);
+			externals.SetInfoTime(temp_info_time);
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - send_info time set to %.1fs\n",
 				externals.GetInfoTime());
 		}
@@ -2357,10 +2357,10 @@ void ProcessBotCfgFile(Section *conf)
 
 		if (temp_send_presentation_time == 0)
 		{
-			presentation_time = 0.0;
+			presentation_time = 0.0f;
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - send_presentation DISABLED!\n");
 		}
-		else if ((temp_send_presentation_time < 0.0) || (temp_send_presentation_time > 3600.0))
+		else if ((temp_send_presentation_time < 0.0f) || (temp_send_presentation_time > 3600.0f))
 		{
 			externals.ResetPresentationTime();
 			sprintf(msg, "MARINE_BOT CFG FILE ERROR - send_presentation time reset to %.1fs\n",
@@ -2369,10 +2369,10 @@ void ProcessBotCfgFile(Section *conf)
 		else
 		{
 			// just for sure ie. to prevent engine overloading
-			if (temp_send_presentation_time < 10.0)
-				externals.SetPresentationTime((float) 10.0);
+			if (temp_send_presentation_time < 10.0f)
+				externals.SetPresentationTime(10.0f);
 			else
-				externals.SetPresentationTime((float) temp_send_presentation_time);
+				externals.SetPresentationTime(temp_send_presentation_time);
 
 			sprintf(msg, "MARINE_BOT CFG FILE INIT - send_presentation time set to %.1fs\n",
 				externals.GetPresentationTime());
@@ -2642,27 +2642,27 @@ void MBServerCommand()
 		BotCreate(nullptr, arg1, arg2, arg3, arg4, arg5 );
 
 		// wait for a while before allowing the next addition
-		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+		botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 	}
 	// spawn red bot
 	else if (strcmp(cmd, "addmarine1") == 0)
 	{
 		override_max_bots = TRUE;
 		BotCreate(nullptr, "1", nullptr, nullptr, nullptr, nullptr );		
-		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+		botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 	}
 	// spawn blue bot
 	else if (strcmp(cmd, "addmarine2") == 0)
 	{
 		override_max_bots = TRUE;
 		BotCreate(nullptr, "2", nullptr, nullptr, nullptr, nullptr );
-		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+		botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 	}
 	else if (strcmp(cmd, "min_bots") == 0)
 	{
 		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
-			externals.SetMinBots((int) atoi( arg1 ));
+			externals.SetMinBots(atoi( arg1 ));
 
 			if ((externals.GetMinBots() < 0) || (externals.GetMinBots() > 31))
 			{
@@ -2690,7 +2690,7 @@ void MBServerCommand()
 	{
 		if ((arg1 != nullptr) && (arg1[0] != 0))
 		{
-			externals.SetMaxBots((int) atoi( arg1 ));
+			externals.SetMaxBots(atoi( arg1 ));
 			
 			if ((externals.GetMaxBots() < 0) || (externals.GetMaxBots() > 31))
 			{
@@ -2762,7 +2762,7 @@ void MBServerCommand()
 			}
 			else if ((temp >= 30.0) && (temp <= 3600.0))
 			{
-				externals.SetBalanceTime((float) temp);
+				externals.SetBalanceTime(temp);
 				sprintf(msg, "MARINE_BOT - auto_balance time is %.0fs\n", externals.GetBalanceTime());
 				
 				botmanager.SetTeamsBalanceNeeded(true);	// added by kota@
@@ -2812,7 +2812,7 @@ void MBServerCommand()
 			}
 			else if ((temp >= 30.0) && (temp <= 3600.0))
 			{
-				externals.SetInfoTime((float) temp);
+				externals.SetInfoTime(temp);
 				sprintf(msg, "MARINE_BOT - send_info time is %.0fs\n", externals.GetInfoTime());
 				
 				check_send_info = gpGlobals->time + externals.GetInfoTime();
@@ -2836,13 +2836,13 @@ void MBServerCommand()
 
 				sprintf(msg, "MARINE_BOT - send_presentation DISABLED!\n");
 			}
-			else if ((temp > 0.0) && (temp <= 3600.0))
+			else if ((temp > 0.0f) && (temp <= 3600.0f))
 			{
 				// just for sure ie. to prevent engine overloading
-				if (temp < 10.0)
-					externals.SetPresentationTime((float) 30.0);
+				if (temp < 10.0f)
+					externals.SetPresentationTime(30.0f);
 				else
-					externals.SetPresentationTime((float) temp);
+					externals.SetPresentationTime(temp);
 
 				sprintf(msg, "MARINE_BOT - send_presentation time is %.0fs\n",
 					externals.GetPresentationTime());

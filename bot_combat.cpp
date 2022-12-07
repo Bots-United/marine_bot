@@ -110,10 +110,10 @@ bool InitFA28Weapons();
 bool InitFA29Weapons();
 void BotReactions(bot_t *pBot);
 inline void DontSeeEnemyActions(bot_t *pBot);
-void BotFireMountedGun(Vector v_enemy, bot_t *pBot);
-int BotFireWeapon(Vector v_enemy, bot_t *pBot);
-int BotUseKnife(Vector v_enemy, bot_t *pBot);
-int BotThrowGrenade(Vector v_enemy, bot_t *pBot);
+void BotFireMountedGun(const Vector& v_enemy, bot_t *pBot);
+int BotFireWeapon(const Vector& v_enemy, bot_t *pBot);
+int BotUseKnife(const Vector& v_enemy, bot_t *pBot);
+int BotThrowGrenade(const Vector& v_enemy, bot_t *pBot);
 bool CanUseBackupInsteadofReload(bot_t *pBot, float enemy_distance = 0.0);
 inline void IsChanceToAdvance(bot_t *pBot);
 inline void CheckStance(bot_t *pBot, float enemy_distance);
@@ -537,8 +537,8 @@ void BotWeaponArraysInit(Section *conf_weapons)
 
 				for (i=0; i<BOT_SKILL_LEVELS; ++i)
 				{
-					bot_fire_delay[index].primary_min_delay[i] = 0.0;
-					bot_fire_delay[index].primary_max_delay[i] = 0.0;
+					bot_fire_delay[index].primary_min_delay[i] = 0.0f;
+					bot_fire_delay[index].primary_max_delay[i] = 0.0f;
 				}
 
 				CII ii;
@@ -735,16 +735,16 @@ void BotReactions(bot_t *pBot)
 	switch (skill)
 	{
 		case 1:
-			react_time -= (float) externals.GetReactionTime() / 2.0;	// use only 50% of it
+			react_time -= externals.GetReactionTime() / 2.0f;	// use only 50% of it
 			break;
 		case 2:
-			react_time -= (float) externals.GetReactionTime() / 3.0;	// use only 66% of it
+			react_time -= externals.GetReactionTime() / 3.0f;	// use only 66% of it
 			break;
 		case 4:
-			react_time += (float) externals.GetReactionTime() / 2.0;	// use 150% of it
+			react_time += externals.GetReactionTime() / 2.0f;	// use 150% of it
 			break;
 		case 5:
-			react_time += (float) externals.GetReactionTime();			// use 200% or it
+			react_time += externals.GetReactionTime();			// use 200% or it
 			break;
 		default:
 			break;
@@ -752,8 +752,8 @@ void BotReactions(bot_t *pBot)
 
 	// if we get under zero reset it back to zero value
 	// shouldn't happen but just in case
-	if (react_time < 0.0)
-		react_time = 0.0;
+	if (react_time < 0.0f)
+		react_time = 0.0f;
 
 	// store the reaction time
 	pBot->f_reaction_time = gpGlobals->time + react_time;
@@ -841,8 +841,8 @@ inline void DontSeeEnemyActions(bot_t *pBot)
 
 	// didn't the bot seen ememy in last few seconds AND
 	// is chance to speak (time to area clear)?
-	if (!externals.GetDontSpeak() && pBot->NotSeenEnemyfor(8.0) &&
-		((pBot->speak_time + RANDOM_FLOAT(25.5, 40.0)) < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 1))
+	if (!externals.GetDontSpeak() && pBot->NotSeenEnemyfor(8.0f) &&
+		((pBot->speak_time + RANDOM_FLOAT(25.5f, 40.0f)) < gpGlobals->time) && (RANDOM_LONG(1, 100) <= 1))
 	{
 		UTIL_Radio(pEdict, "clear");
 		pBot->speak_time = gpGlobals->time;
@@ -900,7 +900,7 @@ void bot_t::BotForgetEnemy()
 	// clear his backed up position
 	v_last_enemy_position = g_vecZero;//Vector(0, 0, 0);	
 	// reset wait & watch time
-	f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
+	f_bot_wait_for_enemy_time = gpGlobals->time - 0.1f;
 	
 	// if the bot is doing any weapon action like reloading for example we can't clear these two, because
 	// bot can start one of these in the next frame and weapon action would be invalidated
@@ -1055,12 +1055,12 @@ edict_t * bot_t::BotFindEnemy()
 			}
 
 			// enemy is alive and fully visible OR was visible in last few seconds
-			if ((InFOV && IsVisible) || (f_bot_see_enemy_time + 0.2 > gpGlobals->time))
+			if ((InFOV && IsVisible) || (f_bot_see_enemy_time + 0.2f > gpGlobals->time))
 			{
 				// reset wait & watch time if needed
 				if (f_bot_wait_for_enemy_time >= gpGlobals->time)
 				{
-					f_bot_wait_for_enemy_time = gpGlobals->time - 0.1;
+					f_bot_wait_for_enemy_time = gpGlobals->time - 0.1f;
 					
 					// apply reaction_time
 					BotReactions(this);
@@ -2004,8 +2004,8 @@ Vector BotBodyTarget(bot_t *pBot)
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
 				w_mod = FindWeaponModifier(weapon, FindExposure(hit_angle));
 				
-				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0;
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0f;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT 0 TO +90
@@ -2015,7 +2015,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				w_mod = FindWeaponModifier(weapon, FindExposure(hit_angle));
 				
 				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod);
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT +180 TO +90
@@ -2034,7 +2034,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				hit_angle = target_yaw_angle - RotateYawAngle(bot_yaw_angle);
 				w_mod = FindWeaponModifier(weapon, FindExposure(hit_angle));
 				
-				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0;
+				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0f;
 				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
 			}
 		}	// the end of code for m14
@@ -2054,10 +2054,10 @@ Vector BotBodyTarget(bot_t *pBot)
 				else if (bot_yaw_angle > -45)
 					x_corr = 18.5 * -1.0;
 				else
-					x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+					x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 				
 				if (bot_yaw_angle > -45)
-					y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+					y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 				else if (bot_yaw_angle > -65)
 					y_corr = 13.5 * -1.0;
 				else
@@ -2079,7 +2079,7 @@ Vector BotBodyTarget(bot_t *pBot)
 					x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
 				
 				if (bot_yaw_angle < 50)
-					y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+					y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 				else
 					y_corr = 13.5 * -1.0;
 			}
@@ -2116,7 +2116,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				else if (bot_yaw_angle < -129)
 					x_corr = 17.5 * -1.0;
 				else
-					x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+					x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 				
 				if (bot_yaw_angle < -129)
 					y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
@@ -2132,16 +2132,16 @@ Vector BotBodyTarget(bot_t *pBot)
 			if (bot_yaw_angle < 0 && bot_yaw_angle >= -90)
 			{
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
-				w_mod = fabs(bot_yaw_angle * 0.6) - 9.5;
+				w_mod = fabs(bot_yaw_angle * 0.6) - 9.5f;
 				
 				if (bot_yaw_angle >= -15)
 					x_corr = 1.5 * -1.0;
 				else if (bot_yaw_angle >= -20)
 					x_corr = 3 * -1.0;
 				else
-					x_corr = fabs(w_mod) * -1.0;
+					x_corr = fabs(w_mod) * -1.0f;
 				
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT 0 TO +90
@@ -2157,14 +2157,14 @@ Vector BotBodyTarget(bot_t *pBot)
 				else
 					x_corr = fabs(w_mod);
 				
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT +180 TO +90
 			if (bot_yaw_angle > 90 && bot_yaw_angle <= 180)
 			{
 				hit_angle = target_yaw_angle - RotateYawAngle(bot_yaw_angle);
-				w_mod = fabs(RotateYawAngle(bot_yaw_angle) * 0.6) - 9.5;
+				w_mod = fabs(RotateYawAngle(bot_yaw_angle) * 0.6) - 9.5f;
 				
 				if (bot_yaw_angle >= 165)
 					x_corr = 1.5;
@@ -2180,14 +2180,14 @@ Vector BotBodyTarget(bot_t *pBot)
 			else if (bot_yaw_angle >= -180 && bot_yaw_angle < -90)
 			{
 				hit_angle = target_yaw_angle - RotateYawAngle(bot_yaw_angle);
-				w_mod = fabs(RotateYawAngle(bot_yaw_angle) * 0.6) - 9.5;
+				w_mod = fabs(RotateYawAngle(bot_yaw_angle) * 0.6) - 9.5f;
 				
 				if (bot_yaw_angle <= -165)
 					x_corr = 1.5 * -1.0;
 				else if (bot_yaw_angle <= -160)
 					x_corr = 3 * -1.0;
 				else
-					x_corr = fabs(w_mod) * -1.0;
+					x_corr = fabs(w_mod) * -1.0f;
 				
 				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
 			}
@@ -2204,15 +2204,15 @@ Vector BotBodyTarget(bot_t *pBot)
 			{
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
 				
-				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0;
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0f;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			else if (bot_yaw_angle < -50 && bot_yaw_angle > -90)
 			{
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
 				
-				x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT 0 TO +90
@@ -2221,14 +2221,14 @@ Vector BotBodyTarget(bot_t *pBot)
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
 				
 				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod);
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			else if (bot_yaw_angle > 50 && bot_yaw_angle < 90)
 			{
 				hit_angle = RotateYawAngle(target_yaw_angle) - bot_yaw_angle;
 				
 				x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
-				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 			}
 			
 			//		QUADRANT +180 TO +90
@@ -2252,14 +2252,14 @@ Vector BotBodyTarget(bot_t *pBot)
 			{
 				hit_angle = target_yaw_angle - RotateYawAngle(bot_yaw_angle);
 				
-				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0;
+				x_corr = fabs(InvModYaw90(bot_yaw_angle) * w_mod) * -1.0f;
 				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
 			}
 			else if (bot_yaw_angle > -130 && bot_yaw_angle < -90)
 			{
 				hit_angle = target_yaw_angle - RotateYawAngle(bot_yaw_angle);
 				
-				x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0;
+				x_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon)) * -1.0f;
 				y_corr = fabs(MakeFakeOriginCoordinate(hit_angle, weapon));
 			}
 		}	// the end of code for all other weapons
@@ -2283,13 +2283,13 @@ Vector BotBodyTarget(bot_t *pBot)
 
 		if (foe_distance > 1000)
 		{
-			x_corr = x_corr * (foe_distance / 1000.0) * FindDistanceMod(weapon);
-			y_corr = y_corr * (foe_distance / 1000.0) * FindDistanceMod(weapon);
+			x_corr = x_corr * (foe_distance / 1000.0f) * FindDistanceMod(weapon);
+			y_corr = y_corr * (foe_distance / 1000.0f) * FindDistanceMod(weapon);
 		}
 		else
 		{
-			x_corr = x_corr * (foe_distance / 1000.0);
-			y_corr = y_corr * (foe_distance / 1000.0);
+			x_corr = x_corr * (foe_distance / 1000.0f);
+			y_corr = y_corr * (foe_distance / 1000.0f);
 		}
 
 		// when the bot is crouched then modify the corrections by crouch factor
@@ -2381,14 +2381,14 @@ Vector BotBodyTarget(bot_t *pBot)
 		if (foe_distance > 2500)
 			f_scale = 0.5;
 		else if (foe_distance > 100)
-			f_scale = foe_distance / (float) 10000.0;
+			f_scale = foe_distance / 10000.0f;
 
 		switch (pBot->aim_skill)
 		{
 			case 0:
 				//Aim skill for the snipers? [APG]RoboCop[CL]
 				// VERY GOOD, same as from CBasePlayer::BodyTarget (in player.h)
-				target = target_origin + target_head * RANDOM_FLOAT( 0.2, 0.5 );
+				target = target_origin + target_head * RANDOM_FLOAT( 0.2f, 0.5f );
 				d_x = 0;  // no offset
 				d_y = 0;
 				d_z = 0;
@@ -2399,7 +2399,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 1:
 				// GOOD, offset a little for x, y, and z
-				if (hs_percentage > 40)
+				if (hs_percentage > 50)
 					target = target_origin + target_head;  // aim for the head (if you can find it)
 				else
 					target = target_origin;  // aim only for the body
@@ -2409,7 +2409,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 2:
 				// FAIR, offset somewhat for x, y, and z
-				if (hs_percentage > 50)
+				if (hs_percentage > 60)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
@@ -2419,7 +2419,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				break;
 			case 3:
 				// POOR, offset for x, y, and z
-				if (hs_percentage > 60)
+				if (hs_percentage > 75)
 					target = target_origin + target_head;
 				else
 					target = target_origin;
@@ -2442,7 +2442,7 @@ Vector BotBodyTarget(bot_t *pBot)
 		if (foe_distance > 1000)
 			f_scale = 1.0;
 		else if (foe_distance > 100)
-			f_scale = foe_distance / (float) 1000.0;
+			f_scale = foe_distance / 1000.0f;
 
 		// aim at head and use little offset to simulate human player
 		// (none can shoot to same point all the time)
@@ -2461,7 +2461,7 @@ Vector BotBodyTarget(bot_t *pBot)
 				case 0:
 					//Aim skill? [APG]RoboCop[CL]
 					// VERY GOOD, same as from CBasePlayer::BodyTarget (in player.h)
-					target = target_origin + target_head * RANDOM_FLOAT( 0.4, 1.0 );
+					target = target_origin + target_head * RANDOM_FLOAT( 0.4f, 1.0f );
 					d_x = 0;  // no offset
 					d_y = 0;
 					d_z = 0;
@@ -2476,9 +2476,9 @@ Vector BotBodyTarget(bot_t *pBot)
 						target = target_origin + target_head;
 					else
 						target = target_origin;
-					d_x = RANDOM_FLOAT(-9, 9) * f_scale;
-					d_y = RANDOM_FLOAT(-9, 9) * f_scale;
-					d_z = RANDOM_FLOAT(-11, 11) * f_scale;
+					d_x = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_y = RANDOM_FLOAT(-10, 10) * f_scale;
+					d_z = RANDOM_FLOAT(-12, 12) * f_scale;
 					break;
 				case 2:
 					// FAIR, offset somewhat for x, y, and z
@@ -2621,7 +2621,7 @@ Vector BotBodyTarget(bot_t *pBot)
 /*
 * using the mounted gun
 */
-void BotFireMountedGun(const Vector v_enemy, bot_t *pBot)
+void BotFireMountedGun(const Vector& v_enemy, bot_t *pBot)
 {
 	const float distance = v_enemy.Length();  // how far away is the enemy?
 
@@ -2650,7 +2650,7 @@ void BotFireMountedGun(const Vector v_enemy, bot_t *pBot)
 /*
 * fire main weapon (assuming enough ammo exists for that weapon and checking effective range)
 */
-int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
+int BotFireWeapon( const Vector& v_enemy, bot_t *pBot )
 {
 	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
 	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
@@ -2895,7 +2895,7 @@ int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 						(pEdict->v.fov == NO_ZOOM) && (pBot->sniping_time > gpGlobals->time))
 					{
 						pEdict->v.button |= IN_ATTACK2;				// switch to scope
-						pBot->f_shoot_time = gpGlobals->time + 0.4;	// time to take effect
+						pBot->f_shoot_time = gpGlobals->time + 0.4f;	// time to take effect
 
 #ifdef _DEBUG
 						// testing - weapon with scope
@@ -2911,7 +2911,7 @@ int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 						if (pEdict->v.fov == ZOOM_1X)
 						{
 							pEdict->v.button |= IN_ATTACK2;
-							pBot->f_shoot_time = gpGlobals->time + 0.2;
+							pBot->f_shoot_time = gpGlobals->time + 0.2f;
 #ifdef _DEBUG
 							// testing - weapon with scope
 							if (in_bot_dev_level2)
@@ -2921,7 +2921,7 @@ int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 						else if (pEdict->v.fov == NO_ZOOM)
 						{
 							pEdict->v.button |= IN_ATTACK2;
-							pBot->f_shoot_time = gpGlobals->time + 0.4;
+							pBot->f_shoot_time = gpGlobals->time + 0.4f;
 #ifdef _DEBUG
 							// testing - weapon with scope
 							if (in_bot_dev_level2)
@@ -2992,7 +2992,7 @@ int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 						(RANDOM_LONG(1, 100) <= 75))
 					{
 						// set short sniping time for firing just one grenade
-						pBot->sniping_time = gpGlobals->time + 1.5;
+						pBot->sniping_time = gpGlobals->time + 1.5f;
 #ifdef _DEBUG
 						// testing - snipe time
 						if (in_bot_dev_level2)
@@ -3245,7 +3245,7 @@ int BotFireWeapon( const Vector v_enemy, bot_t *pBot )
 /*
 * use knife - checking max usable distance
 */
-int BotUseKnife( const Vector v_enemy, bot_t *pBot )
+int BotUseKnife( const Vector& v_enemy, bot_t *pBot )
 {
 	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
 	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
@@ -3345,7 +3345,7 @@ int BotUseKnife( const Vector v_enemy, bot_t *pBot )
 * use grenade - checking min(safe) and max distance, setting grenades_used flag
 * handles changes between varios FA versions
 */
-int BotThrowGrenade( const Vector v_enemy, bot_t *pBot )
+int BotThrowGrenade( const Vector& v_enemy, bot_t *pBot )
 {
 	bot_weapon_select_t* pSelect = &bot_weapon_select[0];
 	bot_fire_delay_t* pDelay = &bot_fire_delay[0];
@@ -3450,10 +3450,10 @@ int BotThrowGrenade( const Vector v_enemy, bot_t *pBot )
 				pBot->grenade_action = ALTW_TAKING;
 				
 				// assures enough time for the animation
-				pBot->f_shoot_time = gpGlobals->time + 1.0;
+				pBot->f_shoot_time = gpGlobals->time + 1.0f;
 
 				// we need grenade time even bigger else this method won't be called after the animation was finished
-				pBot->grenade_time = pBot->f_shoot_time + 0.5;
+				pBot->grenade_time = pBot->f_shoot_time + 0.5f;
 
 #ifdef _DEBUG
 					// testing
@@ -3511,7 +3511,7 @@ int BotThrowGrenade( const Vector v_enemy, bot_t *pBot )
 					{
 						// so this will assure the method to be called couple frames in row
 						// and the fire button will stay pressed
-						pBot->grenade_time = gpGlobals->time + 0.1;
+						pBot->grenade_time = gpGlobals->time + 0.1f;
 						return RETURN_NOTFIRED;
 					}
 
@@ -4192,7 +4192,7 @@ void BotShootAtEnemy( bot_t *pBot )
 		const float bipod_limit = 45.0;
 
 		// is bot trying to turn more than bipod allows so limit his yaw
-		if (fabs((double)pEdict->v.vuser1.y - pEdict->v.v_angle.y) > bipod_limit)
+		if (fabs(static_cast<double>(pEdict->v.vuser1.y) - pEdict->v.v_angle.y) > bipod_limit)
 		{
 			pEdict->v.v_angle.y = pEdict->v.vuser1.y;
 
@@ -4317,14 +4317,14 @@ void BotShootAtEnemy( bot_t *pBot )
 		{
 			// is enemy too far so break wpt_wait time
 			if (foe_distance > 1400 * rg_modif)
-				pBot->wpt_wait_time = gpGlobals->time - 0.1;
+				pBot->wpt_wait_time = gpGlobals->time - 0.1f;
 			// otherwise hold position
 			else
 				pBot->move_speed = SPEED_NO;
 		}
 		// otherwise break wpt_wait time
 		else
-			pBot->wpt_wait_time = gpGlobals->time - 0.1;
+			pBot->wpt_wait_time = gpGlobals->time - 0.1f;
 	}
 
 	else if ((pBot->crowded_wpt_index != -1) || UTIL_IsSmallRange(pBot->curr_wpt_index))
@@ -4443,12 +4443,12 @@ void BotShootAtEnemy( bot_t *pBot )
 				{
 					// give the engine some time to finish all things before calling the method again
 					if (g_mod_version == FA_28)
-						pBot->f_shoot_time = gpGlobals->time + 2.5;
+						pBot->f_shoot_time = gpGlobals->time + 2.5f;
 					else
-						pBot->f_shoot_time = gpGlobals->time + 1.5;
+						pBot->f_shoot_time = gpGlobals->time + 1.5f;
 
 					// to prevent switching back to firearms or knife
-					pBot->grenade_time = pBot->f_shoot_time + 1.0;
+					pBot->grenade_time = pBot->f_shoot_time + 1.0f;
 				}
 				// if the bot can't throw grenade due to unsafe distance OR
 				// already used all grenades
@@ -4504,9 +4504,9 @@ void BotShootAtEnemy( bot_t *pBot )
 			{
 				// set longer delay for grenades in FA28
 				if (g_mod_version == FA_28)
-					pBot->grenade_time = gpGlobals->time + 5.0;
+					pBot->grenade_time = gpGlobals->time + 5.0f;
 				else
-					pBot->grenade_time = gpGlobals->time + 3.0;
+					pBot->grenade_time = gpGlobals->time + 3.0f;
 
 				// the bot must use some grenade now
 				pBot->UseWeapon(USE_GRENADE);
@@ -4521,9 +4521,9 @@ void BotShootAtEnemy( bot_t *pBot )
 			else if (chance <= 25)
 			{
 				if (g_mod_version == FA_28)
-					pBot->grenade_time = gpGlobals->time + 5.0;
+					pBot->grenade_time = gpGlobals->time + 5.0f;
 				else
-					pBot->grenade_time = gpGlobals->time + 3.0;
+					pBot->grenade_time = gpGlobals->time + 3.0f;
 
 				pBot->UseWeapon(USE_GRENADE);
 
@@ -4924,10 +4924,10 @@ void BotPlantClaymore(bot_t *pBot)
 		pBot->clay_action = ALTW_TAKING;
 
 		// set time to finish this process
-		pBot->f_use_clay_time = gpGlobals->time + 2.0;
+		pBot->f_use_clay_time = gpGlobals->time + 2.0f;
 
 		// update wait time
-		pBot->wpt_wait_time = pBot->f_use_clay_time + 1.0;
+		pBot->wpt_wait_time = pBot->f_use_clay_time + 1.0f;
 
 		if (botdebugger.IsDebugActions())
 			HudNotify("Switching weapons to the claymore mine\n", pBot);
@@ -5113,22 +5113,22 @@ float SetBipodHandlingTime(int weapon, bool folding)
 	// for most of the weapons there is no difference between deploying or folding the bipod
 	// so we can return just one value per weapon type...
 	if (weapon == fa_weapon_m249)
-		return (float) 2.7;
+		return static_cast<float>(2.7);
 
 	else if (weapon == fa_weapon_m60)
-		return (float) 2.2;
+		return static_cast<float>(2.2);
 
 	else if (weapon == fa_weapon_m82)
 	{
 		// only m82 has folding time a little faster
 		if (folding)
-			return (float) 2.2;
+			return static_cast<float>(2.2);
 		else
-			return (float) 2.8;
+			return static_cast<float>(2.8);
 	}
 
 	else if (weapon == fa_weapon_pkm)
-		return (float) 3.3;
+		return static_cast<float>(3.3);
 
 	else
 	{
@@ -5137,5 +5137,5 @@ float SetBipodHandlingTime(int weapon, bool folding)
 		UTIL_DebugInFile(dm);
 	}
 
-	return (float) 0.0;
+	return static_cast<float>(0.0);
 }

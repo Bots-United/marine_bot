@@ -41,7 +41,7 @@ static unsigned short FixedUnsigned16( float value, float scale )
 	if ( output > 0xFFFF )
 		output = 0xFFFF;
 
-	return (unsigned short)output;
+	return static_cast<unsigned short>(output);
 }
 
 
@@ -55,7 +55,7 @@ static short FixedSigned16( float value, float scale )
 	if ( output < -32768 )
 		output = -32768;
 
-	return (short)output;
+	return static_cast<short>(output);
 }
 
 /*
@@ -173,7 +173,7 @@ void DisplayMsg(edict_t *pEntity, const char *msg)
 	
 	// to prevent overloading HL engine, crashed if this message is used alot
 	// so just don't allow to print this message every frame
-	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
+	internals.SetHUDMessageTime(gpGlobals->time + 0.5f);
 
 	// we're using just one color for this message
 	const Vector color = Vector(0, 255, 20);
@@ -191,7 +191,7 @@ void CustDisplayMsg(edict_t *pEntity, const char *msg, int x_pos, float time)
 	if (internals.GetHUDMessageTime() > gpGlobals->time)
 		return;
 
-	internals.SetHUDMessageTime(gpGlobals->time + 0.5);
+	internals.SetHUDMessageTime(gpGlobals->time + 0.5f);
 	const Vector color = Vector(0, 255, 20);
 
 	FullCustHudMessage(pEntity, msg, 3, x_pos, 0, 0, color, color, 200, 0.03, 0.03, time);

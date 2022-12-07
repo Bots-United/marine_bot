@@ -2232,7 +2232,7 @@ float WaypointRepairCrossRange(int wpt_index)
 			if ((distance < MAX_WPT_DIST) && (distance > waypoints[wpt_index].range))
 			{
 				// so let's increase cross waypoint range to connect it to this path end waypoint
-				waypoints[wpt_index].range = truncf(distance + 1.0);
+				waypoints[wpt_index].range = truncf(distance + 1.0f);
 			}
 		}
 
@@ -2247,7 +2247,7 @@ float WaypointRepairCrossRange(int wpt_index)
 
 			if ((distance < MAX_WPT_DIST) && (distance > waypoints[wpt_index].range))
 			{
-				waypoints[wpt_index].range = truncf(distance + 1.0);
+				waypoints[wpt_index].range = truncf(distance + 1.0f);
 			}
 		}
 	}
@@ -9417,29 +9417,29 @@ bool WaypointReachable(Vector v_src, Vector v_dest, edict_t *pEntity)
          Vector v_check = v_src;
          Vector v_down = v_src;
 
-         v_down.z = v_down.z - 1000.0;  // straight down 1000 units
+         v_down.z = v_down.z - 1000.0f;  // straight down 1000 units
 
          UTIL_TraceLine(v_check, v_down, ignore_monsters, pEntity->v.pContainingEntity, &tr);
 
-         float last_height = tr.flFraction * 1000.0;  // height from ground
+         float last_height = tr.flFraction * 1000.0f;  // height from ground
 
          distance = (v_dest - v_check).Length();  // distance from goal
 
-         while (distance > 10.0)
+         while (distance > 10.0f)
          {
             // move 10 units closer to the goal...
-            v_check = v_check + (v_direction * 10.0);
+            v_check = v_check + (v_direction * 10.0f);
 
             v_down = v_check;
-            v_down.z = v_down.z - 1000.0;  // straight down 1000 units
+            v_down.z = v_down.z - 1000.0f;  // straight down 1000 units
 
             UTIL_TraceLine(v_check, v_down, ignore_monsters, pEntity->v.pContainingEntity, &tr);
 
-            const float curr_height = tr.flFraction * 1000.0;  // height from ground
+            const float curr_height = tr.flFraction * 1000.0f;  // height from ground
 
             // is the difference in the last height and the current height
             // higher that the jump height?
-            if ((last_height - curr_height) > (float)45.0)
+            if ((last_height - curr_height) > 45.0f)
             {
                // can't get there from here...
                return FALSE;

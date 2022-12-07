@@ -601,30 +601,30 @@ public:
 		changed_direction = 0;
 	}
 
-	void SetPauseTime(float time = (float) 0.0)
+	void SetPauseTime(float time = 0.0f)
 	{
 		f_pause_time = gpGlobals->time + time;
 	}
 
-	void ClearPauseTime(float time = (float) 0.0)
+	void ClearPauseTime(float time = 0.0f)
 	{
 		if (time == 0.0)
 			f_pause_time = time;
 		else
-			f_pause_time = gpGlobals->time - static_cast<float>(std::fabs(time));
+			f_pause_time = gpGlobals->time - std::fabs(time);
 	}
 
-	void SetWaitTime(float time = (float) 0.0)
+	void SetWaitTime(float time = 0.0f)
 	{
 		wpt_wait_time = gpGlobals->time + time;
 	}
 
-	void ClearWaitTime(float time = (float) 0.0)
+	void ClearWaitTime(float time = 0.0f)
 	{
-		if (time == 0.0)
+		if (time == 0.0f)
 			wpt_wait_time = time;
 		else
-			wpt_wait_time = gpGlobals->time - static_cast<float>(std::fabs(time));
+			wpt_wait_time = gpGlobals->time - std::fabs(time);
 	}
 
 	void UseWeapon(int weapon = USE_KNIFE)
@@ -632,18 +632,18 @@ public:
 		forced_usage = weapon;
 	}
 
-	bool NotSeenEnemyfor(float time = (float) 0.0) const
+	bool NotSeenEnemyfor(float time = 0.0f) const
 	// not seen enemy for (time) seconds
 	{
 		return ((f_bot_see_enemy_time > 0) && ((f_bot_see_enemy_time + time) < gpGlobals->time));
 	}
-	void SetDontCheckStuck(const char* loc = nullptr, float time = (float)1.0);
+	void SetDontCheckStuck(const char* loc = nullptr, float time = 1.0f);
 	// true when the bot is going to/resume from prone
 	bool IsGoingProne() const
 	{
 		// time from calling the command to a moment when FA allows firing from the gun (based on test in FA 3.0)
 		// battlefield agility doesn't have any effect on this time (despite the fact that they say so)
-		return (f_go_prone_time + 1.2 > gpGlobals->time);
+		return (f_go_prone_time + 1.2f > gpGlobals->time);
 	}
 
 	void SetWeaponStatus(int status)

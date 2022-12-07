@@ -230,7 +230,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 	else if ((FStrEq(pcmd, "recruit")) || (FStrEq(pcmd, "addbot")) || (FStrEq(pcmd, "addmarine")))
 	{
 		BotCreate(pEntity, arg1, arg2, arg3, arg4, arg5);
-		botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+		botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 
 		return true;
 	}
@@ -255,7 +255,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 		else
 		{
 			botmanager.SetListeServerFilling(true);
-			botmanager.SetBotCheckTime(gpGlobals->time + 0.5);
+			botmanager.SetBotCheckTime(gpGlobals->time + 0.5f);
 
 			// check if there is specified bot ammount to add (i.e. "arg filling")
 			if ((arg1 != nullptr) && (*arg1 != 0))
@@ -1414,7 +1414,7 @@ bool CustomClientCommands(edict_t* pEntity, const char* pcmd, const char* arg1, 
 			else if (result > 1000.0)
 			{
 				PlaySoundConfirmation(pEntity, SND_DONE);
-				result -= (float)1000.0;
+				result -= 1000.0f;
 				sprintf(msg, "both times set to %.1f\n", result);
 			}
 			else if (result == -100.0)
@@ -6402,17 +6402,17 @@ void MBMenuSystem(edict_t* pEntity, const char* arg1)
 		if (FStrEq(arg1, "1"))
 		{
 			BotCreate(pEntity, "1", nullptr, nullptr, nullptr, nullptr);
-			botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+			botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 		}
 		else if (FStrEq(arg1, "2"))
 		{
 			BotCreate(pEntity, "2", nullptr, nullptr, nullptr, nullptr);
-			botmanager.SetBotCheckTime(gpGlobals->time + 2.5);
+			botmanager.SetBotCheckTime(gpGlobals->time + 2.5f);
 		}
 		else if (FStrEq(arg1, "3"))
 		{
 			botmanager.SetListeServerFilling(true);
-			botmanager.SetBotCheckTime(gpGlobals->time + 0.5);
+			botmanager.SetBotCheckTime(gpGlobals->time + 0.5f);
 		}
 		else if (FStrEq(arg1, "4"))
 		{

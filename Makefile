@@ -25,7 +25,7 @@ BASEFLAGS = -Dstricmp=strcasecmp -Dstrcmpi=strcasecmp
 # use the following line
 #BASEFLAGS += -D_DEBUG
 
-CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -mmmx -msse -msse2 -mfpmath=387 -m32 \
+CPPFLAGS = ${BASEFLAGS} -mtune=generic -march=i686 -mmmx -msse -msse2 -mfpmath=387 -m32 -O1 \
 	-std=gnu++11 -Wno-write-strings -Wno-attributes \
 	-I. -I./Config -I./engine -I./common -I./pm_shared -I./dlls -I./public
 
@@ -40,7 +40,7 @@ LFLAGS = -fPIC -shared
 # "Game DLL version mismatch" or
 # "libstdc++.so.6: version `CXXABI_1.3.9' not found" then
 # use the following line to link the libstdc++ statically
-LFLAGS += -static-libstdc++
+#LFLAGS += -static-libstdc++
 
 marine_bot.so: ${OBJ}
 	${CPP} ${LFLAGS} -o $@ ${OBJ} -ldl -m32

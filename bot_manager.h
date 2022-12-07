@@ -72,19 +72,19 @@ public:
 	void ResetOverrideTeamsBalance() { override_teams_balance = false; }
 	void SetTimeOfTeamsBalanceCheck(float newVal) { time_of_teams_balance_check = newVal; }
 	float GetTimeOfTeamsBalanceCheck() const { return time_of_teams_balance_check; }
-	void ResetTimeOfTeamsBalanceCheck() { time_of_teams_balance_check = (float)0.0; }
+	void ResetTimeOfTeamsBalanceCheck() { time_of_teams_balance_check = 0.0f; }
 	void SetTeamsBalanceValue(int newVal) { teams_balance_value = newVal; }
 	int GetTeamsBalanceValue() const { return teams_balance_value; }
-	void ResetTeamsBalanceValue() { teams_balance_value = (int)0; }
+	void ResetTeamsBalanceValue() { teams_balance_value = 0; }
 	void SetListeServerFilling(bool newVal) { listenserver_filling = newVal; }
 	bool IsListenServerFilling() const { return listenserver_filling; }
 	void ResetListenServerFilling() { listenserver_filling = false; }
 	void SetBotCheckTime(float newVal) { bot_check_time = newVal; }
 	float GetBotCheckTime() const { return bot_check_time; }
-	void ResetBotCheckTime() { bot_check_time = (float)0.0; }
+	void ResetBotCheckTime() { bot_check_time = 0.0f; }
 	void SetBotsToBeAdded(int newVal) { bots_to_be_added = newVal; }
 	int GetBotsToBeAdded() const { return bots_to_be_added; }
-	void ResetBotsToBeAdded() { bots_to_be_added = (int)0; }
+	void ResetBotsToBeAdded() { bots_to_be_added = 0; }
 	void DecreaseBotsToBeAdded() { bots_to_be_added--; }
 
 private:
@@ -170,10 +170,10 @@ public:
 	void ResetSpawnSkill() { spawn_skill = 3; }
 	void SetReactionTime(float newVal) { reaction_time = newVal; }
 	float GetReactionTime() const { return reaction_time; }
-	void ResetReactionTime() { reaction_time = (float)0.2; }
+	void ResetReactionTime() { reaction_time = 0.2f; }
 	void SetBalanceTime(float newVal) { auto_balance_time = newVal; }
 	float GetBalanceTime() const { return auto_balance_time; }
-	void ResetBalanceTime() { auto_balance_time = (float)30.0; }
+	void ResetBalanceTime() { auto_balance_time = 30.0f; }
 	void SetMinBots(int newVal) { min_bots = newVal; }
 	int GetMinBots() const { return min_bots; }
 	void ResetMinBots() { min_bots = 2; }
@@ -185,10 +185,10 @@ public:
 	void ResetCustomClasses() { custom_classes = true; }
 	void SetInfoTime(float newVal) { info_time = newVal; }
 	float GetInfoTime() const { return info_time; }
-	void ResetInfoTime() { info_time = (float)150.0; }
+	void ResetInfoTime() { info_time = 150.0f; }
 	void SetPresentationTime(float newVal) { presentation_time = newVal; }
 	float GetPresentationTime() const { return presentation_time; }
-	void ResetPresentationTime() { presentation_time = (float)210.0; }
+	void ResetPresentationTime() { presentation_time = 210.0f; }
 	void SetDontSpeak(bool newVal) { dont_speak = newVal; }
 	bool GetDontSpeak() const { return dont_speak; }
 	void ResetDontSpeak() { dont_speak = false; }
@@ -238,22 +238,22 @@ public:
 	void SetIsEnemyDistanceLimit(bool newVal) { is_enemy_distance_limit = newVal; }
 	bool IsEnemyDistanceLimit() const { return is_enemy_distance_limit; }
 	void ResetIsEnemyDistanceLimit() { is_enemy_distance_limit = false; }
-	void SetEnemyDistanceLimit(float newVal) { enemy_distance_limit = (float)newVal; }
+	void SetEnemyDistanceLimit(float newVal) { enemy_distance_limit = newVal; }
 	float GetEnemyDistanceLimit() const { return enemy_distance_limit; }
 	void ResetEnemyDistanceLimit() { enemy_distance_limit = (float)7500; }
 
 	void SetHUDMessageTime(float newVal) { hud_messsage_time = newVal; }
 	float GetHUDMessageTime() const { return hud_messsage_time; }
-	void ResetHUDMessageTime() { hud_messsage_time = (float)0.0; }
+	void ResetHUDMessageTime() { hud_messsage_time = 0.0f; }
 	void SetTeamPlay(float newVal) { is_team_play = newVal; }
 	float GetTeamPlay() const { return is_team_play; }
-	void ResetTeamPlay() { is_team_play = (float)0.0; }
+	void ResetTeamPlay() { is_team_play = 0.0f; }
 	void SetTeamPlayChecked(bool newVal) { teamplay_checked = newVal; }
 	bool IsTeamPlayChecked() const { return teamplay_checked; }
 	void ResetTeamPlayChecked() { teamplay_checked = false; }
 	void SetFASkillSystem(float newVal) { fa_skill_system = newVal; }
 	float GetFASkillSystem() const { return fa_skill_system; }
-	void ResetFASkillSystem() { fa_skill_system = (float)1.0; }
+	void ResetFASkillSystem() { fa_skill_system = 1.0f; }
 	void SetSkillSystemChecked(bool newVal) { skillsystem_checked = newVal; }
 	bool IsSkillSystemChecked() const { return skillsystem_checked; }
 	void ResetSkillSystemChecked() { skillsystem_checked = false; }
@@ -266,8 +266,8 @@ public:
 	void ResetWaypointsAutoSave() { waypoints_autosave = false; }
 	void SetPathToContinue(int newVal) { path_to_continue = newVal; }
 	int GetPathToContinue() const { return path_to_continue; }
-	void ResetPathToContinue() { path_to_continue = (int)-1; }
-	bool IsPathToContinue() const { return (path_to_continue != (int)-1); }
+	void ResetPathToContinue() { path_to_continue = -1; }
+	bool IsPathToContinue() const { return (path_to_continue != -1); }
 
 private:
 	bool  is_enemy_distance_limit;	// do we limit the view distance?, useful on maps where the bot can see enemy through skybox - ps_island

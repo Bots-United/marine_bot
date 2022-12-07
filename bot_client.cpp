@@ -53,7 +53,7 @@ void BotClient_FA_VGUI(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		iValue1 = *(int *)p;	// store this away we need it
+		iValue1 = *static_cast<int*>(p);	// store this away we need it
 	}
 	// additionals two values, but we don't use/need them now
 	else if (state == 1)
@@ -132,48 +132,48 @@ void BotClient_FA_WeaponList(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		strcpy(bot_weapon.szClassname, (char *)p);
+		strcpy(bot_weapon.szClassname, static_cast<char*>(p));
 	}
 	else if (state == 1)
 	{
 		state++;
-		bot_weapon.iAmmo1 = *(int *)p;  // ammo index 1
+		bot_weapon.iAmmo1 = *static_cast<int*>(p);  // ammo index 1
 	}
 	else if (state == 2)
 	{
 		state++;
-		bot_weapon.iAmmo1Max = *(int *)p;  // max ammo1
+		bot_weapon.iAmmo1Max = *static_cast<int*>(p);  // max ammo1
 	}
 	else if (state == 3)
 	{
 		state++;
-		bot_weapon.iAmmo2 = *(int *)p;  // ammo index 2
+		bot_weapon.iAmmo2 = *static_cast<int*>(p);  // ammo index 2
 	}
 	else if (state == 4)
 	{
 		state++;
-		bot_weapon.iAmmo2Max = *(int *)p;  // max ammo2
+		bot_weapon.iAmmo2Max = *static_cast<int*>(p);  // max ammo2
 	}
 	else if (state == 5)
 	{
 		state++;
-		bot_weapon.iSlot = *(int *)p;  // slot for this weapon
+		bot_weapon.iSlot = *static_cast<int*>(p);  // slot for this weapon
 	}
 	else if (state == 6)
 	{
 		state++;
-		bot_weapon.iPosition = *(int *)p;  // position in slot
+		bot_weapon.iPosition = *static_cast<int*>(p);  // position in slot
 	}
 	else if (state == 7)
 	{
 		state++;
-		bot_weapon.iId = *(int *)p;  // weapon ID
+		bot_weapon.iId = *static_cast<int*>(p);  // weapon ID
 	}
 	else if (state == 8)
 	{
 		state = 0;
 
-		bot_weapon.iFlags = *(int *)p;  // flags for weapon (???)
+		bot_weapon.iFlags = *static_cast<int*>(p);  // flags for weapon (???)
 
 		// store away this weapon with it's ammo information
 		weapon_defs[bot_weapon.iId] = bot_weapon;
@@ -196,18 +196,18 @@ void BotClient_FA_CurrentWeapon(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		iState = *(int *)p;  // state of the current weapon
+		iState = *static_cast<int*>(p);  // state of the current weapon
 	}
 	else if (state == 1)
 	{
 		state++;
-		iId = *(int *)p;  // weapon ID of current weapon
+		iId = *static_cast<int*>(p);  // weapon ID of current weapon
 	}
 	else if (state == 2)
 	{
 		state++;
 
-		iClip = *(int *)p;  // ammo currently in the clip for this weapon
+		iClip = *static_cast<int*>(p);  // ammo currently in the clip for this weapon
 	}
 	// probably secondary fire handler
 	// if stealth mount supressor (0-normal, 1-silenced)
@@ -216,14 +216,14 @@ void BotClient_FA_CurrentWeapon(void *p, int bot_index)
 	{
 		state++;
 
-		iAttach = *(int *)p;
+		iAttach = *static_cast<int*>(p);
 	}
 	// fire mode handler code
 	else if (state == 4)
 	{
 		state = 0;
 
-		iFireMode = *(int *)p;	// 4-auto, 2-burst, 1-single, 0-on weapon where no choice
+		iFireMode = *static_cast<int*>(p);	// 4-auto, 2-burst, 1-single, 0-on weapon where no choice
 
 		if (iId <= 31)
 		{
@@ -262,13 +262,13 @@ void BotClient_FA_AmmoX(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		index = *(int *)p;  // ammo index (for type of ammo)
+		index = *static_cast<int*>(p);  // ammo index (for type of ammo)
 	}
 	else if (state == 1)
 	{
 		state = 0;
 
-		ammount = *(int *)p;  // the ammount of ammo currently available
+		ammount = *static_cast<int*>(p);  // the ammount of ammo currently available
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;  // store it away
 
@@ -297,13 +297,13 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		index = *(int *)p;
+		index = *static_cast<int*>(p);
 	}
 	else if (state == 1)
 	{
 		state = 0;
 
-		ammount = *(int *)p;
+		ammount = *static_cast<int*>(p);
 
 		bots[bot_index].curr_rgAmmo[index] = ammount;
 
@@ -323,7 +323,7 @@ void BotClient_FA_AmmoPickup(void *p, int bot_index)
 */
 void BotClient_FA_WeaponPickup(void *p, int bot_index)
 {
-	const int index = *(int*)p;
+	const int index = *static_cast<int*>(p);
 
 #ifdef DEBUG
 
@@ -428,7 +428,7 @@ void BotClient_FA_ItemPickup(void *p, int bot_index)
 */
 void BotClient_FA_Health(void *p, int bot_index)
 {
-	bots[bot_index].bot_health = *(int *)p;  // health ammount
+	bots[bot_index].bot_health = *static_cast<int*>(p);  // health ammount
 }
 
 /*
@@ -436,7 +436,7 @@ void BotClient_FA_Health(void *p, int bot_index)
 */
 void BotClient_FA_Bandages(void *p, int bot_index)
 {
-	bots[bot_index].bot_bandages = *(int *)p;  // bandages ammount
+	bots[bot_index].bot_bandages = *static_cast<int*>(p);  // bandages ammount
 }
 
 /*
@@ -457,7 +457,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state++;
 
-		strcpy(event_type, (char *)p);
+		strcpy(event_type, static_cast<char*>(p));
 	}
 	else if (state == 2)
 	{
@@ -467,7 +467,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state++;
 		
-		if (*(int *)p == 255)
+		if (*static_cast<int*>(p) == 255)
 		{
 			if (strcmp(event_type, "parachute") == 0)
 			{
@@ -498,7 +498,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 				;	// concussion grenade stun
 			}
 		}
-		else if (*(int *)p == 0)
+		else if (*static_cast<int*>(p) == 0)
 		{
 			// parachute was thrown off so reset variables to allow bot to use another parachute if needed
 			if (strcmp(event_type, "parachute") == 0)
@@ -537,7 +537,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 	{
 		state = 0;
 
-		if (*(int *)p == 128)
+		if (*static_cast<int*>(p) == 128)
 		{
 			if (strcmp(event_type, "gotitem") == 0)
 			{
@@ -550,7 +550,7 @@ void BotClient_FA_StatusIcon(void *p, int bot_index)
 #endif
 			}
 		}
-		else if (*(int *)p == 0)
+		else if (*static_cast<int*>(p) == 0)
 		{
 			if (strcmp(event_type, "gotitem") == 0)
 			{
@@ -591,7 +591,7 @@ void BotClient_FA_BrokenLeg(void *p, int bot_index)
 	{
 		state++;
 
-		if (*(int *)p == 0)
+		if (*static_cast<int*>(p) == 0)
 		{
 			botmanager.SetOverrideTeamsBalance(true);
 		}
@@ -600,7 +600,7 @@ void BotClient_FA_BrokenLeg(void *p, int bot_index)
 	{
 		state++;
 
-		if (*(int *)p == 0)
+		if (*static_cast<int*>(p) == 0)
 		{
 			botmanager.SetOverrideTeamsBalance(true);
 		}
@@ -609,15 +609,15 @@ void BotClient_FA_BrokenLeg(void *p, int bot_index)
 	{
 		state = 0;
 
-		if (*(int *)p <= 4)
+		if (*static_cast<int*>(p) <= 4)
 		{
 			bots[bot_index].RemoveTask(TASK_SPRINT);	// no sprint is allowed
 		}
-		else if (*(int *)p <= 15)
+		else if (*static_cast<int*>(p) <= 15)
 		{
 			bots[bot_index].SetTask(TASK_NOJUMP);		// no jump is allowed
 		}
-		else if (*(int *)p >= 35)
+		else if (*static_cast<int*>(p) >= 35)
 		{
 			bots[bot_index].RemoveTask(TASK_NOJUMP);	// the bot can jump again
 		}
@@ -629,7 +629,7 @@ void BotClient_FA_BrokenLeg(void *p, int bot_index)
 */
 void BotClient_FA_Battery(void *p, int bot_index)
 {
-	bots[bot_index].bot_armor = *(int *)p;  // armor ammount
+	bots[bot_index].bot_armor = *static_cast<int*>(p);  // armor ammount
 }
 
 /*
@@ -646,27 +646,27 @@ void BotClient_FA_Damage(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		damage_armor = *(int *)p;
+		damage_armor = *static_cast<int*>(p);
 	}
 	else if (state == 1)
 	{
 		state++;
-		damage_taken = *(int *)p;
+		damage_taken = *static_cast<int*>(p);
 	}
 	else if (state == 2)
 	{
 		state++;
-		damage_bits = *(int *)p;
+		damage_bits = *static_cast<int*>(p);
 	}
 	else if (state == 3)
 	{
 		state++;
-		damage_origin.x = *(float *)p;
+		damage_origin.x = *static_cast<float*>(p);
 	}
 	else if (state == 4)
 	{
 		state++;
-		damage_origin.y = *(float *)p;
+		damage_origin.y = *static_cast<float*>(p);
 	}
 	else if (state == 5)
 	{
@@ -676,7 +676,7 @@ void BotClient_FA_Damage(void *p, int bot_index)
 		if (botdebugger.IsIgnoreAll())
 			return;
 
-		damage_origin.z = *(float *)p;
+		damage_origin.z = *static_cast<float*>(p);
 
 		if ((damage_armor > 0) || (damage_taken > 0))
 		{
@@ -901,7 +901,7 @@ void BotClient_FA_TextMsg(void *p, int bot_index)
 		char the_text[256];
 
 		// get the message and its length engine sends
-		strcpy(the_text, (char *)p);
+		strcpy(the_text, static_cast<char*>(p));
 		int pos = strlen(the_text);
 
 		// remove '\n' sign from its end
@@ -1210,7 +1210,7 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 	else if (state == 1)
 	{
 		// get the message the engine sends
-		strcpy(the_text, (char *)p);
+		strcpy(the_text, static_cast<char*>(p));
 
 		if (strstr(the_text, "Force occupies") != nullptr)
 		{
@@ -1240,7 +1240,7 @@ void BotClient_FA_TextMsg_ForAll(void *p, int bot_index)
 	{
 		state = 0;
 
-		strcpy(the_item, (char *)p);
+		strcpy(the_item, static_cast<char*>(p));
 
 		char temp_text[sizeof(the_text)];
 
@@ -1314,7 +1314,7 @@ void BotClient_FA_HUDMsg(void *p, int bot_index)
 			
 			char the_text[256];
 			// get the message the engine sends
-			strcpy(the_text, (char *)p);
+			strcpy(the_text, static_cast<char*>(p));
 			
 			// check if the message matches any user-defined trigger event
 			if (WaypointMatchingTriggerMessage(the_text))
@@ -1335,15 +1335,15 @@ void BotClient_FA_HUDMsg(void *p, int bot_index)
 */
 void BotClient_FA_FOV(void *p, int bot_index)
 {
-	if (*(int *)p == NO_ZOOM)
+	if (*static_cast<int*>(p) == NO_ZOOM)
 	{
 		bots[bot_index].secondary_active = FALSE;
 	}
-	else if (*(int *)p == ZOOM_05X)
+	else if (*static_cast<int*>(p) == ZOOM_05X)
 	{
 		;		// do nothing for now -- no code for those weapons (anaconda, g36e, m14)
 	}
-	else if (*(int *)p == ZOOM_1X)
+	else if (*static_cast<int*>(p) == ZOOM_1X)
 	{
 		// m82 has better zoom so don't set the flag now for it
 		if (bots[bot_index].current_weapon.iId != fa_weapon_m82)
@@ -1351,7 +1351,7 @@ void BotClient_FA_FOV(void *p, int bot_index)
 			bots[bot_index].secondary_active = TRUE;
 		}
 	}
-	else if (*(int *)p == ZOOM_2X)
+	else if (*static_cast<int*>(p) == ZOOM_2X)
 	{
 		bots[bot_index].secondary_active = TRUE;
 	}
@@ -1363,15 +1363,15 @@ void BotClient_FA_FOV(void *p, int bot_index)
 */
 void BotClient_FA_Stamina(void *p, int bot_index)
 {
-	if (*(int *)p <= 4)
+	if (*static_cast<int*>(p) <= 4)
 	{
 		bots[bot_index].RemoveTask(TASK_SPRINT);	// no sprint is allowed
 	}
-	else if (*(int *)p <= 15)
+	else if (*static_cast<int*>(p) <= 15)
 	{
 		bots[bot_index].SetTask(TASK_NOJUMP);		// no jump is allowed
 	}
-	else if (*(int *)p >= 35)
+	else if (*static_cast<int*>(p) >= 35)
 	{
 		bots[bot_index].RemoveTask(TASK_NOJUMP);	// the bot can jump again
 	}
@@ -1426,7 +1426,7 @@ void BotClient_FA_Reins(void *p, int bot_index)
 	{
 		state++;
 		
-		if (*(int *)p == 0)
+		if (*static_cast<int*>(p) == 0)
 		{
 			botmanager.SetOverrideTeamsBalance(true);
 		}
@@ -1435,7 +1435,7 @@ void BotClient_FA_Reins(void *p, int bot_index)
 	{
 		state = 0;
 
-		if (*(int *)p == 0)
+		if (*static_cast<int*>(p) == 0)
 		{
 			botmanager.SetOverrideTeamsBalance(true);
 		}
@@ -1446,7 +1446,7 @@ void BotClient_FA_Reins(void *p, int bot_index)
 //		Next thing is that you need to add it also to BotClient_FA_BrokenLeg() due to
 //		differences in FA versions
 
-	if(*(int *)p<=0)
+	if(*static_cast<int*>(p)<=0)
 	{
 		//reinforcements is ended. 
 		const int team_gamers = UTIL_CountPlayers(TEAM_BLUE - state);
@@ -1475,16 +1475,16 @@ void BotClient_FA_Concuss(void *p, int bot_index)
 {
 	static int duration;
 
-	duration = *(int *)p;
+	duration = *static_cast<int*>(p);
 
 	if (duration > 0)
 	{
-		bots[bot_index].blinded_time = gpGlobals->time + duration - 2.0;
+		bots[bot_index].blinded_time = gpGlobals->time + duration - 2.0f;
 	}
 	// the concussion grenade stun is over
 	else
 	{
-		bots[bot_index].blinded_time = 0.0;
+		bots[bot_index].blinded_time = 0.0f;
 	}
 }
 
@@ -1498,24 +1498,24 @@ void BotClient_FA_ScreenFade(void *p, int bot_index)
 	if (state == 0)
 	{
 		state++;
-		duration = *(int *)p;
+		duration = *static_cast<int*>(p);
 	}
 	else if (state == 1)
 	{
 		state++;
-		hold_time = *(int *)p;
+		hold_time = *static_cast<int*>(p);
 	}
 	else if (state == 2)
 	{
 		state++;
-		fade_flags = *(int *)p;
+		fade_flags = *static_cast<int*>(p);
 	}
 	else if (state == 6)
 	{
 		state = 0;
 
 		const int length = (duration + hold_time) / 4096;
-		bots[bot_index].blinded_time = gpGlobals->time + length - 2.0;
+		bots[bot_index].blinded_time = gpGlobals->time + length - 2.0f;
 	}
 	else
 	{
